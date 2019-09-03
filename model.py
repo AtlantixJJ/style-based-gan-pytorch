@@ -77,7 +77,8 @@ class FusedUpsample(nn.Module):
             + weight[:, :, :-1, :-1]
         ) / 4
 
-        out = F.conv_transpose2d(input, weight, self.bias, stride=2, padding=self.pad)
+        out = F.conv_transpose2d(
+            input, weight, self.bias, stride=2, padding=self.pad)
 
         return out
 
@@ -154,7 +155,8 @@ class BlurFunction(Function):
     def backward(ctx, grad_output):
         kernel, kernel_flip = ctx.saved_tensors
 
-        grad_input = BlurFunctionBackward.apply(grad_output, kernel, kernel_flip)
+        grad_input = BlurFunctionBackward.apply(
+            grad_output, kernel, kernel_flip)
 
         return grad_input, None, None
 
@@ -166,13 +168,15 @@ class Blur(nn.Module):
     def __init__(self, channel):
         super().__init__()
 
-        weight = torch.tensor([[1, 2, 1], [2, 4, 2], [1, 2, 1]], dtype=torch.float32)
+        weight = torch.tensor(
+            [[1, 2, 1], [2, 4, 2], [1, 2, 1]], dtype=torch.float32)
         weight = weight.view(1, 1, 3, 3)
         weight = weight / weight.sum()
         weight_flip = torch.flip(weight, [2, 3])
 
         self.register_buffer('weight', weight.repeat(channel, 1, 1, 1))
-        self.register_buffer('weight_flip', weight_flip.repeat(channel, 1, 1, 1))
+        self.register_buffer(
+            'weight_flip', weight_flip.repeat(channel, 1, 1, 1))
 
     def forward(self, input):
         return blur(input, self.weight, self.weight_flip)
@@ -239,14 +243,16 @@ class ConvBlock(nn.Module):
             if fused:
                 self.conv2 = nn.Sequential(
                     Blur(out_channel),
-                    FusedDownsample(out_channel, out_channel, kernel2, padding=pad2),
+                    FusedDownsample(out_channel, out_channel,
+                                    kernel2, padding=pad2),
                     nn.LeakyReLU(0.2),
                 )
 
             else:
                 self.conv2 = nn.Sequential(
                     Blur(out_channel),
-                    EqualConv2d(out_channel, out_channel, kernel2, padding=pad2),
+                    EqualConv2d(out_channel, out_channel,
+                                kernel2, padding=pad2),
                     nn.AvgPool2d(2),
                     nn.LeakyReLU(0.2),
                 )
@@ -307,6 +313,18 @@ class ConstantInput(nn.Module):
         return out
 
 
+def get_attention(x):
+    # scale
+    # x /= sqrt(x.shape[1])
+    #n, c, h, w = x.shape
+    #assert c == 1
+    #x = x.view(n, c * h * w)
+    #x = torch.softmax(x, 1)
+    #return x.view(n, c, h, w)
+    x = torch.nn.functional.sigmoid(x)
+    #x = torch.nn.functional.relu(x)
+    return x
+
 class StyledConvBlock(nn.Module):
     def __init__(
         self,
@@ -318,8 +336,11 @@ class StyledConvBlock(nn.Module):
         initial=False,
         upsample=False,
         fused=False,
+        att=0,
+        lerp=0
     ):
         super().__init__()
+        self.att = att
 
         if initial:
             self.conv1 = ConstantInput(in_channel)
@@ -352,40 +373,115 @@ class StyledConvBlock(nn.Module):
         self.adain1 = AdaptiveInstanceNorm(out_channel, style_dim)
         self.lrelu1 = nn.LeakyReLU(0.2)
 
-        self.conv2 = EqualConv2d(out_channel, out_channel, kernel_size, padding=padding)
+        self.conv2 = EqualConv2d(
+            out_channel, out_channel, kernel_size, padding=padding)
         self.noise2 = equal_lr(NoiseInjection(out_channel))
         self.adain2 = AdaptiveInstanceNorm(out_channel, style_dim)
         self.lrelu2 = nn.LeakyReLU(0.2)
+
+        if self.att > 0:
+            N = self.att
+            self.lerp = lerp
+            #self.atthead1 = nn.Parameter(torch.randn(N, 1, out_channel, 1, 1))
+            #self.atthead2 = nn.Parameter(torch.randn(N, 1, out_channel, 1, 1))
+            self.atthead1 = nn.ModuleList(
+                [nn.Linear(style_dim, out_channel) for i in range(N)])
+            self.atthead2 = nn.ModuleList(
+                [nn.Linear(style_dim, out_channel) for i in range(N)])
+            self.attadain1 = nn.ModuleList(
+                [AdaptiveInstanceNorm(out_channel, style_dim) for i in range(N)])
+            self.attadain2 = nn.ModuleList(
+                [AdaptiveInstanceNorm(out_channel, style_dim) for i in range(N)])
 
     def forward(self, input, style, noise):
         out = self.conv1(input)
         out = self.noise1(out, noise)
         out = self.lrelu1(out)
-        out = self.adain1(out, style)
+
+        if self.att > 0:
+            heads = [atthead(style).unsqueeze(2).unsqueeze(3)
+                     for atthead in self.atthead1]
+            self.mask1 = [get_attention(
+                (out * head).sum(1, keepdim=True)) for head in heads]
+            adain = self.adain1(out, style)
+            new_out = sum([m * a(out, style) for m,a in zip(self.mask1, self.attadain1)])
+            sum_mask = sum(self.mask1)
+            rest_mask = (sum_mask < 1).float()
+            new_out += sum_mask * rest_mask * out
+            out = self.lerp * new_out + (1 - self.lerp) * adain
+        else:
+            out = self.adain1(out, style)
 
         out = self.conv2(out)
         out = self.noise2(out, noise)
         out = self.lrelu2(out)
-        out = self.adain2(out, style)
+        if self.att > 0:
+            heads = [atthead(style).unsqueeze(2).unsqueeze(3)
+                     for atthead in self.atthead2]
+            self.mask2 = [get_attention(
+                (out * head).sum(1, keepdim=True)) for head in heads]
+            adain = self.adain2(out, style)
+            new_out = sum([m * a(out, style) for m,a in zip(self.mask2, self.attadain2)])
+            sum_mask = sum(self.mask2)
+            rest_mask = (sum_mask < 1).float()
+            new_out += sum_mask * rest_mask * out
+            out = self.lerp * new_out + (1 - self.lerp) * adain
+        else:
+            out = self.adain2(out, style)
+
+        return out
+
+    def dbg_mask(self, input, style, noise, ctrl_args):
+        ind, mask = ctrl_args
+        out = self.conv1(input)
+        out = self.noise1(out, noise)
+        out = self.lrelu1(out)
+        if ind % 2 == 0:
+            mask = torch.nn.functional.interpolate(mask, size=out.shape[2])
+            out = (1 - mask) * self.adain1(out, style) + (mask) * out
+            print("=> layer %d first adain, mask %d, out %d" %
+                  (ind // 2, mask.shape[2], out.shape[2]))
+        else:
+            out = self.adain1(out, style)
+
+        out = self.conv2(out)
+        out = self.noise2(out, noise)
+        out = self.lrelu2(out)
+        if ind % 2 == 1:
+            mask = torch.nn.functional.interpolate(mask, size=out.shape[2])
+            out = (1 - mask) * self.adain2(out, style) + (mask) * out
+            print("=> layer %d second adain, mask %d, out %d" %
+                  (ind // 2, mask.shape[2], out.shape[2]))
+        else:
+            out = self.adain2(out, style)
 
         return out
 
 
 class Generator(nn.Module):
-    def __init__(self, code_dim, fused=True):
+    def __init__(self, code_dim, fused=True, att=0):
         super().__init__()
 
         self.progression = nn.ModuleList(
             [
-                StyledConvBlock(512, 512, 3, 1, initial=True),  # 4
-                StyledConvBlock(512, 512, 3, 1, upsample=True),  # 8
-                StyledConvBlock(512, 512, 3, 1, upsample=True),  # 16
-                StyledConvBlock(512, 512, 3, 1, upsample=True),  # 32
-                StyledConvBlock(512, 256, 3, 1, upsample=True),  # 64
-                StyledConvBlock(256, 128, 3, 1, upsample=True, fused=fused),  # 128
-                StyledConvBlock(128, 64, 3, 1, upsample=True, fused=fused),  # 256
-                StyledConvBlock(64, 32, 3, 1, upsample=True, fused=fused),  # 512
-                StyledConvBlock(32, 16, 3, 1, upsample=True, fused=fused),  # 1024
+                StyledConvBlock(512, 512, 3, 1, initial=True,
+                                att=False),  # 4
+                StyledConvBlock(512, 512, 3, 1, upsample=True,
+                                att=False),  # 8
+                StyledConvBlock(512, 512, 3, 1, upsample=True,
+                                att=False),  # 16
+                StyledConvBlock(512, 512, 3, 1, upsample=True,
+                                att=att),  # 32
+                StyledConvBlock(512, 256, 3, 1, upsample=True,
+                                att=att),  # 64
+                StyledConvBlock(256, 128, 3, 1, upsample=True,
+                                fused=fused, att=att),  # 128
+                StyledConvBlock(128, 64, 3, 1, upsample=True,
+                                fused=fused, att=att),  # 256
+                StyledConvBlock(64, 32, 3, 1, upsample=True,
+                                fused=fused, att=False),  # 512
+                StyledConvBlock(32, 16, 3, 1, upsample=True,
+                                fused=fused, att=False),  # 1024
             ]
         )
 
@@ -426,15 +522,12 @@ class Generator(nn.Module):
             else:
                 if mixing_range[0] <= i <= mixing_range[1]:
                     style_step = style[1]
-
                 else:
                     style_step = style[0]
 
             if i > 0 and step > 0:
                 out_prev = out
-
                 out = conv(out, style_step, noise[i])
-
             else:
                 out = conv(out, style_step, noise[i])
 
@@ -443,19 +536,63 @@ class Generator(nn.Module):
 
                 if i > 0 and 0 <= alpha < 1:
                     skip_rgb = self.to_rgb[i - 1](out_prev)
-                    skip_rgb = F.interpolate(skip_rgb, scale_factor=2, mode='nearest')
+                    skip_rgb = F.interpolate(
+                        skip_rgb, scale_factor=2, mode='nearest')
                     out = (1 - alpha) * skip_rgb + alpha * out
 
                 break
 
         return out
 
+    def dbg(self, style, noise, step=0, alpha=-1, mixing_range=(-1, -1), ctrl_args=None):
+        out = noise[0]
+
+        if len(style) < 2:
+            inject_index = [len(self.progression) + 1]
+
+        else:
+            inject_index = random.sample(list(range(step)), len(style) - 1)
+
+        crossover = 0
+
+        for i, (conv, to_rgb) in enumerate(zip(self.progression, self.to_rgb)):
+            if mixing_range == (-1, -1):
+                if crossover < len(inject_index) and i > inject_index[crossover]:
+                    crossover = min(crossover + 1, len(style))
+                style_step = style[crossover]
+
+            else:
+                if mixing_range[0] <= i <= mixing_range[1]:
+                    style_step = style[1]
+                else:
+                    style_step = style[0]
+
+            if i > 0 and step > 0:
+                out_prev = out
+                if ctrl_args is not None and ctrl_args[0] // 2 == i:
+                    out = conv.dbg(out, style_step, noise[i], ctrl_args)
+                else:
+                    out = conv(out, style_step, noise[i])
+            else:
+                out = conv(out, style_step, noise[i])
+
+            if i == step:
+                out = to_rgb(out)
+                if i > 0 and 0 <= alpha < 1:
+                    skip_rgb = self.to_rgb[i - 1](out_prev)
+                    skip_rgb = F.interpolate(
+                        skip_rgb, scale_factor=2, mode='nearest')
+                    out = (1 - alpha) * skip_rgb + alpha * out
+                break
+
+        return out
+
 
 class StyledGenerator(nn.Module):
-    def __init__(self, code_dim=512, n_mlp=8):
+    def __init__(self, code_dim=512, n_mlp=8, att=0):
         super().__init__()
 
-        self.generator = Generator(code_dim)
+        self.generator = Generator(code_dim, att=att)
 
         layers = [PixelNorm()]
         for i in range(n_mlp):
@@ -463,6 +600,17 @@ class StyledGenerator(nn.Module):
             layers.append(nn.LeakyReLU(0.2))
 
         self.style = nn.Sequential(*layers)
+
+    def load_state_dict(self, state_dict):
+        own_state = self.state_dict()
+        for name, param in state_dict.items():
+            if name not in own_state:
+                print("=> Skip %s" % name)
+                continue
+            if isinstance(param, nn.Parameter):
+                # backwards compatibility for serialized parameters
+                param = param.data
+            own_state[name].copy_(param)
 
     def forward(
         self,
@@ -472,7 +620,7 @@ class StyledGenerator(nn.Module):
         alpha=-1,
         mean_style=None,
         style_weight=0,
-        mixing_range=(-1, -1),
+        mixing_range=(-1, -1)
     ):
         styles = []
         if type(input) not in (list, tuple):
@@ -488,17 +636,58 @@ class StyledGenerator(nn.Module):
 
             for i in range(step + 1):
                 size = 4 * 2 ** i
-                noise.append(torch.randn(batch, 1, size, size, device=input[0].device))
+                noise.append(torch.randn(batch, 1, size,
+                                         size, device=input[0].device))
 
         if mean_style is not None:
             styles_norm = []
 
             for style in styles:
-                styles_norm.append(mean_style + style_weight * (style - mean_style))
+                styles_norm.append(
+                    mean_style + style_weight * (style - mean_style))
 
             styles = styles_norm
 
         return self.generator(styles, noise, step, alpha, mixing_range=mixing_range)
+
+    def dbg(
+        self,
+        input,
+        noise=None,
+        step=0,
+        alpha=-1,
+        mean_style=None,
+        style_weight=0,
+        mixing_range=(-1, -1),
+        ctrl_args=None
+    ):
+        styles = []
+        if type(input) not in (list, tuple):
+            input = [input]
+
+        for i in input:
+            styles.append(self.style(i))
+
+        batch = input[0].shape[0]
+
+        if noise is None:
+            noise = []
+
+            for i in range(step + 1):
+                size = 4 * 2 ** i
+                noise.append(torch.randn(batch, 1, size,
+                                         size, device=input[0].device))
+
+        if mean_style is not None:
+            styles_norm = []
+
+            for style in styles:
+                styles_norm.append(
+                    mean_style + style_weight * (style - mean_style))
+
+            styles = styles_norm
+
+        return self.generator.dbg(styles, noise, step, alpha, mixing_range=mixing_range, ctrl_args=ctrl_args)
 
     def mean_style(self, input):
         style = self.style(input).mean(0, keepdim=True)
@@ -559,15 +748,83 @@ class Discriminator(nn.Module):
 
             out = self.progression[index](out)
 
-            if i > 0:
-                if i == step and 0 <= alpha < 1:
-                    skip_rgb = F.avg_pool2d(input, 2)
-                    skip_rgb = self.from_rgb[index + 1](skip_rgb)
-
-                    out = (1 - alpha) * skip_rgb + alpha * out
+            if i > 0 and i == step and 0 <= alpha < 1:
+                skip_rgb = F.avg_pool2d(input, 2)
+                skip_rgb = self.from_rgb[index + 1](skip_rgb)
+                out = (1 - alpha) * skip_rgb + alpha * out
 
         out = out.squeeze(2).squeeze(2)
         # print(input.size(), out.size(), step)
         out = self.linear(out)
 
         return out
+
+
+class WrappedStyledGenerator(nn.Module):
+    """
+    Standard wrapper for mask based spatial debug purpose.
+    """
+
+    def __init__(self, resume="./stylegan-512px-running-180000.model", gpu=-1, seed=None):
+        super(WrappedStyledGenerator, self).__init__()
+        print("=> Wrapped Style GAN initializing")
+        self.code_dim = 512
+        self.n_mlp = 8
+        self.step = 7
+        self.alpha = 1
+        self.style_weight = 0.7
+        self.device = 'cuda' if gpu >= 0 else 'cpu'
+        self.resume = resume
+        self.seed = seed
+        if seed is not None:
+            torch.manual_seed(seed)
+        print("=> Constructing network architecture")
+        self.model = StyledGenerator(code_dim=self.code_dim, n_mlp=self.n_mlp)
+        self.model = self.model.to(self.device)
+        print("=> Loading parameter from %s" % self.resume)
+        self.model.load_state_dict(torch.load(self.resume))
+        self.model.eval()
+        print("=> Check running")
+        import os
+        if not os.path.exists("mean_style.data"):
+            self.mean_style = self.model.mean_style(
+                torch.randn(1024, 512).to(self.device))
+            torch.save(self.mean_style, "mean_style.data")
+        else:
+            self.mean_style = torch.load("mean_style.data")
+            self.latent = torch.randn(1, self.code_dim).to(self.device)
+            self.sample = self.model(self.latent,
+                                     step=self.step,
+                                     alpha=self.alpha,
+                                     mean_style=self.mean_style,
+                                     style_weight=self.style_weight)
+        print("=> Initialization done")
+
+    def forward(self, latent, ctrl_args=None):
+        """
+        Args:
+            latent: numpy array of (1, 512)
+            ctrl_args: [layer_ind, mask1, mask2]
+        Returns:
+            [n, h, w, ch] in numpy, [-1, 1] range
+        """
+        latent = torch.from_numpy(latent).float().to(self.device)
+        if ctrl_args is None:
+            self.sample = self.model(latent,
+                                     step=self.step,
+                                     alpha=self.alpha,
+                                     mean_style=self.mean_style,
+                                     style_weight=self.style_weight)
+        else:
+            mask = ctrl_args[1]
+            mask = torch.from_numpy(mask).float().to(self.device)
+            mask = mask.unsqueeze(0).unsqueeze(0)
+            mask = (mask - mask.min()) / (mask.max() - mask.min())
+            ctrl_args[1] = mask
+            self.sample = self.model.dbg(latent,
+                                         step=self.step,
+                                         alpha=self.alpha,
+                                         mean_style=self.mean_style,
+                                         style_weight=self.style_weight,
+                                         ctrl_args=ctrl_args)
+        return self.sample.detach().cpu().numpy().transpose(0, 2, 3, 1)

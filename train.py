@@ -32,7 +32,8 @@ def accumulate(model1, model2, decay=0.999):
 
 def sample_data(dataset, batch_size, image_size=4):
     dataset.resolution = image_size
-    loader = DataLoader(dataset, shuffle=True, batch_size=batch_size, num_workers=16)
+    loader = DataLoader(dataset, shuffle=True,
+                        batch_size=batch_size, num_workers=16)
 
     return loader
 
@@ -65,7 +66,7 @@ def train(args, dataset, generator, discriminator):
 
     alpha = 0
     used_sample = 0
-    
+
     max_step = int(math.log2(args.max_size)) - 2
     final_progress = False
 
@@ -91,7 +92,8 @@ def train(args, dataset, generator, discriminator):
             resolution = 4 * 2 ** step
 
             loader = sample_data(
-                dataset, args.batch.get(resolution, args.batch_default), resolution
+                dataset, args.batch.get(
+                    resolution, args.batch_default), resolution
             )
             data_loader = iter(loader)
 
@@ -258,10 +260,14 @@ if __name__ == '__main__':
         default=600_000,
         help='number of samples used for each training phases',
     )
-    parser.add_argument('--lr', default=0.001, type=float, help='learning rate')
-    parser.add_argument('--sched', action='store_true', help='use lr scheduling')
-    parser.add_argument('--init_size', default=8, type=int, help='initial image size')
-    parser.add_argument('--max_size', default=1024, type=int, help='max image size')
+    parser.add_argument('--lr', default=0.001,
+                        type=float, help='learning rate')
+    parser.add_argument('--sched', action='store_true',
+                        help='use lr scheduling')
+    parser.add_argument('--init_size', default=8, type=int,
+                        help='initial image size')
+    parser.add_argument('--max_size', default=1024,
+                        type=int, help='max image size')
     parser.add_argument(
         '--mixing', action='store_true', help='use mixing regularization'
     )
@@ -292,7 +298,8 @@ if __name__ == '__main__':
             'mult': 0.01,
         }
     )
-    d_optimizer = optim.Adam(discriminator.parameters(), lr=args.lr, betas=(0.0, 0.99))
+    d_optimizer = optim.Adam(discriminator.parameters(),
+                             lr=args.lr, betas=(0.0, 0.99))
 
     accumulate(g_running, generator.module, 0)
 
@@ -308,7 +315,8 @@ if __name__ == '__main__':
 
     if args.sched:
         args.lr = {128: 0.0015, 256: 0.002, 512: 0.003, 1024: 0.003}
-        args.batch = {4: 512, 8: 256, 16: 128, 32: 64, 64: 32, 128: 32, 256: 32}
+        args.batch = {4: 512, 8: 256, 16: 128,
+                      32: 64, 64: 32, 128: 32, 256: 32}
 
     else:
         args.lr = {}
