@@ -16,6 +16,39 @@ import torchvision.utils as vutils
 from torch.autograd import Variable
 
 
+def normalize_image(img):
+    img[img<-1]=-1
+    img[img>1]=1
+    return (img+1)/2
+
+def set_lerp_val(progression, lerp_val):
+    for p in progression:
+        p.lerp = lerp_val
+
+
+def get_generator_lr(g, lr1, lr2, stage=0):
+    dic = []
+    for blk in g.progression:
+        if stage > 0:
+            dic.append({"params": blk.conv1.parameters(), "lr": lr1})
+            dic.append({"params": blk.conv2.parameters(), "lr": lr1})
+        if blk.att > 0:
+            dic.append({"params": blk.attention1.parameters(), "lr": lr2})
+            dic.append({"params": blk.attention2.parameters(), "lr": lr2})
+    if stage > 0:
+        dic.append({"params": g.to_rgb.parameters(), "lr": lr1})
+    return dic
+
+
+def get_mask(styledblocks):
+    masks = []
+    for blk in styledblocks:
+        if blk.att > 0:
+            masks.extend(blk.attention1.mask)
+            masks.extend(blk.attention2.mask)
+    return masks
+
+
 def set_seed(seed):
     random.seed(seed)
     #print('setting random-seed to {}'.format(seed))

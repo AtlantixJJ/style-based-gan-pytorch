@@ -313,17 +313,60 @@ class ConstantInput(nn.Module):
         return out
 
 
-def get_attention(x):
-    # scale
-    # x /= sqrt(x.shape[1])
-    #n, c, h, w = x.shape
-    #assert c == 1
-    #x = x.view(n, c * h * w)
-    #x = torch.softmax(x, 1)
-    #return x.view(n, c, h, w)
-    x = torch.nn.functional.sigmoid(x)
-    #x = torch.nn.functional.relu(x)
-    return x
+class AttentionModule(nn.Module):
+    def __init__(self, att, style_dim, out_channel, mtd="cos"):
+        super(AttentionModule, self).__init__()
+        self.att = att
+        self.mtd = mtd   
+        self.SIG_GAMMA = 10
+        self.SIG_BETA = 0.8
+
+        if mtd == "cos":
+            self.linears = nn.ModuleList([
+                nn.Linear(style_dim, out_channel) for i in range(att)])
+        elif mtd == "conv":
+            self.conv = nn.Conv2d(out_channel, att, 1, 1)
+        
+
+    def forward(self, feat, style):
+        self.mask = []
+
+        if self.mtd == "cos":
+            self.keys = [linear(style).unsqueeze(2).unsqueeze(3)
+                    for linear in self.linears]
+            nfeat = feat / torch.sqrt((feat ** 2).sum(1, keepdim=True))
+            for i in range(self.att):
+                key = self.keys[i] / torch.sqrt((self.keys[i] ** 2).sum(1, keepdim=True))
+                ip = (nfeat * key).sum(1, keepdim=True)
+                #ip = torch.nn.functional.relu(ip)
+                ip = torch.nn.functional.sigmoid(self.SIG_GAMMA * (ip - self.SIG_BETA))
+                self.mask.append(ip)
+        elif self.mtd == "conv":
+            mask = torch.unbind(F.sigmoid(self.conv(feat)), dim=1)
+            self.mask = [m.unsqueeze(1) for m in mask]
+        return self.mask
+
+
+class AttentionAdainModule(nn.Module):
+    def __init__(self, att, style_dim, out_channel, adain=None, mtd="uni-cos"):
+        super(AttentionAdainModule, self).__init__()
+        self.mtdargs = mtd.split("-")
+        self.atthead = AttentionModule(att, style_dim, out_channel, self.mtdargs[1])
+
+        if self.mtdargs[0] == "uni":
+            self.attadain = adain
+        elif self.mtdargs[0] == "sep":
+            self.attadain = nn.ModuleList(
+                [AdaptiveInstanceNorm(out_channel, style_dim) for i in range(att)])
+    
+    def forward(self, input, style):
+        self.mask = self.atthead(input, style)
+        if self.mtdargs[0] == "uni":
+            out = sum(self.mask) * input
+        elif self.mtdargs[0] == "sep":
+            out = sum([m * a(input, style) for m,a in zip(self.mask, self.attadain)])
+        return out
+
 
 class StyledConvBlock(nn.Module):
     def __init__(
@@ -337,6 +380,7 @@ class StyledConvBlock(nn.Module):
         upsample=False,
         fused=False,
         att=0,
+        att_mtd="uni-cos",
         lerp=0
     ):
         super().__init__()
@@ -382,16 +426,8 @@ class StyledConvBlock(nn.Module):
         if self.att > 0:
             N = self.att
             self.lerp = lerp
-            #self.atthead1 = nn.Parameter(torch.randn(N, 1, out_channel, 1, 1))
-            #self.atthead2 = nn.Parameter(torch.randn(N, 1, out_channel, 1, 1))
-            self.atthead1 = nn.ModuleList(
-                [nn.Linear(style_dim, out_channel) for i in range(N)])
-            self.atthead2 = nn.ModuleList(
-                [nn.Linear(style_dim, out_channel) for i in range(N)])
-            self.attadain1 = nn.ModuleList(
-                [AdaptiveInstanceNorm(out_channel, style_dim) for i in range(N)])
-            self.attadain2 = nn.ModuleList(
-                [AdaptiveInstanceNorm(out_channel, style_dim) for i in range(N)])
+            self.attention1 = AttentionAdainModule(att, style_dim, out_channel, self.adain1, att_mtd)
+            self.attention2 = AttentionAdainModule(att, style_dim, out_channel, self.adain2, att_mtd)
 
     def forward(self, input, style, noise):
         out = self.conv1(input)
@@ -399,16 +435,9 @@ class StyledConvBlock(nn.Module):
         out = self.lrelu1(out)
 
         if self.att > 0:
-            heads = [atthead(style).unsqueeze(2).unsqueeze(3)
-                     for atthead in self.atthead1]
-            self.mask1 = [get_attention(
-                (out * head).sum(1, keepdim=True)) for head in heads]
-            adain = self.adain1(out, style)
-            new_out = sum([m * a(out, style) for m,a in zip(self.mask1, self.attadain1)])
-            sum_mask = sum(self.mask1)
-            rest_mask = (sum_mask < 1).float()
-            new_out += sum_mask * rest_mask * out
-            out = self.lerp * new_out + (1 - self.lerp) * adain
+            new_out = self.attention1(out, style)
+            old_out = self.adain1(out, style)
+            out = self.lerp * new_out + (1 - self.lerp) * old_out
         else:
             out = self.adain1(out, style)
 
@@ -416,16 +445,9 @@ class StyledConvBlock(nn.Module):
         out = self.noise2(out, noise)
         out = self.lrelu2(out)
         if self.att > 0:
-            heads = [atthead(style).unsqueeze(2).unsqueeze(3)
-                     for atthead in self.atthead2]
-            self.mask2 = [get_attention(
-                (out * head).sum(1, keepdim=True)) for head in heads]
-            adain = self.adain2(out, style)
-            new_out = sum([m * a(out, style) for m,a in zip(self.mask2, self.attadain2)])
-            sum_mask = sum(self.mask2)
-            rest_mask = (sum_mask < 1).float()
-            new_out += sum_mask * rest_mask * out
-            out = self.lerp * new_out + (1 - self.lerp) * adain
+            new_out = self.attention2(out, style)
+            old_out = self.adain2(out, style)
+            out = self.lerp * new_out + (1 - self.lerp) * old_out
         else:
             out = self.adain2(out, style)
 
@@ -459,7 +481,7 @@ class StyledConvBlock(nn.Module):
 
 
 class Generator(nn.Module):
-    def __init__(self, code_dim, fused=True, att=0):
+    def __init__(self, code_dim, fused=True, **kwargs):
         super().__init__()
 
         self.progression = nn.ModuleList(
@@ -471,13 +493,13 @@ class Generator(nn.Module):
                 StyledConvBlock(512, 512, 3, 1, upsample=True,
                                 att=False),  # 16
                 StyledConvBlock(512, 512, 3, 1, upsample=True,
-                                att=att),  # 32
+                                **kwargs),  # 32
                 StyledConvBlock(512, 256, 3, 1, upsample=True,
-                                att=att),  # 64
+                                **kwargs),  # 64
                 StyledConvBlock(256, 128, 3, 1, upsample=True,
-                                fused=fused, att=att),  # 128
+                                fused=fused, **kwargs),  # 128
                 StyledConvBlock(128, 64, 3, 1, upsample=True,
-                                fused=fused, att=att),  # 256
+                                fused=fused, **kwargs),  # 256
                 StyledConvBlock(64, 32, 3, 1, upsample=True,
                                 fused=fused, att=False),  # 512
                 StyledConvBlock(32, 16, 3, 1, upsample=True,
@@ -544,8 +566,9 @@ class Generator(nn.Module):
 
         return out
 
-    def dbg(self, style, noise, step=0, alpha=-1, mixing_range=(-1, -1), ctrl_args=None):
+    def dbg(self, style, noise, step=0, alpha=-1, mixing_range=(-1, -1)):
         out = noise[0]
+        feats = []
 
         if len(style) < 2:
             inject_index = [len(self.progression) + 1]
@@ -569,12 +592,10 @@ class Generator(nn.Module):
 
             if i > 0 and step > 0:
                 out_prev = out
-                if ctrl_args is not None and ctrl_args[0] // 2 == i:
-                    out = conv.dbg(out, style_step, noise[i], ctrl_args)
-                else:
-                    out = conv(out, style_step, noise[i])
+                out = conv(out, style_step, noise[i])
             else:
                 out = conv(out, style_step, noise[i])
+            feats.append(out)
 
             if i == step:
                 out = to_rgb(out)
@@ -585,14 +606,14 @@ class Generator(nn.Module):
                     out = (1 - alpha) * skip_rgb + alpha * out
                 break
 
-        return out
+        return out, feats
 
 
 class StyledGenerator(nn.Module):
-    def __init__(self, code_dim=512, n_mlp=8, att=0):
+    def __init__(self, code_dim=512, n_mlp=8, **kwargs):
         super().__init__()
 
-        self.generator = Generator(code_dim, att=att)
+        self.generator = Generator(code_dim, **kwargs)
 
         layers = [PixelNorm()]
         for i in range(n_mlp):
@@ -622,12 +643,12 @@ class StyledGenerator(nn.Module):
         style_weight=0,
         mixing_range=(-1, -1)
     ):
-        styles = []
+        self.styles = []
         if type(input) not in (list, tuple):
             input = [input]
 
         for i in input:
-            styles.append(self.style(i))
+            self.styles.append(self.style(i))
 
         batch = input[0].shape[0]
 
@@ -642,13 +663,13 @@ class StyledGenerator(nn.Module):
         if mean_style is not None:
             styles_norm = []
 
-            for style in styles:
+            for style in self.styles:
                 styles_norm.append(
                     mean_style + style_weight * (style - mean_style))
 
-            styles = styles_norm
+            self.styles = styles_norm
 
-        return self.generator(styles, noise, step, alpha, mixing_range=mixing_range)
+        return self.generator(self.styles, noise, step, alpha, mixing_range=mixing_range)
 
     def dbg(
         self,
@@ -658,15 +679,14 @@ class StyledGenerator(nn.Module):
         alpha=-1,
         mean_style=None,
         style_weight=0,
-        mixing_range=(-1, -1),
-        ctrl_args=None
+        mixing_range=(-1, -1)
     ):
-        styles = []
+        self.styles = []
         if type(input) not in (list, tuple):
             input = [input]
 
         for i in input:
-            styles.append(self.style(i))
+            self.styles.append(self.style(i))
 
         batch = input[0].shape[0]
 
@@ -681,13 +701,13 @@ class StyledGenerator(nn.Module):
         if mean_style is not None:
             styles_norm = []
 
-            for style in styles:
+            for style in self.styles:
                 styles_norm.append(
                     mean_style + style_weight * (style - mean_style))
 
-            styles = styles_norm
+            self.styles = styles_norm
 
-        return self.generator.dbg(styles, noise, step, alpha, mixing_range=mixing_range, ctrl_args=ctrl_args)
+        return self.generator.dbg(self.styles, noise, step, alpha, mixing_range=mixing_range)
 
     def mean_style(self, input):
         style = self.style(input).mean(0, keepdim=True)
