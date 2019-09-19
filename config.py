@@ -12,6 +12,7 @@ import utils
 
 NUM_WORKER = 4
 
+
 def config_from_name(name):
     items = name.strip().split("_")
     dics = {}
@@ -19,7 +20,7 @@ def config_from_name(name):
         if "att" in items[i]:
             att = int(items[i][-1])
             att_mtd = items[i+1]
-            dics.update({"att":att,"att_mtd":att_mtd})
+            dics.update({"att": att, "att_mtd": att_mtd})
     return dics
 
 
@@ -38,7 +39,8 @@ class BaseConfig(object):
             "--expr", default="expr/", help="Experiment directory")
         # Network architecture options
         # Optimize options
-        self.parser.add_argument("--iter-num", default=10000, help="train total iteration")
+        self.parser.add_argument(
+            "--iter-num", default=10000, help="train total iteration")
         self.parser.add_argument("--lr", default=1e-3, help="default lr")
         self.parser.add_argument(
             "--load", default="checkpoint/stylegan-512px-running-180000.model", help="load weight from model")
@@ -109,14 +111,17 @@ class TSConfig(BaseConfig):
             "--att-mtd", type=str, default="cos", help="Attention implementation type.")
         # Loss options
         self.parser.add_argument("--ma", type=float, default=-1,
-                                 help="weight of mask area loss, set to positive to use. Should be used with att > 0.")
+                                 help="Mask area loss")
         self.parser.add_argument(
-            "--md", type=float, default=-1, help="mask divergence loss")
+            "--md", type=float, default=-1, help="Mask divergence loss")
+        self.parser.add_argument(
+            "--mv", type=float, default=-1, help="Mask value loss")
 
     def parse(self):
         super(TSConfig, self).parse()
         self.ma = self.args.ma
         self.md = self.args.md
+        self.mv = self.args.mv
         self.att = self.args.att
         self.att_mtd = self.args.att_mtd
         self.stage1_step = self.args.stage1_step
@@ -138,6 +143,9 @@ class TSConfig(BaseConfig):
         if self.md > 0:
             l += ["diverge%.2f" % self.md]
             self.record.update({'mask_div': []})
+        if self.mv > 0:
+            l += ["value%.2f" % self.md]
+            self.record.update({'mask_value': []})
         name = name.join(l)
 
         if len(self.name) == 0:

@@ -21,9 +21,9 @@ cfg.print_info()
 cfg.setup()
 
 lrschedule = PLComposite(0, 0.1)
-lrschedule.add(cfg.stage1_step, 1)
-lrschedule.add(cfg.stage1_step + 10, 0.1)
-lrschedule.add(cfg.stage1_step * 2, 0.9)
+#lrschedule.add(cfg.stage1_step, 1)
+#lrschedule.add(cfg.stage1_step + 10, 0.1)
+#lrschedule.add(cfg.stage1_step * 2, 0.9)
 lrschedule.add(cfg.stage2_step, 1)
 
 tg = StyledGenerator(512).to(cfg.device1)
@@ -40,18 +40,12 @@ g_optim1 = torch.optim.Adam(get_generator_lr(
 g_optim1.add_param_group({
     'params': sg.style.parameters(),
     'lr': cfg.stage1_lr * 0.001})
-# small learning rate fade in stage
+# normal learning rate stage
 g_optim2 = torch.optim.Adam(get_generator_lr(
     sg.generator, cfg.stage2_lr, cfg.stage2_lr, 1), betas=(0.9, 0.9))
 g_optim2.add_param_group({
     'params': sg.style.parameters(),
     'lr': cfg.stage2_lr * 0.01})
-# normal learning rate training
-g_optim3 = torch.optim.Adam(get_generator_lr(
-    sg.generator, cfg.lr, cfg.lr, 1), betas=(0.9, 0.9))
-g_optim3.add_param_group({
-    'params': sg.style.parameters(),
-    'lr': cfg.lr * 0.01})
 crit = torch.nn.MSELoss().cuda()
 
 record = cfg.record
@@ -71,15 +65,12 @@ for i in tqdm(range(cfg.n_iter + 1)):
 
     # if avgloss < 0.1:
     #    count += 1
-    if i <= cfg.stage1_step:
+    if i <= cfg.stage2_step:
         lerp_val = lrschedule(i)
         g_optim = g_optim1
-    elif i <= cfg.stage2_step:
-        lerp_val = lrschedule(i)
-        g_optim = g_optim2
     else:
         lerp_val = 1
-        g_optim = g_optim3
+        g_optim = g_optim2
     set_lerp_val(sg.generator.progression, lerp_val)
 
     gen = sg(latent.to(cfg.device2), noise=[
@@ -87,16 +78,23 @@ for i in tqdm(range(cfg.n_iter + 1)):
     mseloss = crit(gen, target_image)
 
     if cfg.ma > 0:
-        mask_avgarea = maskarealoss(sg.generator.progression, 1.0/cfg.att, cfg.ma)
+        mask_avgarea = maskarealoss(
+            sg.generator.progression, target=1.0/cfg.att, coef=cfg.ma)
     else:
-        mask_avgarea = -1
+        mask_avgarea = 0
 
     if cfg.md > 0:
-        mask_divergence = maskdivloss(sg.generator.progression, cfg.md)
+        mask_divergence = maskdivloss(sg.generator.progression, coef=cfg.md)
     else:
-        mask_divergence = -1
+        mask_divergence = 0
 
-    loss = mseloss + mask_avgarea + mask_divergence
+    if cfg.mv > 0:
+        mask_value = maskvalueloss(
+            sg.generator.progression, coef=cfg.mv)
+    else:
+        mask_value = 0
+
+    loss = mseloss + mask_avgarea + mask_divergence + mask_value
     loss.backward()
     g_optim.step()
     g_optim.zero_grad()
@@ -106,10 +104,12 @@ for i in tqdm(range(cfg.n_iter + 1)):
     record['loss'].append(torch2numpy(loss))
     record['lerp_val'].append(lerp_val)
     record['mseloss'].append(mse_data)
-    if mask_avgarea > -1:
+    if mask_avgarea > 0:
         record['mask_area'].append(torch2numpy(mask_avgarea))
-    if mask_divergence > -1:
+    if mask_divergence > 0:
         record['mask_div'].append(torch2numpy(mask_divergence))
+    if mask_value > 0:
+        record['mask_value'].append(torch2numpy(mask_value))
 
     if i % 1000 == 0 and i > 0:
         print("=> Snapshot model %d" % i)

@@ -314,57 +314,117 @@ class ConstantInput(nn.Module):
 
 
 class AttentionModule(nn.Module):
-    def __init__(self, att, style_dim, out_channel, mtd="cos"):
+    def __init__(self, att, style_dim, out_channel, mtd="cos", norm="ch"):
         super(AttentionModule, self).__init__()
         self.att = att
-        self.mtd = mtd   
-        self.SIG_GAMMA = 10
-        self.SIG_BETA = 0.8
+        self.mtd = mtd[:-1]
+        self.norm = norm
 
-        if mtd == "cos":
-            self.linears = nn.ModuleList([
-                nn.Linear(style_dim, out_channel) for i in range(att)])
-        elif mtd == "conv":
-            self.conv = nn.Conv2d(out_channel, att, 1, 1)
-        
+        if "gen" in mtd:
+            self.midims = 512
+
+        if "cos" in mtd:
+            self.GAMMA = 5
+        else:
+            self.GAMMA = 1
+
+        if "gen" in mtd:
+            layers = int(mtd[-1])
+            modules = []
+            for i in range(layers - 1):
+                modules.append(nn.Linear(style_dim, self.midims))
+                modules.append(nn.ReLU(inplace=True))
+            modules.append(
+                nn.Linear(style_dim, out_channel * self.att + self.att))
+            self.gen = nn.Sequential(*modules)
+        if "conv" in mtd:
+            self.conv = nn.Conv2d(out_channel, att, 1, 1, bias=False)
+
+    def normalize(self, mask):
+        if self.norm == "ch":
+            if type(mask) is list:
+                mask = torch.cat(mask, 1)
+            masks = F.softmax(self.GAMMA * mask, 1)
+            masks = [m.unsqueeze(1) for m in torch.unbind(masks, dim=1)]
+        elif self.norm == "sp":
+            if type(mask) is list:
+                mask = torch.cat(mask, 1)
+            n, c, h, w = mask.shape
+            masks = F.softmax(mask.view(n, c, h * w), 2).view(n, c, h, w)
+            masks = [m.unsqueeze(1) for m in torch.unbind(masks, dim=1)]
+        elif self.norm == "elt":
+            if type(mask) is list:
+                masks = [torch.nn.functional.sigmoid(m) for m in mask]
+            else:
+                masks = torch.nn.functional.sigmoid(mask)
+                masks = [m.unsqueeze(1) for m in torch.unbind(masks, dim=1)]
+        elif self.norm == "none":
+            pass
+        return masks
 
     def forward(self, feat, style):
         self.mask = []
+        n, c, h, w = feat.shape
 
+        """deprecated
         if self.mtd == "cos":
+            masks = []
             self.keys = [linear(style).unsqueeze(2).unsqueeze(3)
-                    for linear in self.linears]
+                         for linear in self.linears]
             nfeat = feat / torch.sqrt((feat ** 2).sum(1, keepdim=True))
             for i in range(self.att):
-                key = self.keys[i] / torch.sqrt((self.keys[i] ** 2).sum(1, keepdim=True))
+                key = self.keys[i] / \
+                    torch.sqrt((self.keys[i] ** 2).sum(1, keepdim=True))
                 ip = (nfeat * key).sum(1, keepdim=True)
-                #ip = torch.nn.functional.relu(ip)
-                ip = torch.nn.functional.sigmoid(self.SIG_GAMMA * (ip - self.SIG_BETA))
-                self.mask.append(ip)
+                masks.append(ip)
+        """
+        if self.mtd == "gen":
+            res = self.gen(style)
+            #self.gen_bias = res[:, -self.att:]
+            self.gen_weight = res[:, :-self.att].view(n, self.att, c, 1, 1)
+            masks = torch.cat([F.conv2d(feat[i:i+1], self.gen_weight[i])
+                               for i in range(n)], 0)
+        elif self.mtd == "gencos":
+            nfeat = feat / torch.sqrt((feat ** 2).sum(1, keepdim=True))
+            res = self.gen(style)
+            #self.gen_bias = res[:, -self.att:]
+            weight = res[:, :-self.att].view(n, self.att, c, 1, 1)
+            weight_flt = weight.view(n, self.att, -1)
+            weight_normalizer = torch.sqrt(
+                (weight_flt ** 2).sum(2)).view(n, self.att, 1, 1, 1)
+            self.gen_weight = weight / weight_normalizer
+            masks = torch.cat([F.conv2d(nfeat[i:i+1], self.gen_weight[i])  # , self.gen_bias[i])
+                               for i in range(n)], 0)
+
         elif self.mtd == "conv":
-            mask = torch.unbind(F.sigmoid(self.conv(feat)), dim=1)
-            self.mask = [m.unsqueeze(1) for m in mask]
+            nfeat = feat / torch.sqrt((feat ** 2).sum(1, keepdim=True))
+            masks = self.conv(nfeat)
+
+        self.mask = self.normalize(masks)
+
         return self.mask
 
 
 class AttentionAdainModule(nn.Module):
-    def __init__(self, att, style_dim, out_channel, adain=None, mtd="uni-cos"):
+    def __init__(self, att, style_dim, out_channel, adain=None, mtd="uni-cos-ch"):
         super(AttentionAdainModule, self).__init__()
         self.mtdargs = mtd.split("-")
-        self.atthead = AttentionModule(att, style_dim, out_channel, self.mtdargs[1])
+        self.atthead = AttentionModule(
+            att, style_dim, out_channel, self.mtdargs[1], self.mtdargs[2])
 
         if self.mtdargs[0] == "uni":
             self.attadain = adain
         elif self.mtdargs[0] == "sep":
             self.attadain = nn.ModuleList(
                 [AdaptiveInstanceNorm(out_channel, style_dim) for i in range(att)])
-    
+
     def forward(self, input, style):
         self.mask = self.atthead(input, style)
         if self.mtdargs[0] == "uni":
             out = sum(self.mask) * input
         elif self.mtdargs[0] == "sep":
-            out = sum([m * a(input, style) for m,a in zip(self.mask, self.attadain)])
+            out = sum([m * a(input, style)
+                       for m, a in zip(self.mask, self.attadain)])
         return out
 
 
@@ -426,8 +486,10 @@ class StyledConvBlock(nn.Module):
         if self.att > 0:
             N = self.att
             self.lerp = lerp
-            self.attention1 = AttentionAdainModule(att, style_dim, out_channel, self.adain1, att_mtd)
-            self.attention2 = AttentionAdainModule(att, style_dim, out_channel, self.adain2, att_mtd)
+            self.attention1 = AttentionAdainModule(
+                att, style_dim, out_channel, self.adain1, att_mtd)
+            self.attention2 = AttentionAdainModule(
+                att, style_dim, out_channel, self.adain2, att_mtd)
 
     def forward(self, input, style, noise):
         out = self.conv1(input)
