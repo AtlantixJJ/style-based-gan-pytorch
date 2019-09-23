@@ -75,7 +75,7 @@ def train(args, dataset, generator, discriminator):
 
         alpha = min(1, 1 / args.phase * (used_sample + 1))
 
-        if resolution == args.init_size or final_progress:
+        if (resolution == args.init_size and args.ckpt is None) or final_progress:
             alpha = 1
 
         if used_sample > args.phase * 2:
@@ -85,9 +85,11 @@ def train(args, dataset, generator, discriminator):
             if step > max_step:
                 step = max_step
                 final_progress = True
+                ckpt_step = step + 1
 
             else:
                 alpha = 0
+                ckpt_step = step
 
             resolution = 4 * 2 ** step
 
@@ -103,9 +105,9 @@ def train(args, dataset, generator, discriminator):
                     'discriminator': discriminator.module.state_dict(),
                     'g_optimizer': g_optimizer.state_dict(),
                     'd_optimizer': d_optimizer.state_dict(),
-                    'g_running': g_running.state_dict()
+                    'g_running': g_running.state_dict(),
                 },
-                f'checkpoint/train_step-{step}.model',
+                f'checkpoint/train_step-{ckpt_step}.model',
             )
 
             adjust_lr(g_optimizer, args.lr.get(resolution, 0.001))
@@ -130,12 +132,12 @@ def train(args, dataset, generator, discriminator):
 
         elif args.loss == 'r1':
             real_image.requires_grad = True
-            real_predict = discriminator(real_image, step=step, alpha=alpha)
-            real_predict = F.softplus(-real_predict).mean()
+            real_scores = discriminator(real_image, step=step, alpha=alpha)
+            real_predict = F.softplus(-real_scores).mean()
             real_predict.backward(retain_graph=True)
 
             grad_real = grad(
-                outputs=real_predict.sum(), inputs=real_image, create_graph=True
+                outputs=real_scores.sum(), inputs=real_image, create_graph=True
             )[0]
             grad_penalty = (
                 grad_real.view(grad_real.size(0), -1).norm(2, dim=1) ** 2
@@ -269,6 +271,14 @@ if __name__ == '__main__':
     parser.add_argument('--max_size', default=1024,
                         type=int, help='max image size')
     parser.add_argument(
+        '--ckpt', default=None, type=str, help='load from previous checkpoints'
+    )
+    parser.add_argument(
+        '--no_from_rgb_activate',
+        action='store_true',
+        help='use activate in from_rgb (original implementation)',
+    )
+    parser.add_argument(
         '--mixing', action='store_true', help='use mixing regularization'
     )
     parser.add_argument(
@@ -282,7 +292,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     generator = nn.DataParallel(StyledGenerator(code_size)).cuda()
-    discriminator = nn.DataParallel(Discriminator()).cuda()
+    discriminator = nn.DataParallel(
+        Discriminator(from_rgb_activate=not args.no_from_rgb_activate)
+    ).cuda()
     g_running = StyledGenerator(code_size).cuda()
     g_running.train(False)
 
@@ -303,11 +315,20 @@ if __name__ == '__main__':
 
     accumulate(g_running, generator.module, 0)
 
+    if args.ckpt is not None:
+        ckpt = torch.load(args.ckpt)
+
+        generator.module.load_state_dict(ckpt['generator'])
+        discriminator.module.load_state_dict(ckpt['discriminator'])
+        g_running.load_state_dict(ckpt['g_running'])
+        g_optimizer.load_state_dict(ckpt['g_optimizer'])
+        d_optimizer.load_state_dict(ckpt['d_optimizer'])
+
     transform = transforms.Compose(
         [
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5), inplace=True),
         ]
     )
 

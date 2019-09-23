@@ -11,7 +11,7 @@ from torchvision.transforms import functional as trans_fn
 
 
 def resize_and_convert(img, size, quality=100):
-    img = trans_fn.resize(img, size)
+    img = trans_fn.resize(img, size, Image.LANCZOS)
     img = trans_fn.center_crop(img, size)
     buffer = BytesIO()
     img.save(buffer, format='jpeg', quality=quality)
@@ -49,11 +49,11 @@ def prepare(transaction, dataset, n_worker, sizes=(8, 16, 32, 64, 128, 256, 512,
         for i, imgs in tqdm(pool.imap_unordered(resize_fn, files)):
             for size, img in zip(sizes, imgs):
                 key = f'{size}-{str(i).zfill(5)}'.encode('utf-8')
-                txn.put(key, img)
+                transaction.put(key, img)
 
             total += 1
 
-        txn.put('length'.encode('utf-8'), str(total).encode('utf-8'))
+        transaction.put('length'.encode('utf-8'), str(total).encode('utf-8'))
 
 
 if __name__ == '__main__':
