@@ -3,26 +3,30 @@ import numpy as np
 EPS = 1e-6
 
 
-def select_max(x, y):
-    if x < y:
-        return y
-    else:
-        return x
-
-
 def maskarealoss(styledblocks, target=0.5, gamma=3, coef=1.0):
+    """
+    Masks: list of [N, 1, H, W]
+    """
     def lossitem(x):
+        # input is scalar
         if x < target:
             return torch.pow((target - x) * 1/target, gamma)
         else:
             return torch.pow((x - target) * 1/(1-target), gamma)
 
     masks = []
+    loss = 0
     for blk in styledblocks:
         if blk.att > 0:
             masks.extend(blk.attention1.mask)
             masks.extend(blk.attention2.mask)
-    return float(coef) * sum([lossitem(m.mean()) for m in masks]) / len(masks)
+    for m in masks:
+        n, c, h, w = m.shape
+        fm = m.view(n, -1).mean(1)
+        for i in range(n):
+            loss += lossitem(fm[i])
+    loss = float(coef) * loss.mean() / len(m) / n
+    return loss
 
 
 def maskvalueloss(styledblocks, target=0.5, gamma=3, coef=1.0):
@@ -30,7 +34,7 @@ def maskvalueloss(styledblocks, target=0.5, gamma=3, coef=1.0):
     What about winner take all strategy?
     """
     def lossitem(x):
-        noise = np.random.randn() * 1e-2
+        noise = np.random.randn() * 1e-3
         return 1 - torch.pow(2 * (x - 0.5 + noise).abs(), gamma)
     loss = 0
     masks = []
@@ -38,24 +42,35 @@ def maskvalueloss(styledblocks, target=0.5, gamma=3, coef=1.0):
         if blk.att > 0:
             masks.extend(blk.attention1.mask)
             masks.extend(blk.attention2.mask)
-    return coef * sum([lossitem(m).mean() for m in masks]) / len(masks)
+    loss = coef * sum([lossitem(m).mean() for m in masks]) / len(masks)
+    return loss
 
 
-def maskdivloss(styledblocks, theta=0.2, coef=1):
+def maskdivloss(styledblocks, coef=1):
+    def cross_similarity(masks):
+        N = len(masks)
+        n, c, h, w = masks[0].shape
+        norm_masks = [torch.sqrt(
+            (m.view(n, -1) ** 2).sum(1, keepdim=True) + EPS) for m in masks]
+
+        nmasks = [m.view(n, -1) / nm
+                  for m, nm in zip(masks, norm_masks)]
+        cos = 0
+        count = 0
+        for i in range(N):
+            for j in range(i + 1, N):
+                cos += (nmasks[i] * nmasks[j]).sum(1)  # [N,]
+                count += 1
+        return cos.mean() / count
+
     loss = 0
     count = 0
     for blk in styledblocks:
         if blk.att > 0:
             N = len(blk.attention1.mask)
-            for i in range(N):
-                for j in range(i+1, N):
-                    m1 = torch.sqrt(
-                        blk.attention1.mask[i] * blk.attention1.mask[j])
-                    m2 = torch.sqrt(
-                        blk.attention2.mask[i] * blk.attention2.mask[j])
-                    mask1 = (m1 > theta).type_as(m1)
-                    mask2 = (m2 > theta).type_as(m2)
-                    loss += (mask1 * m1).sum() / (EPS + mask1.sum())
-                    loss += (mask2 * m2).sum() / (EPS + mask2.sum())
-                    count += 2
-    return coef * loss / count
+            for masks in [blk.attention1.mask, blk.attention2.mask]:
+                loss += cross_similarity(masks)
+                count += 1
+
+    loss = coef * loss / count
+    return loss

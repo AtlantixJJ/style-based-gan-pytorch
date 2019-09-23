@@ -95,7 +95,8 @@ for i in tqdm(range(cfg.n_iter + 1)):
         mask_value = 0
 
     loss = mseloss + mask_avgarea + mask_divergence + mask_value
-    loss.backward()
+    with torch.autograd.detect_anomaly():
+        loss.backward()
     g_optim.step()
     g_optim.zero_grad()
 
@@ -111,11 +112,16 @@ for i in tqdm(range(cfg.n_iter + 1)):
     if mask_value > 0:
         record['mask_value'].append(torch2numpy(mask_value))
 
+    if cfg.debug:
+        print(record.keys())
+        l = []
+        for k in record.keys():
+            l.append(record[k][-1])
+        print(l)
+
     if i % 1000 == 0 and i > 0:
         print("=> Snapshot model %d" % i)
         torch.save(sg.state_dict(), cfg.expr_dir + "/iter_%06d.model" % i)
-
-    if i % 100 == 0:
         vutils.save_image(gen[:4], cfg.expr_dir + '/gen_%06d.png' % i,
                           nrow=2, normalize=True, range=(-1, 1))
         vutils.save_image(target_image[:4], cfg.expr_dir + '/target_%06d.png' % i,

@@ -31,7 +31,7 @@ step = 7
 alpha = 1
 lerp = args.lerp
 shape = 4 * 2 ** step
-torch.manual_seed(3)
+torch.manual_seed(4)
 latent = torch.randn(1, 512).to(device)
 latent.requires_grad = True
 noise = []

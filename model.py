@@ -282,10 +282,10 @@ class AdaptiveInstanceNorm(nn.Module):
 
     def forward(self, input, style):
         style = self.style(style).unsqueeze(2).unsqueeze(3)
-        gamma, beta = style.chunk(2, 1)
+        self.gamma, self.beta = style.chunk(2, 1)
 
         out = self.norm(input)
-        out = gamma * out + beta
+        out = self.gamma * out + self.beta
 
         return out
 
@@ -319,9 +319,7 @@ class AttentionModule(nn.Module):
         self.att = att
         self.mtd = mtd[:-1]
         self.norm = norm
-
-        if "gen" in mtd:
-            self.midims = 512
+        self.midims = 256
 
         if "cos" in mtd:
             self.GAMMA = 5
@@ -330,17 +328,39 @@ class AttentionModule(nn.Module):
 
         if "gen" in mtd:
             layers = int(mtd[-1])
-            modules = []
-            for i in range(layers - 1):
-                modules.append(nn.Linear(style_dim, self.midims))
-                modules.append(nn.ReLU(inplace=True))
-            modules.append(
-                nn.Linear(style_dim, out_channel * self.att + self.att))
-            self.gen = nn.Sequential(*modules)
+            if layers == 1:
+                self.gen = EqualLinear(style_dim, out_channel * self.att + self.att)
+            else:
+                modules = [EqualLinear(style_dim, self.midims), nn.ReLU(inplace=True)]
+                for i in range(layers - 1):
+                    modules.append(EqualLinear(self.midims, self.midims))
+                    modules.append(nn.ReLU(inplace=True))
+                modules.append(
+                    EqualLinear(self.midims, out_channel * self.att + self.att))
+                self.gen = nn.Sequential(*modules)
         if "conv" in mtd:
-            self.conv = nn.Conv2d(out_channel, att, 1, 1, bias=False)
+            layers = int(mtd[-1])
+            if layers == 1:
+                self.conv_feat = EqualConv2d(out_channel, att, 1, 1)
+                self.fc_c = EqualLinear(style_dim, att)
+                self.conv_fuse = None
+            else:
+                self.conv_feat = EqualConv2d(out_channel, self.midims, 1, 1)
+                self.fc_c = EqualLinear(style_dim, self.midims)
+                modules = []
+                for i in range(layers - 1):
+                    modules.append(nn.ReLU(inplace=True))
+                    modules.append(EqualConv2d(self.midims, self.midims, 1, 1))
+                modules.append(nn.ReLU(inplace=True))
+                modules.append(EqualConv2d(self.midims, self.att, 1, 1))
+                self.conv_fuse = nn.Sequential(*modules)
+
+
 
     def normalize(self, mask):
+        """
+        Return list of masks [N, 1, H, W]
+        """
         if self.norm == "ch":
             if type(mask) is list:
                 mask = torch.cat(mask, 1)
@@ -397,8 +417,13 @@ class AttentionModule(nn.Module):
                                for i in range(n)], 0)
 
         elif self.mtd == "conv":
-            nfeat = feat / torch.sqrt((feat ** 2).sum(1, keepdim=True))
-            masks = self.conv(nfeat)
+            f1 = self.conv_feat(feat)
+            n, c, h, w = f1.shape
+            f2 = self.fc_c(style)
+            f = f1 + f2.view(n, c, 1, 1)
+            if self.conv_fuse is not None:
+                f = self.conv_fuse(f)
+            masks = f
 
         self.mask = self.normalize(masks)
 
@@ -420,6 +445,7 @@ class AttentionAdainModule(nn.Module):
 
     def forward(self, input, style):
         self.mask = self.atthead(input, style)
+        # [N, 1, H, W] * [N, C, H, W]
         if self.mtdargs[0] == "uni":
             out = sum(self.mask) * input
         elif self.mtdargs[0] == "sep":

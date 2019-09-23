@@ -29,6 +29,8 @@ class BaseConfig(object):
         self.parser = argparse.ArgumentParser()
         # Task options
         self.parser.add_argument(
+            "--debug", default=False, help="Enable debugging output")
+        self.parser.add_argument(
             "--task", default="ts", help="ts (teacher student training) |")
         self.parser.add_argument(
             "--name", default="", help="Name of experiment, auto inference name if leave empty")
@@ -50,6 +52,7 @@ class BaseConfig(object):
 
     def parse(self):
         self.args = self.parser.parse_args()
+        self.debug = self.args.debug
         self.task = self.args.task
         self.n_iter = self.args.iter_num
         self.lr = self.args.lr
@@ -59,7 +62,11 @@ class BaseConfig(object):
         self.gpu = list(range(len(self.args.gpu.split(","))))
         os.environ['CUDA_VISIBLE_DEVICES'] = self.args.gpu
 
-        if len(self.gpu) > 0:
+        if len(self.gpu) == 1:
+            self.device = 'cuda'
+            self.device1 = 'cuda:0'
+            self.device2 = 'cuda:0'
+        elif len(self.gpu) > 1:
             self.device = 'cuda'
             self.device1 = 'cuda:0'
             self.device2 = 'cuda:1'
@@ -99,11 +106,11 @@ class TSConfig(BaseConfig):
         self.parser.add_argument(
             "--stage1-step", default=200, help="Small learning rate start up.")
         self.parser.add_argument(
-            "--stage1-lr", default=1e-3, help="Start up stage lr.")
+            "--stage1-lr", default=2e-4, help="Start up stage lr.")
         self.parser.add_argument(
             "--stage2-step", default=1000, help="Small learning rate adaption.")
         self.parser.add_argument(
-            "--stage2-lr", default=1e-3, help="Adaption stage lr.")
+            "--stage2-lr", default=2e-4, help="Adaption stage lr.")
         # Network architecture options
         self.parser.add_argument(
             "--att", type=int, default=1, help="Attention head number, 0 for no attention.")
