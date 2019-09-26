@@ -3,7 +3,7 @@ import torch
 import config
 from utils import *
 from loss import *
-from model import StyledGenerator
+from model import StyledGenerator, Discriminator
 from tqdm import tqdm
 from PIL import Image
 import numpy as np
@@ -21,15 +21,13 @@ cfg.print_info()
 cfg.setup()
 
 lrschedule = PLComposite(0, 0.1)
-#lrschedule.add(cfg.stage1_step, 1)
-#lrschedule.add(cfg.stage1_step + 10, 0.1)
-#lrschedule.add(cfg.stage1_step * 2, 0.9)
 lrschedule.add(cfg.stage2_step, 1)
 
 state_dicts = torch.load(cfg.load_path, map_location='cpu')
 
 disc = Discriminator()
 disc.load_state_dict(state_dicts['discriminator'])
+disc.eval()
 tg = StyledGenerator(512).to(cfg.device1)
 tg.load_state_dict(state_dicts['generator'])
 tg.eval()
@@ -70,8 +68,6 @@ for i in tqdm(range(cfg.n_iter + 1)):
             cfg.device1) for n in noise], step=STEP, alpha=ALPHA)
         target_image = target_image.detach().to(cfg.device2)
 
-    # if avgloss < 0.1:
-    #    count += 1
     if i <= cfg.stage2_step:
         lerp_val = lrschedule(i)
         g_optim = g_optim1
@@ -83,6 +79,8 @@ for i in tqdm(range(cfg.n_iter + 1)):
     gen = sg(latent.to(cfg.device2), noise=[
              n.to(cfg.device2) for n in noise], step=STEP, alpha=ALPHA)
     mseloss = crit(gen, target_image)
+
+    disc_loss = disc(gen.to(cfg.device1), step=STEP, alpha=ALPHA)
 
     if cfg.ma > 0:
         mask_avgarea = maskarealoss(
@@ -101,7 +99,7 @@ for i in tqdm(range(cfg.n_iter + 1)):
     else:
         mask_value = 0
 
-    loss = mseloss + mask_avgarea + mask_divergence + mask_value
+    loss = mseloss + mask_avgarea + mask_divergence + mask_value + disc_loss
     with torch.autograd.detect_anomaly():
         loss.backward()
     g_optim.step()

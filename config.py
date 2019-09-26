@@ -45,7 +45,7 @@ class BaseConfig(object):
             "--iter-num", default=10000, help="train total iteration")
         self.parser.add_argument("--lr", default=1e-3, help="default lr")
         self.parser.add_argument(
-            "--load", default="checkpoint/stylegan-512px-running-180000.model", help="load weight from model")
+            "--load", default="checkpoint/stylegan-1024px-new.model", help="load weight from model")
         # Train data options
         self.parser.add_argument("--batch_size", type=int, default=8)
         # Loss options

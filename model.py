@@ -444,11 +444,16 @@ class AttentionAdainModule(nn.Module):
                 [AdaptiveInstanceNorm(out_channel, style_dim) for i in range(att)])
 
     def forward(self, input, style):
-        self.mask = self.atthead(input, style)
         # [N, 1, H, W] * [N, C, H, W]
-        if self.mtdargs[0] == "uni":
-            out = sum(self.mask) * input
+        if self.mtdargs[0] == "unibfr":
+            self.mask = self.atthead(input, style)
+            out = sum(self.mask) * self.attadain(input)
+        elif self.mtdargs[0] == "uniaft":
+            x = self.attadain(input)
+            self.mask = self.atthead(x, style)
+            out = sum(self.mask) * x
         elif self.mtdargs[0] == "sep":
+            self.mask = self.atthead(input, style)
             out = sum([m * a(input, style)
                        for m, a in zip(self.mask, self.attadain)])
         return out
@@ -589,9 +594,9 @@ class Generator(nn.Module):
                 StyledConvBlock(128, 64, 3, 1, upsample=True,
                                 fused=fused, **kwargs),  # 256
                 StyledConvBlock(64, 32, 3, 1, upsample=True,
-                                fused=fused, att=False),  # 512
+                                fused=fused, **kwargs),  # 512
                 StyledConvBlock(32, 16, 3, 1, upsample=True,
-                                fused=fused, att=False),  # 1024
+                                fused=fused, **kwargs),  # 1024
             ]
         )
 
