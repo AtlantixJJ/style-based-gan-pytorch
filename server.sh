@@ -1,1 +1,1 @@
-tar cvfz - *.sh *.py | ssh -p 8081 atlantix@166.111.17.31 "cd disk6/style-based-gan-pytorch/; tar xvfz -"
+tar cvfz - script *.sh *.py | ssh -p 8081 atlantix@166.111.17.31 "cd disk6/style-based-gan-pytorch/; tar xvfz -"

@@ -1,5 +1,6 @@
 import os
 import torch
+import torch.nn.functional as F
 import config
 from utils import *
 from loss import *
@@ -12,7 +13,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use("agg")
 
-STEP = 7
+STEP = 6
 ALPHA = 1
 
 cfg = config.TSConfig()
@@ -25,29 +26,29 @@ lrschedule.add(cfg.stage2_step, 1)
 
 state_dicts = torch.load(cfg.load_path, map_location='cpu')
 
-disc = Discriminator()
+disc = Discriminator(from_rgb_activate=True)
 disc.load_state_dict(state_dicts['discriminator'])
 disc.eval()
-tg = StyledGenerator(512).to(cfg.device1)
+tg = StyledGenerator(512)
 tg.load_state_dict(state_dicts['generator'])
 tg.eval()
 sg = StyledGenerator(512, att=cfg.att, att_mtd=cfg.att_mtd)
 sg.load_state_dict(state_dicts['generator'])
 sg.train()
 
-disc = disc.to(cfg.device1)
 tg = tg.to(cfg.device1)
-sg = tg.to(cfg.device2)
+disc = disc.to(cfg.device2)
+sg = sg.to(cfg.device2)
 
 # new parameter adaption stage
 g_optim1 = torch.optim.Adam(get_generator_lr(
-    sg.generator, cfg.stage1_lr * 0.1, cfg.stage1_lr, 0), betas=(0.9, 0.9))
+    sg.generator, cfg.stage1_lr * 0.1, cfg.stage1_lr, STEP), betas=(0.9, 0.9))
 g_optim1.add_param_group({
     'params': sg.style.parameters(),
     'lr': cfg.stage1_lr * 0.001})
 # normal learning rate stage
 g_optim2 = torch.optim.Adam(get_generator_lr(
-    sg.generator, cfg.stage2_lr, cfg.stage2_lr, 1), betas=(0.9, 0.9))
+    sg.generator, cfg.stage2_lr, cfg.stage2_lr, STEP), betas=(0.9, 0.9))
 g_optim2.add_param_group({
     'params': sg.style.parameters(),
     'lr': cfg.stage2_lr * 0.01})
@@ -76,11 +77,33 @@ for i in tqdm(range(cfg.n_iter + 1)):
         g_optim = g_optim2
     set_lerp_val(sg.generator.progression, lerp_val)
 
-    gen = sg(latent.to(cfg.device2), noise=[
-             n.to(cfg.device2) for n in noise], step=STEP, alpha=ALPHA)
-    mseloss = crit(gen, target_image)
+    latent2 = latent.to(cfg.device2)
+    noise2 = [n.to(cfg.device2) for n in noise]
 
-    disc_loss = disc(gen.to(cfg.device1), step=STEP, alpha=ALPHA)
+    gen = sg(latent2, noise=noise2, step=STEP, alpha=ALPHA)
+    masks = get_masks(sg.generator.progression)
+
+    if cfg.debug:
+        vutils.save_image(visualize_masks(masks), cfg.expr_dir + '/debug1_original_mask.png',
+                          nrow=4, normalize=True, range=(0, 1))
+
+    permute_masks(masks)
+
+    if cfg.debug:
+        vutils.save_image(visualize_masks(masks), cfg.expr_dir + '/debug2_permuted_mask.png',
+                          nrow=4, normalize=True, range=(0, 1))
+
+    gen_sw = sg(latent2, noise=noise2, masks=masks,
+                step=STEP, alpha=ALPHA)
+
+    masks = get_masks(sg.generator.progression)
+
+    if cfg.debug:
+        vutils.save_image(visualize_masks(masks), cfg.expr_dir + '/debug3_new_mask.png',
+                          nrow=4, normalize=True, range=(0, 1))
+
+    mseloss = crit(gen, target_image)
+    disc_loss = disc(gen, step=STEP, alpha=ALPHA)
 
     if cfg.ma > 0:
         mask_avgarea = maskarealoss(
@@ -99,7 +122,7 @@ for i in tqdm(range(cfg.n_iter + 1)):
     else:
         mask_value = 0
 
-    loss = mseloss + mask_avgarea + mask_divergence + mask_value + disc_loss
+    loss = mseloss + mask_avgarea + mask_divergence + mask_value + disc_loss.mean()
     with torch.autograd.detect_anomaly():
         loss.backward()
     g_optim.step()

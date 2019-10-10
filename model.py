@@ -437,23 +437,32 @@ class AttentionAdainModule(nn.Module):
         self.atthead = AttentionModule(
             att, style_dim, out_channel, self.mtdargs[1], self.mtdargs[2])
 
-        if self.mtdargs[0] == "uni":
+        if "uni" in self.mtdargs[0]:
             self.attadain = adain
-        elif self.mtdargs[0] == "sep":
+        elif "sep" in self.mtdargs[0]:
             self.attadain = nn.ModuleList(
                 [AdaptiveInstanceNorm(out_channel, style_dim) for i in range(att)])
 
-    def forward(self, input, style):
+    def forward(self, input, style, masks=None):
         # [N, 1, H, W] * [N, C, H, W]
         if self.mtdargs[0] == "unibfr":
-            self.mask = self.atthead(input, style)
-            out = sum(self.mask) * self.attadain(input)
+            if masks is None:
+                self.mask = self.atthead(input, style)
+            else:
+                self.mask = masks
+            out = sum(self.mask) * self.attadain(input, style)
         elif self.mtdargs[0] == "uniaft":
-            x = self.attadain(input)
-            self.mask = self.atthead(x, style)
+            x = self.attadain(input, style)
+            if masks is None:
+                self.mask = self.atthead(x, style)
+            else:
+                self.mask = masks
             out = sum(self.mask) * x
         elif self.mtdargs[0] == "sep":
-            self.mask = self.atthead(input, style)
+            if masks is None:
+                self.mask = self.atthead(input, style)
+            else:
+                self.mask = masks
             out = sum([m * a(input, style)
                        for m, a in zip(self.mask, self.attadain)])
         return out
@@ -522,13 +531,13 @@ class StyledConvBlock(nn.Module):
             self.attention2 = AttentionAdainModule(
                 att, style_dim, out_channel, self.adain2, att_mtd)
 
-    def forward(self, input, style, noise):
+    def forward(self, input, style, noise, masks=[None, None]):
         out = self.conv1(input)
         out = self.noise1(out, noise)
         out = self.lrelu1(out)
 
         if self.att > 0:
-            new_out = self.attention1(out, style)
+            new_out = self.attention1(out, style, masks=masks[0])
             old_out = self.adain1(out, style)
             out = self.lerp * new_out + (1 - self.lerp) * old_out
         else:
@@ -538,35 +547,9 @@ class StyledConvBlock(nn.Module):
         out = self.noise2(out, noise)
         out = self.lrelu2(out)
         if self.att > 0:
-            new_out = self.attention2(out, style)
+            new_out = self.attention2(out, style, masks=masks[1])
             old_out = self.adain2(out, style)
             out = self.lerp * new_out + (1 - self.lerp) * old_out
-        else:
-            out = self.adain2(out, style)
-
-        return out
-
-    def dbg_mask(self, input, style, noise, ctrl_args):
-        ind, mask = ctrl_args
-        out = self.conv1(input)
-        out = self.noise1(out, noise)
-        out = self.lrelu1(out)
-        if ind % 2 == 0:
-            mask = torch.nn.functional.interpolate(mask, size=out.shape[2])
-            out = (1 - mask) * self.adain1(out, style) + (mask) * out
-            print("=> layer %d first adain, mask %d, out %d" %
-                  (ind // 2, mask.shape[2], out.shape[2]))
-        else:
-            out = self.adain1(out, style)
-
-        out = self.conv2(out)
-        out = self.noise2(out, noise)
-        out = self.lrelu2(out)
-        if ind % 2 == 1:
-            mask = torch.nn.functional.interpolate(mask, size=out.shape[2])
-            out = (1 - mask) * self.adain2(out, style) + (mask) * out
-            print("=> layer %d second adain, mask %d, out %d" %
-                  (ind // 2, mask.shape[2], out.shape[2]))
         else:
             out = self.adain2(out, style)
 
@@ -580,11 +563,11 @@ class Generator(nn.Module):
         self.progression = nn.ModuleList(
             [
                 StyledConvBlock(512, 512, 3, 1, initial=True,
-                                att=False),  # 4
+                                att=0),  # 4
                 StyledConvBlock(512, 512, 3, 1, upsample=True,
-                                att=False),  # 8
+                                att=0),  # 8
                 StyledConvBlock(512, 512, 3, 1, upsample=True,
-                                att=False),  # 16
+                                att=0),  # 16
                 StyledConvBlock(512, 512, 3, 1, upsample=True,
                                 **kwargs),  # 32
                 StyledConvBlock(512, 256, 3, 1, upsample=True,
@@ -616,7 +599,7 @@ class Generator(nn.Module):
 
         # self.blur = Blur()
 
-    def forward(self, style, noise, step=0, alpha=-1, mixing_range=(-1, -1)):
+    def forward(self, style, noise, masks=None, step=0, alpha=-1, mixing_range=(-1, -1), feat_list=None):
         out = noise[0]
 
         if len(style) < 2:
@@ -628,6 +611,11 @@ class Generator(nn.Module):
         crossover = 0
 
         for i, (conv, to_rgb) in enumerate(zip(self.progression, self.to_rgb)):
+            if masks is not None:
+                mask = masks[i]
+            else:
+                mask = [None, None]
+
             if mixing_range == (-1, -1):
                 if crossover < len(inject_index) and i > inject_index[crossover]:
                     crossover = min(crossover + 1, len(style))
@@ -642,9 +630,12 @@ class Generator(nn.Module):
 
             if i > 0 and step > 0:
                 out_prev = out
-                out = conv(out, style_step, noise[i])
+                out = conv(out, style_step, noise[i], mask)
             else:
-                out = conv(out, style_step, noise[i])
+                out = conv(out, style_step, noise[i], mask)
+                
+            if feat_list is not None:
+                feat_list.append(["progression_%d" % i, out])
 
             if i == step:
                 out = to_rgb(out)
@@ -658,48 +649,6 @@ class Generator(nn.Module):
                 break
 
         return out
-
-    def dbg(self, style, noise, step=0, alpha=-1, mixing_range=(-1, -1)):
-        out = noise[0]
-        feats = []
-
-        if len(style) < 2:
-            inject_index = [len(self.progression) + 1]
-
-        else:
-            inject_index = random.sample(list(range(step)), len(style) - 1)
-
-        crossover = 0
-
-        for i, (conv, to_rgb) in enumerate(zip(self.progression, self.to_rgb)):
-            if mixing_range == (-1, -1):
-                if crossover < len(inject_index) and i > inject_index[crossover]:
-                    crossover = min(crossover + 1, len(style))
-                style_step = style[crossover]
-
-            else:
-                if mixing_range[0] <= i <= mixing_range[1]:
-                    style_step = style[1]
-                else:
-                    style_step = style[0]
-
-            if i > 0 and step > 0:
-                out_prev = out
-                out = conv(out, style_step, noise[i])
-            else:
-                out = conv(out, style_step, noise[i])
-            feats.append(out)
-
-            if i == step:
-                out = to_rgb(out)
-                if i > 0 and 0 <= alpha < 1:
-                    skip_rgb = self.to_rgb[i - 1](out_prev)
-                    skip_rgb = F.interpolate(
-                        skip_rgb, scale_factor=2, mode='nearest')
-                    out = (1 - alpha) * skip_rgb + alpha * out
-                break
-
-        return out, feats
 
 
 class StyledGenerator(nn.Module):
@@ -730,11 +679,13 @@ class StyledGenerator(nn.Module):
         self,
         input,
         noise=None,
+        masks=None,
         step=0,
         alpha=-1,
         mean_style=None,
         style_weight=0,
-        mixing_range=(-1, -1)
+        mixing_range=(-1, -1),
+        feat_list=None
     ):
         self.styles = []
         if type(input) not in (list, tuple):
@@ -762,45 +713,7 @@ class StyledGenerator(nn.Module):
 
             self.styles = styles_norm
 
-        return self.generator(self.styles, noise, step, alpha, mixing_range=mixing_range)
-
-    def dbg(
-        self,
-        input,
-        noise=None,
-        step=0,
-        alpha=-1,
-        mean_style=None,
-        style_weight=0,
-        mixing_range=(-1, -1)
-    ):
-        self.styles = []
-        if type(input) not in (list, tuple):
-            input = [input]
-
-        for i in input:
-            self.styles.append(self.style(i))
-
-        batch = input[0].shape[0]
-
-        if noise is None:
-            noise = []
-
-            for i in range(step + 1):
-                size = 4 * 2 ** i
-                noise.append(torch.randn(batch, 1, size,
-                                         size, device=input[0].device))
-
-        if mean_style is not None:
-            styles_norm = []
-
-            for style in self.styles:
-                styles_norm.append(
-                    mean_style + style_weight * (style - mean_style))
-
-            self.styles = styles_norm
-
-        return self.generator.dbg(self.styles, noise, step, alpha, mixing_range=mixing_range)
+        return self.generator(self.styles, noise, masks, step, alpha, mixing_range=mixing_range, feat_list=feat_list)
 
     def mean_style(self, input):
         style = self.style(input).mean(0, keepdim=True)

@@ -17,7 +17,7 @@ def maskarealoss(styledblocks, target=0.5, gamma=3, coef=1.0):
     masks = []
     loss = 0
     for blk in styledblocks:
-        if blk.att > 0:
+        if blk.att > 0 and blk.attention1.mask is not None:
             masks.extend(blk.attention1.mask)
             masks.extend(blk.attention2.mask)
     for m in masks:
@@ -39,7 +39,7 @@ def maskvalueloss(styledblocks, target=0.5, gamma=3, coef=1.0):
     loss = 0
     masks = []
     for blk in styledblocks:
-        if blk.att > 0:
+        if blk.att > 0 and hasattr(blk.attention1, "mask"):
             masks.extend(blk.attention1.mask)
             masks.extend(blk.attention2.mask)
     loss = coef * sum([lossitem(m).mean() for m in masks]) / len(masks)
@@ -66,7 +66,7 @@ def maskdivloss(styledblocks, coef=1):
     loss = 0
     count = 0
     for blk in styledblocks:
-        if blk.att > 0:
+        if blk.att > 0 and hasattr(blk.attention1, "mask"):
             N = len(blk.attention1.mask)
             for masks in [blk.attention1.mask, blk.attention2.mask]:
                 loss += cross_similarity(masks)

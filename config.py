@@ -113,7 +113,7 @@ class TSConfig(BaseConfig):
             "--stage2-lr", default=2e-4, help="Adaption stage lr.")
         # Network architecture options
         self.parser.add_argument(
-            "--att", type=int, default=1, help="Attention head number, 0 for no attention.")
+            "--att", type=int, default=0, help="Attention head number, 0 for no attention.")
         self.parser.add_argument(
             "--att-mtd", type=str, default="cos", help="Attention implementation type.")
         # Loss options
