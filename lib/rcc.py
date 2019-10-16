@@ -298,7 +298,7 @@ class RccCluster(object):
 
         return U, C
 
-    def fit(self, X):
+    def fit(self, X, max_iter=1000):
         """
         Computes the clustering and returns the labels
         Parameters
@@ -313,7 +313,7 @@ class RccCluster(object):
         mknn_matrix = self.m_knn(X, self.k, measure=self.measure)
 
         # perform the RCC clustering
-        U, C = self.run_rcc(X, mknn_matrix)
+        U, C = self.run_rcc(X, mknn_matrix, max_iter=max_iter)
 
         # store the class labels in the appropriate class member to match the sklearn.cluster interface
         self.labels_ = C.copy()

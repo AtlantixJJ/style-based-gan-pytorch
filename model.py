@@ -531,10 +531,13 @@ class StyledConvBlock(nn.Module):
             self.attention2 = AttentionAdainModule(
                 att, style_dim, out_channel, self.adain2, att_mtd)
 
-    def forward(self, input, style, noise, masks=[None, None]):
+    def forward(self, input, style, noise, masks=[None, None], feat_list=None):
         out = self.conv1(input)
         out = self.noise1(out, noise)
         out = self.lrelu1(out)
+
+        if feat_list is not None:
+            feat_list.append(["BeforeAdain1", out])
 
         if self.att > 0:
             new_out = self.attention1(out, style, masks=masks[0])
@@ -543,15 +546,25 @@ class StyledConvBlock(nn.Module):
         else:
             out = self.adain1(out, style)
 
+        if feat_list is not None:
+            feat_list.append(["AfterAdain1", out])
+
         out = self.conv2(out)
         out = self.noise2(out, noise)
         out = self.lrelu2(out)
+
+        if feat_list is not None:
+            feat_list.append(["BeforeAdain2", out])
+
         if self.att > 0:
             new_out = self.attention2(out, style, masks=masks[1])
             old_out = self.adain2(out, style)
             out = self.lerp * new_out + (1 - self.lerp) * old_out
         else:
             out = self.adain2(out, style)
+
+        if feat_list is not None:
+            feat_list.append(["AfterAdain2", out])
 
         return out
 
@@ -625,17 +638,17 @@ class Generator(nn.Module):
             else:
                 if mixing_range[0] <= i <= mixing_range[1]:
                     style_step = style[1]
-                else:
+                else: 
                     style_step = style[0]
 
             if i > 0 and step > 0:
                 out_prev = out
-                out = conv(out, style_step, noise[i], mask)
+                out = conv(out, style_step, noise[i], mask, feat_list)
             else:
-                out = conv(out, style_step, noise[i], mask)
-                
-            if feat_list is not None:
-                feat_list.append(["progression_%d" % i, out])
+                out = conv(out, style_step, noise[i], mask, feat_list)
+
+            for k in range(1, 5):
+                feat_list[-k][0] = ("Progression%d/" % i) + feat_list[-k][0]
 
             if i == step:
                 out = to_rgb(out)

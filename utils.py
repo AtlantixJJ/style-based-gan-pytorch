@@ -1,4 +1,7 @@
 from __future__ import print_function
+import matplotlib
+matplotlib.use("agg")
+import matplotlib.pyplot as plt
 import os
 from os.path import join as osj
 try:
@@ -16,7 +19,23 @@ import torch.nn.functional as F
 import torchvision.utils as vutils
 from torch.autograd import Variable
 
+# define the colormap
+CMAP = plt.cm.jet
+# extract all colors from the .jet map
+CMAP_LIST = [CMAP(i) for i in range(CMAP.N)]
+# create the new map
+CMAP = CMAP.from_list('Custom cmap', CMAP_LIST, CMAP.N)
+# define the bins and normalize
+# COLOR_BOUND = np.linspace(0, N, N+1)
+# COLOR_NORM = matplotlib.colors.BoundaryNorm(COLOR_BOUND, CMAP.N)
 
+def label2rgb(label_map):
+    n_labels = label_map.max()
+    # normalize map
+    norm_map = label_map / float(n_labels)
+    # convert to RGB
+    return CMAP(norm_map)
+    
 def permute_masks(masks):
     def permute_(t):
         tmp = t[0]
