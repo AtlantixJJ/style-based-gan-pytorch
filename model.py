@@ -647,8 +647,9 @@ class Generator(nn.Module):
             else:
                 out = conv(out, style_step, noise[i], mask, feat_list)
 
-            for k in range(1, 5):
-                feat_list[-k][0] = ("Progression%d/" % i) + feat_list[-k][0]
+            if feat_list is not None:
+                for k in range(1, 5):
+                    feat_list[-k][0] = ("Progression%d/" % i) + feat_list[-k][0]
 
             if i == step:
                 out = to_rgb(out)
