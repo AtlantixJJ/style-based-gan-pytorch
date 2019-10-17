@@ -8,6 +8,7 @@ import argparse
 from os.path import join as osj
 from torchvision import transforms, utils
 from torch.utils.data import DataLoader
+import dataset
 import utils
 
 NUM_WORKER = 4
@@ -31,7 +32,7 @@ class BaseConfig(object):
         self.parser.add_argument(
             "--debug", default=False, help="Enable debugging output")
         self.parser.add_argument(
-            "--task", default="ts", help="ts (teacher student training) |")
+            "--task", default="ts", help="ts (teacher student training) | seg (given segmentation label)")
         self.parser.add_argument(
             "--name", default="", help="Name of experiment, auto inference name if leave empty")
         # Training environment options
@@ -97,6 +98,27 @@ class BaseConfig(object):
             print("=> Train from scratch")
         print("=> LR: %.4f" % self.lr)
         print("=> Batch size : %d " % self.batch_size)
+
+class SConfig(BaseConfig):
+    def __init__(self):
+        super(SConfig, self).__init__()
+    
+        self.parser.add_argument("--dataset", default="stylegan_gen", help="The path to segmentation dataset")
+        self.parser.add_argument("--seg", default=1., help="Coefficient of segmentation loss")
+    
+    def parse(self):
+        super(SConfig, self).parse()
+        self.dataset_path = self.args.dataset
+        self.seg_coef = self.args.seg
+        self.ds = dataset.LatentSegmentationDataset(self.dataset_path)
+        self.dl = DataLoader(self.ds, batch_size=self.batch_size, shuffle=False)
+        self.record['segloss'] = []
+
+    def print_info(self):
+        super(SConfig, self).print_info()
+        print("=> Segmentation loss coefficient: %.4f" % self.seg_coef)
+        print("=> Segmentation dataset %s" % self.dataset_path)
+        print("=> Number samples: %d" % len(self.ds))
 
 
 class TSConfig(BaseConfig):

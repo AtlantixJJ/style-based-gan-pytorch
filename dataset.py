@@ -1,6 +1,8 @@
 import torch
 import os
 from PIL import Image
+import utils
+from torchvision import transforms
 
 class SimpleDataset(torch.utils.data.Dataset):
     """
@@ -27,3 +29,54 @@ class SimpleDataset(torch.utils.data.Dataset):
     
     def __len__(self):
         return len(self.files)
+
+class ImageSegmentationDataset(torch.utils.data.Dataset):
+    """
+    Currently label is not available
+    """
+    def __init__(self, data_path, size):
+        if type(size) is int:
+            self.size = (size, size)
+        elif type(size) is tuple or type(size) is list:
+            self.size = size
+        self.root_dir = data_path
+        self.image_dir = data_path + "/train"
+        self.label_dir = label_path + "/label"
+
+        self.normal_transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Resize(self.size)])
+
+        self.imagefiles = sum([[file for file in files if ".jpg" in file or ".png" in file] for path, dirs, files in os.walk(self.image_dir) if files], [])
+        self.imagefiles.sort()
+        self.labelfiles = sum([[file for file in files if ".png" in file] for path, dirs, files in os.walk(self.label_dir) if files], [])
+        self.labelfiles.sort()
+
+    def transform(self, image, label):
+        image_t = self.normal_transform(image)
+        label_t = self.normal_transform(label)
+        return image_t, label_t
+
+    def __getitem__(self, idx):
+        image = utils.imread(self.image_dir + "/" + self.imagefiles[idx])
+        label = utils.imread(self.label_dir + "/" + self.labelfiles[idx])
+        return self.transform(image, label)
+    
+    def __len__(self):
+        return len(self.imagefiles)
+
+
+class LatentSegmentationDataset(ImageSegmentationDataset):
+    def __init__(self, data_path, size):
+        super(LatentSegmentationDataset, self).__init__(data_path, size)
+
+        with open(self.root_dir + "/latents.npz", 'rb') as fp:
+            latents_np = np.load(fpath)
+        self.latents = torch.from_numpy(latents_np)
+    
+    def __getitem__(self, idx):
+        image = utils.imread(self.image_dir + "/" + self.imagefiles[idx])
+        label = utils.imread(self.label_dir + "/" + self.labelfiles[idx])
+        if self.transform:
+            img = self.transform(img)
+        return latent, self.transform(image, label)

@@ -35,7 +35,11 @@ def label2rgb(label_map):
     norm_map = label_map / float(n_labels)
     # convert to RGB
     return CMAP(norm_map)
-    
+
+def imread(fpath):
+    with open(os.path.join(fpath), "rb") as f:
+        return np.asarray(Image.open(f))
+
 def permute_masks(masks):
     def permute_(t):
         tmp = t[0]
@@ -60,6 +64,12 @@ def get_masks(blocks, step=6):
             masks.append(None)
     return masks
 
+def get_segmentation(blocks, step=6):
+    seg = []
+    for i, blk in enumerate(blocks):
+        if hasattr(blk, "segmentation"):
+            seg.append(blk.segmentation)
+    return seg
 
 def visualize_masks(masks):
     masks_ = []

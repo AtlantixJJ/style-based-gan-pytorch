@@ -1,1 +1,1 @@
-tar cvfz - lib script *.sh *.py | ssh -p 8081 atlantix@166.111.17.31 "cd disk6/style-based-gan-pytorch/; tar xvfz -"
+tar cvfz - train model lib script *.py | ssh -p 8081 atlantix@166.111.17.31 "cd disk6/style-based-gan-pytorch/; tar xvfz -"
