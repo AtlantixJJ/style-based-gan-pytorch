@@ -40,6 +40,13 @@ def imread(fpath):
     with open(os.path.join(fpath), "rb") as f:
         return np.asarray(Image.open(f))
 
+def pil_read(fpath):
+    with open(os.path.join(fpath), "rb") as f:
+        img = Image.open(f)
+        img.load()
+    return img
+    
+
 def permute_masks(masks):
     def permute_(t):
         tmp = t[0]

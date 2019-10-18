@@ -5,7 +5,7 @@ import torch
 import config
 from utils import *
 from loss import *
-from model import StyledGenerator
+from model.seg import StyledGenerator
 from tqdm import tqdm
 from PIL import Image
 import numpy as np
@@ -17,32 +17,34 @@ matplotlib.use("agg")
 STEP = 8
 ALPHA = 1
 
-cfg = config.TSConfig()
+cfg = config.SConfig()
 cfg.parse()
 cfg.print_info()
 cfg.setup()
 
 state_dicts = torch.load(cfg.load_path, map_location='cpu')
 
-sg = StyledGenerator(512, att=cfg.att, att_mtd=cfg.att_mtd)
+sg = StyledGenerator(512, semantic=cfg.semantic_config)
 sg.load_state_dict(state_dicts['generator'])
 sg.train()
-sg = tg.to(cfg.device2)
+sg = sg.cuda()
 
 # new parameter adaption stage
-g_optim = torch.optim.Adam(sg.generator.parameters(), betas=(0.9, 0.9))
+g_optim = torch.optim.Adam(sg.generator.parameters(), lr=cfg.lr, betas=(0.9, 0.9))
 g_optim.add_param_group({
     'params': sg.style.parameters(),
-    'lr': cfg.stage1_lr * 0.01})
-logsoftmax = torch.nn.NLLLoss2d()
+    'lr': cfg.lr * 0.01})
+logsoftmax = torch.nn.NLLLoss()
 mse = torch.nn.MSELoss()
+logsoftmax = logsoftmax.cuda()
+mse = mse.cuda()
 
+noise = [0] * (STEP + 1)
 for k in range(STEP + 1):
     size = 4 * 2 ** k
     noise[k] = torch.randn(cfg.batch_size, 1, size, size).cuda()
 
 record = cfg.record
-noise = [0] * (STEP + 1)
 avgmseloss = 0
 count = 0
 
@@ -50,20 +52,16 @@ for i, (latent, image, label) in tqdm(enumerate(cfg.dl)):
     for k in range(STEP + 1):
         noise[k].normal_()
 
-    if i <= cfg.stage2_step:
-        lerp_val = lrschedule(i)
-        g_optim = g_optim1
-    else:
-        lerp_val = 1
-        g_optim = g_optim2
-    set_lerp_val(sg.generator.progression, lerp_val)
+    latent = latent.cuda()
+    image = image.cuda()
+    label = label.cuda()
 
-    gen = sg(latent.cuda(), noise=noise, step=STEP, alpha=ALPHA)
-    mseloss = mse(gen, image)
+    gen = sg(latent.cuda(), step=STEP, alpha=ALPHA, noise=noise)
+    mseloss = mse(F.interpolate(gen, image.shape[2:], mode="bilinear"), image)
     segs = get_segmentation(sg.generator.progression)
     seglosses = []
     for s in segs:
-        seglosses.append(crit(
+        seglosses.append(logsoftmax(
             F.interpolate(gen, label.shape[2:], mode="bilinear"),
             label))
     segloss = cfg.seg_coef * sum(seglosses) / len(seglosses)
@@ -76,7 +74,6 @@ for i, (latent, image, label) in tqdm(enumerate(cfg.dl)):
 
     avgmseloss = avgmseloss * 0.9 + mse_data * 0.1
     record['loss'].append(torch2numpy(loss))
-    record['lerp_val'].append(lerp_val)
     record['mseloss'].append(torch2numpy(mseloss))
     record['segloss'].append(torch2numpy(segloss))
 

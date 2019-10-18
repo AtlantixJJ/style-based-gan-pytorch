@@ -392,7 +392,7 @@ class StyledConvBlock(nn.Module):
         out = self.adain2(out, style)
 
         if self.n_class > 0:
-            self.segmentation = self.extractor
+            self.segmentation = self.extractor(out)
 
         return out
 
@@ -464,7 +464,7 @@ class Generator(nn.Module):
 
             if i > 0 and step > 0:
                 out_prev = out
-                
+            
             out = conv(out, style_step, noise[i])
 
             if i == step:
@@ -533,6 +533,17 @@ class StyledGenerator(nn.Module):
         style = self.style(input).mean(0, keepdim=True)
 
         return style
+
+    def load_state_dict(self, state_dict):
+        own_state = self.state_dict()
+        for name, param in state_dict.items():
+            if name not in own_state:
+                print("=> Skip %s" % name)
+                continue
+            if isinstance(param, nn.Parameter):
+                # backwards compatibility for serialized parameters
+                param = param.data
+            own_state[name].copy_(param)
 
 
 class Discriminator(nn.Module):

@@ -1,7 +1,9 @@
 # temp files
-./*.png
-./*.mp4
-./*.tar.gz
+*.png
+*.mp4
+*.tar.gz
+datasets
+checkpoint
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

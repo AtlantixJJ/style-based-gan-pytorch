@@ -1,8 +1,9 @@
 import torch
 import os
 from PIL import Image
-import utils
 from torchvision import transforms
+import numpy as np
+import utils
 
 class SimpleDataset(torch.utils.data.Dataset):
     """
@@ -41,11 +42,11 @@ class ImageSegmentationDataset(torch.utils.data.Dataset):
             self.size = size
         self.root_dir = data_path
         self.image_dir = data_path + "/train"
-        self.label_dir = label_path + "/label"
+        self.label_dir = data_path + "/label"
 
         self.normal_transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Resize(self.size)])
+            transforms.Resize(self.size),
+            transforms.ToTensor()])
 
         self.imagefiles = sum([[file for file in files if ".jpg" in file or ".png" in file] for path, dirs, files in os.walk(self.image_dir) if files], [])
         self.imagefiles.sort()
@@ -58,8 +59,8 @@ class ImageSegmentationDataset(torch.utils.data.Dataset):
         return image_t, label_t
 
     def __getitem__(self, idx):
-        image = utils.imread(self.image_dir + "/" + self.imagefiles[idx])
-        label = utils.imread(self.label_dir + "/" + self.labelfiles[idx])
+        image = utils.pil_read(self.image_dir + "/" + self.imagefiles[idx])
+        label = utils.pil_read(self.label_dir + "/" + self.labelfiles[idx])
         return self.transform(image, label)
     
     def __len__(self):
@@ -71,12 +72,13 @@ class LatentSegmentationDataset(ImageSegmentationDataset):
         super(LatentSegmentationDataset, self).__init__(data_path, size)
 
         with open(self.root_dir + "/latents.npz", 'rb') as fp:
-            latents_np = np.load(fpath)
+            latents_np = np.load(fp)
         self.latents = torch.from_numpy(latents_np)
+        del latents_np
     
     def __getitem__(self, idx):
-        image = utils.imread(self.image_dir + "/" + self.imagefiles[idx])
-        label = utils.imread(self.label_dir + "/" + self.labelfiles[idx])
-        if self.transform:
-            img = self.transform(img)
-        return latent, self.transform(image, label)
+        latent = self.latents[idx]
+        image = utils.pil_read(self.image_dir + "/" + self.imagefiles[idx])
+        label = utils.pil_read(self.label_dir + "/" + self.labelfiles[idx])
+        image_t, label_t = self.transform(image, label)
+        return latent, image_t, label_t

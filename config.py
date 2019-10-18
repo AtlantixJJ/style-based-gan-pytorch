@@ -103,19 +103,32 @@ class SConfig(BaseConfig):
     def __init__(self):
         super(SConfig, self).__init__()
     
-        self.parser.add_argument("--dataset", default="stylegan_gen", help="The path to segmentation dataset")
+        self.parser.add_argument("--dataset", default="datasets/stylegan_gen", help="The path to segmentation dataset")
         self.parser.add_argument("--seg", default=1., help="Coefficient of segmentation loss")
+        self.parser.add_argument("--seg-cfg", default="conv1-19", help="Configure of segmantic segmentation extractor")
+        self.parser.add_argument("--imsize", default=512, help="Train image and label size")
     
     def parse(self):
         super(SConfig, self).parse()
+        self.task = "seg"
         self.dataset_path = self.args.dataset
         self.seg_coef = self.args.seg
-        self.ds = dataset.LatentSegmentationDataset(self.dataset_path)
-        self.dl = DataLoader(self.ds, batch_size=self.batch_size, shuffle=False)
-        self.record['segloss'] = []
+        self.semantic_config = self.args.seg_cfg
+        self.imsize = self.args.imsize
+        self.ds = dataset.LatentSegmentationDataset(self.dataset_path, size=self.imsize)
+        self.dl = DataLoader(self.ds,
+            batch_size=self.batch_size,
+            num_workers=4,
+            shuffle=False,
+            pin_memory=True)
+        self.record = {'loss': [], 'mseloss': [], 'segloss': []}
+
+        self.name = self.task + "_" + str(self.seg_coef) + "_" + self.semantic_config
+        self.expr_dir = osj("expr", self.name)
 
     def print_info(self):
         super(SConfig, self).print_info()
+        print("=> Segmentation configure: %s" % self.semantic_config)
         print("=> Segmentation loss coefficient: %.4f" % self.seg_coef)
         print("=> Segmentation dataset %s" % self.dataset_path)
         print("=> Number samples: %d" % len(self.ds))
