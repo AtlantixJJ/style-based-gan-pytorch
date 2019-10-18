@@ -58,7 +58,6 @@ class ImageSegmentationDataset(torch.utils.data.Dataset):
         image_t = self.normal_transform(image)
         label = np.asarray(label.resize(self.size))[:, :, 0]
         label_t = torch.from_numpy(label).long()
-        print(label_t.min(), label_t.max())
         return image_t, label_t
 
     def __getitem__(self, idx):

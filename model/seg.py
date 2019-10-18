@@ -479,6 +479,40 @@ class Generator(nn.Module):
 
         return out
 
+    def all_level_forward(self, style, noise,
+        step=0, alpha=-1, mixing_range=(-1, -1)):
+        out = noise[0]
+        images = []
+        if len(style) < 2:
+            inject_index = [len(self.progression) + 1]
+
+        else:
+            inject_index = random.sample(list(range(step)), len(style) - 1)
+
+        crossover = 0
+
+        for i, (conv, to_rgb) in enumerate(zip(self.progression, self.to_rgb)):
+            if mixing_range == (-1, -1):
+                if crossover < len(inject_index) and i > inject_index[crossover]:
+                    crossover = min(crossover + 1, len(style))
+
+                style_step = style[crossover]
+
+            else:
+                if mixing_range[0] <= i <= mixing_range[1]:
+                    style_step = style[1]
+
+                else:
+                    style_step = style[0]
+
+            if i > 0 and step > 0:
+                out_prev = out
+            
+            out = conv(out, style_step, noise[i])
+
+            images.append(to_rgb(out))
+
+        return images
 
 class StyledGenerator(nn.Module):
     def __init__(self, code_dim=512, n_mlp=8, semantic=""):
@@ -492,6 +526,43 @@ class StyledGenerator(nn.Module):
             layers.append(nn.LeakyReLU(0.2))
 
         self.style = nn.Sequential(*layers)
+
+    def all_level_forward(
+        self,
+        input,
+        noise=None,
+        step=0,
+        alpha=-1,
+        mean_style=None,
+        style_weight=0,
+        mixing_range=(-1, -1),
+    ):
+        styles = []
+        if type(input) not in (list, tuple):
+            input = [input]
+
+        for i in input:
+            styles.append(self.style(i))
+
+        batch = input[0].shape[0]
+
+        if noise is None:
+            noise = []
+
+            for i in range(step + 1):
+                size = 4 * 2 ** i
+                noise.append(torch.randn(batch, 1, size, size, device=input[0].device))
+
+        if mean_style is not None:
+            styles_norm = []
+
+            for style in styles:
+                styles_norm.append(mean_style + style_weight * (style - mean_style))
+
+            styles = styles_norm
+
+        return self.generator.all_level_forward(
+            styles, noise, step, alpha, mixing_range=mixing_range)
 
     def forward(
         self,

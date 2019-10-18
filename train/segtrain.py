@@ -62,7 +62,7 @@ for i, (latent, image, label) in tqdm(enumerate(cfg.dl)):
     seglosses = []
     for s in segs:
         seglosses.append(logsoftmax(
-            F.interpolate(gen, label.shape[2:], mode="bilinear"),
+            F.interpolate(s, label.shape[2:], mode="bilinear"),
             label))
     segloss = cfg.seg_coef * sum(seglosses) / len(seglosses)
 
@@ -72,7 +72,6 @@ for i, (latent, image, label) in tqdm(enumerate(cfg.dl)):
     g_optim.step()
     g_optim.zero_grad()
 
-    avgmseloss = avgmseloss * 0.9 + mse_data * 0.1
     record['loss'].append(torch2numpy(loss))
     record['mseloss'].append(torch2numpy(mseloss))
     record['segloss'].append(torch2numpy(segloss))
@@ -89,6 +88,6 @@ for i, (latent, image, label) in tqdm(enumerate(cfg.dl)):
         torch.save(sg.state_dict(), cfg.expr_dir + "/iter_%06d.model" % i)
         vutils.save_image(gen[:4], cfg.expr_dir + '/gen_%06d.png' % i,
                           nrow=2, normalize=True, range=(-1, 1))
-        vutils.save_image(target_image[:4], cfg.expr_dir + '/target_%06d.png' % i,
+        vutils.save_image(image[:4], cfg.expr_dir + '/target_%06d.png' % i,
                           nrow=2, normalize=True, range=(-1, 1))
         write_log(cfg.expr_dir, record)

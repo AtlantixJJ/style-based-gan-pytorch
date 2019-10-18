@@ -17,9 +17,8 @@ def imread(fpath):
 		return np.asarray(Image.open(fp)).astype("float32")
 
 def imwrite(fpath, img):
-	# (-1, 1)
 	with open(fpath, "wb") as fp:
-		Image.fromarray(((img + 1) * 127.5).astype("uint8")).save(fp, fotmat="PNG")
+		Image.fromarray(img.astype("uint8")).save(fp, fotmat="PNG")
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--model", default="checkpoint/faceparse_unet.pth")
@@ -56,10 +55,10 @@ if args.indir != "":
 	dl = torch.utils.data.DataLoader(ds, batch_size=1)
 	for i,img_t in tqdm(enumerate(dl)):
 		pred = net(img_t.cuda())[0]
-		# argmax and normalize to [0, 1]
+		# argmax and normalize to [-1, 1]
 		raw_label = pred.argmax(0, keepdim=True)
 		raw_image = torch.cat([raw_label, raw_label, raw_label], dim=0)
 		raw_image = raw_image.cpu().numpy().transpose(1, 2, 0)
 		label = tensor2label(pred, pred.shape[0]).transpose(1, 2, 0)
 		imwrite(args.outdir + "/label/%05d.png" % i, raw_image)
-		imwrite(args.outdir + "/label_viz/%05d.png" % i, label)
+		imwrite(args.outdir + "/label_viz/%05d.png" % i, (label + 1) * 127.5)
