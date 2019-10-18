@@ -16,17 +16,18 @@ from lib.face_parsing.utils import tensor2label
 parser = argparse.ArgumentParser()
 parser.add_argument("--task", default="latest", help="log|latest|lerp|evol|seg")
 parser.add_argument("--model", default="")
+parser.add_argument("--step", type=int, default=7)
 parser.add_argument("--lerp", type=float, default=1.0)
 args = parser.parse_args()
 
 savepath = args.model.replace("expr/", "results/")
 
 device = 'cuda'
-step = 7
+step = args.step
 alpha = 1
 lerp = args.lerp
 shape = 4 * 2 ** step
-torch.manual_seed(4)
+torch.manual_seed(1314)
 latent = torch.randn(1, 512).to(device)
 latent.requires_grad = True
 noise = []
@@ -35,7 +36,7 @@ for i in range(step + 1):
     noise.append(torch.randn(1, 1, size, size, device=device))
 
 cfg = config.config_from_name(args.model)
-if args.task == 'seg':
+if 'seg' in args.task:
     from model.seg import StyledGenerator
 else:
     from model.default import StyledGenerator
