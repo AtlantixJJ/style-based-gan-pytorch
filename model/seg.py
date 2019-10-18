@@ -369,7 +369,7 @@ class StyledConvBlock(nn.Module):
         if "conv" in self.segcfg:
             n_layer = int(self.segcfg[-1])
             if n_layer == 1:
-                self.extractor = EqualConv2d(out_channel, self.n_class, 1, 1)
+                _m = [EqualConv2d(out_channel, self.n_class, 1, 1)]
             else:
                 _m = []
                 _m.append(EqualConv2d(out_channel, self.midims, 1, 1))
@@ -378,7 +378,7 @@ class StyledConvBlock(nn.Module):
                     _m.append(EqualConv2d(self.midims, self.midims, 1, 1))
                 _m.append(nn.ReLU(inplace=True))
                 _m.append(EqualConv2d(self.midims, self.n_class, 1, 1))
-                self.extractor = nn.Sequential(*_m)
+            self.extractor = nn.Sequential(*_m)
 
     def forward(self, input, style, noise):
         out = self.conv1(input)

@@ -1,25 +1,20 @@
+import sys
+sys.path.insert(0, ".")
+import matplotlib
+matplotlib.use("agg")
 import matplotlib.pyplot as plt
 import argparse
-from PIL import Image
 import numpy as np
 import torch
-import os
-import glob
+import torch.nn.functional as F
+import os, glob
 from utils import *
 from torchvision import utils as vutils
 import config
-from model import StyledGenerator
-import matplotlib
-matplotlib.use("agg")
-
-
-def open_image(name):
-    with open(name, "rb") as f:
-        return np.asarray(Image.open(f))
-
+from lib.face_parsing.utils import tensor2label
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--task", default="latest", help="log|latest|lerp|evol")
+parser.add_argument("--task", default="latest", help="log|latest|lerp|evol|seg")
 parser.add_argument("--model", default="")
 parser.add_argument("--lerp", type=float, default=1.0)
 args = parser.parse_args()
@@ -40,6 +35,10 @@ for i in range(step + 1):
     noise.append(torch.randn(1, 1, size, size, device=device))
 
 cfg = config.config_from_name(args.model)
+if args.task == 'seg':
+    from model.seg import StyledGenerator
+else:
+    from model.default import StyledGenerator
 generator = StyledGenerator(512, **cfg).to(device)
 model_files = glob.glob(args.model + "/*.model")
 model_files.sort()
@@ -62,6 +61,33 @@ if "log" in args.task:
     plt.savefig(savepath + "_loss.png")
     plt.close()
 
+if "seg" in args.task:
+    print("=> Load from %s" % model_files[-1])
+    generator.load_state_dict(torch.load(
+        model_files[-1], map_location='cuda:0'))
+    generator.eval()
+    mean_style = generator.mean_style(torch.randn(1024, 512).to(device))
+
+    set_lerp_val(generator.generator.progression, lerp)
+    original_generation = generator(latent,
+                                    noise=noise,
+                                    step=step,
+                                    alpha=alpha,
+                                    mean_style=mean_style,
+                                    style_weight=0.7)
+    original_generation = normalize_image(original_generation)
+
+    segmentations = get_segmentation(generator.generator.progression)
+    labels = [torch.from_numpy(tensor2label(s[0], s.shape[1]))
+        for s in segmentations]
+    labels = [l.float().unsqueeze(0) for l in labels]
+    res = labels + [original_generation]
+    res = [F.interpolate(m, 256).cpu() for m in res]
+    res = torch.cat(res, 0)
+    print("=> Write image to %s" % (savepath + '_segmentation.png'))
+    vutils.save_image(res, savepath + '_segmentation.png', nrow=4)
+
+
 if "latest" in args.task:
     print("=> Load from %s" % model_files[-1])
     generator.load_state_dict(torch.load(
@@ -81,7 +107,7 @@ if "latest" in args.task:
     masks = get_mask(generator.generator.progression)
     masks = [torch.cat([m, m, m], 1) for m in masks]
     res = masks + [original_generation]
-    res = [torch.nn.functional.interpolate(m, 256) for m in res]
+    res = [F.interpolate(m, 256) for m in res]
     res = torch.cat(res, 0)
     print("=> Write image to %s" % (savepath + '_latest.png'))
     vutils.save_image(res, savepath + '_latest.png', nrow=cfg['att'])
@@ -106,7 +132,7 @@ if "lerp" in args.task:
         masks = get_mask(generator.generator.progression)
         masks = [torch.cat([m, m, m], 1) for m in masks]
         res = masks + [original_generation]
-        res = [torch.nn.functional.interpolate(m, 256) for m in res]
+        res = [F.interpolate(m, 256) for m in res]
         res = torch.cat(res, 0)
         vutils.save_image(res, savepath + '_lerp_%02d.png' %
                           i, nrow=cfg['att'])
@@ -130,7 +156,7 @@ if "evol" in args.task:
         masks = get_mask(generator.generator.progression)
         masks = [torch.cat([m, m, m], 1) for m in masks]
         res = masks + [original_generation]
-        res = [torch.nn.functional.interpolate(m, 256) for m in res]
+        res = [F.interpolate(m, 256) for m in res]
         res = torch.cat(res, 0)
         vutils.save_image(res, savepath + '_evol_%02d.png' %
                           i, nrow=cfg['att'])

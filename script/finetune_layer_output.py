@@ -39,20 +39,20 @@ for k in range(STEP + 1):
 
 count = 0
 record = {'loss': []}
-for i in tqdm(range(1000)):
-	latent.normal_()
+for i in tqdm(range(cfg.n_iter)):
+    latent.normal_()
     for k in range(STEP + 1):
         noise[k].normal_()
 
     images = sg.all_level_forward(latent, step=STEP, alpha=ALPHA, noise=noise)
-	target = images[-1].detach()
-	images = images[:-1]
+    target = images[-1].detach()
+    images = images[:-1]
     mselosses = []
-	for img in images:
-		mselosses.append(mse(
-			F.interpolate(img, target.shape[2:], mode="bilinear"),
-			target))
-	mseloss = sum(mselosses) / len(mselosses)
+    for img in images:
+        mselosses.append(mse(
+            F.interpolate(img, target.shape[2:], mode="bilinear"),
+            target))
+    mseloss = sum(mselosses) / len(mselosses)
 
     loss = mseloss
     with torch.autograd.detect_anomaly():
@@ -60,7 +60,7 @@ for i in tqdm(range(1000)):
     g_optim.step()
     g_optim.zero_grad()
 
-	record['loss'].append(torch2numpy(loss))
-	write_log(cfg.expr_dir, record)
+    record['loss'].append(torch2numpy(loss))
+    write_log(cfg.expr_dir, record)
 
 torch.save(sg.state_dict(), cfg.expr_dir + "/iter_%06d.model" % i)

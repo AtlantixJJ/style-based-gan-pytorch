@@ -73,14 +73,22 @@ class LatentSegmentationDataset(ImageSegmentationDataset):
     def __init__(self, data_path, size):
         super(LatentSegmentationDataset, self).__init__(data_path, size)
 
-        with open(self.root_dir + "/latents.npz", 'rb') as fp:
-            latents_np = np.load(fp)
+        with open(self.root_dir + "/train/latents.npz", 'rb') as fp:
+            latents_np = np.load(fp)['arr_0']
         self.latents = torch.from_numpy(latents_np)
         del latents_np
+        # must make sure this is equal to generate_stylegan_dataset.py
+        N = 10000
+        self.noises = []
+        for k in range(9):
+            size = 4 * 2 ** k
+            self.noises.append(torch.randn(1, size, size))
     
     def __getitem__(self, idx):
         latent = self.latents[idx]
+        for k in range(9):
+            self.noises[k].normal_()
         image = utils.pil_read(self.image_dir + "/" + self.imagefiles[idx])
         label = utils.pil_read(self.label_dir + "/" + self.labelfiles[idx])
         image_t, label_t = self.transform(image, label)
-        return latent, image_t, label_t
+        return latent, [n.clone() for n in self.noises], image_t, label_t

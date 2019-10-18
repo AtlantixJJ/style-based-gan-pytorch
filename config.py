@@ -22,6 +22,9 @@ def config_from_name(name):
             att = int(items[i][-1])
             att_mtd = items[i+1]
             dics.update({"att": att, "att_mtd": att_mtd})
+        if "seg" in items[i]:
+            segcfg = items[i+2]
+            dics.update({"semantic": segcfg})
     return dics
 
 
@@ -80,6 +83,9 @@ class BaseConfig(object):
             self.load_path = self.args.load
         else:
             self.load = False
+        
+        # default expr dir
+        self.expr_dir = "expr/" + self.task + ("_%.4f_" % self.lr) + str(self.n_iter)
 
     def setup(self):
         print("=> Prepare expr directory")
@@ -103,8 +109,8 @@ class SConfig(BaseConfig):
     def __init__(self):
         super(SConfig, self).__init__()
     
-        self.parser.add_argument("--dataset", default="datasets/stylegan_gen", help="The path to segmentation dataset")
-        self.parser.add_argument("--seg", default=1., help="Coefficient of segmentation loss")
+        self.parser.add_argument("--dataset", default="datasets/stylegan", help="The path to segmentation dataset")
+        self.parser.add_argument("--seg", default=1., type=float, help="Coefficient of segmentation loss")
         self.parser.add_argument("--seg-cfg", default="conv1-19", help="Configure of segmantic segmentation extractor")
         self.parser.add_argument("--imsize", default=512, help="Train image and label size")
     

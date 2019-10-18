@@ -1,1 +1,0 @@
-import lib.face_parsing.apply

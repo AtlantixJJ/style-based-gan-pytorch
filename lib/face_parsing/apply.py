@@ -1,5 +1,6 @@
 import sys, os
 sys.path.insert(0, ".")
+sys.path.insert(0, "lib/face_parsing")
 import torch
 import torchvision.utils as vutils
 from torchvision import transforms
@@ -23,8 +24,8 @@ def imwrite(fpath, img):
 parser = argparse.ArgumentParser()
 parser.add_argument("--model", default="checkpoint/faceparse_unet.pth")
 parser.add_argument("--file", default="")
-parser.add_argument("--indir", default="")
-parser.add_argument("--outdir", default="")
+parser.add_argument("--indir", default="datasets/stylegan/train")
+parser.add_argument("--outdir", default="datasets/stylegan/")
 args = parser.parse_args()
 
 net = unet.unet()
