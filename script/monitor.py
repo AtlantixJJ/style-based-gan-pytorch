@@ -38,6 +38,10 @@ for i in range(step + 1):
 cfg = config.config_from_name(args.model)
 if 'seg' in args.task:
     from model.seg import StyledGenerator
+    with open("datasets/stylegan/train/latents.npz", 'rb') as fp:
+        latents_np = np.load(fp)['arr_0']
+    latent = torch.from_numpy(latents_np[0:1]).to(device)
+    print(latent.shape)
 else:
     from model.default import StyledGenerator
 generator = StyledGenerator(512, **cfg).to(device)
@@ -67,15 +71,15 @@ if "seg" in args.task:
     generator.load_state_dict(torch.load(
         model_files[-1], map_location='cuda:0'))
     generator.eval()
-    mean_style = generator.mean_style(torch.randn(1024, 512).to(device))
+    #mean_style = generator.mean_style(torch.randn(1024, 512).to(device))
 
     set_lerp_val(generator.generator.progression, lerp)
     original_generation = generator(latent,
                                     noise=noise,
                                     step=step,
-                                    alpha=alpha,
-                                    mean_style=mean_style,
-                                    style_weight=0.7)
+                                    alpha=alpha)
+                                    #mean_style=mean_style,
+                                    #style_weight=0.7)
     original_generation = normalize_image(original_generation)
 
     segmentations = get_segmentation(generator.generator.progression)
