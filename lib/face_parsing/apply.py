@@ -24,7 +24,8 @@ def imwrite(fpath, img):
 parser = argparse.ArgumentParser()
 parser.add_argument("--model", default="checkpoint/faceparse_unet.pth")
 parser.add_argument("--file", default="")
-parser.add_argument("--dir", default="")
+parser.add_argument("--indir", default="")
+parser.add_argument("--outdir", default="")
 args = parser.parse_args()
 
 net = unet.unet()
@@ -44,19 +45,21 @@ if args.file != "":
 	pred = net(img_t)
 	imwrite("tmp.png", tensor2label(pred[0], 19).transpose(1, 2, 0))
 
-if args.dir != "":
+if args.indir != "":
+	os.system("mkdir %s" % (args.outdir + "/label"))
+	os.system("mkdir %s" % (args.outdir + "/label_viz"))
 	T = transforms.Compose([
 		transforms.ToTensor(),
 		transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
 		])
-	ds = SimpleDataset(args.dir, 512, T)
+	ds = SimpleDataset(args.indir, 512, T)
 	dl = torch.utils.data.DataLoader(ds, batch_size=1)
 	for i,img_t in tqdm(enumerate(dl)):
 		pred = net(img_t.cuda())[0]
 		# argmax and normalize to [0, 1]
-		raw_label = pred.argmax(0, keepdim=True) / float(pred.shape[0])
+		raw_label = pred.argmax(0, keepdim=True)
 		raw_image = torch.cat([raw_label, raw_label, raw_label], dim=0)
 		raw_image = raw_image.cpu().numpy().transpose(1, 2, 0)
 		label = tensor2label(pred, pred.shape[0]).transpose(1, 2, 0)
-		imwrite("label/%05d.png" % i, raw_image)
-		imwrite("label_viz/%05d.png" % i, label)
+		imwrite(args.outdir + "/label/%05d.png" % i, raw_image)
+		imwrite(args.outdir + "/label_viz/%05d.png" % i, label)

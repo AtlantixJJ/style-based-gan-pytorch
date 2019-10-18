@@ -46,7 +46,8 @@ class ImageSegmentationDataset(torch.utils.data.Dataset):
 
         self.normal_transform = transforms.Compose([
             transforms.Resize(self.size),
-            transforms.ToTensor()])
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
         self.imagefiles = sum([[file for file in files if ".jpg" in file or ".png" in file] for path, dirs, files in os.walk(self.image_dir) if files], [])
         self.imagefiles.sort()
@@ -55,7 +56,9 @@ class ImageSegmentationDataset(torch.utils.data.Dataset):
 
     def transform(self, image, label):
         image_t = self.normal_transform(image)
-        label_t = self.normal_transform(label)
+        label = np.asarray(label.resize(self.size))[:, :, 0]
+        label_t = torch.from_numpy(label).long()
+        print(label_t.min(), label_t.max())
         return image_t, label_t
 
     def __getitem__(self, idx):
