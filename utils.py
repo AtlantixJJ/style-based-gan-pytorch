@@ -40,6 +40,19 @@ def imread(fpath):
     with open(os.path.join(fpath), "rb") as f:
         return np.asarray(Image.open(f))
 
+
+def imwrite(fpath, image):
+    """
+    image: np array, value range in [0, 255].
+    """
+    if ".jpg" in fpath or ".jpeg" in fpath:
+        ext = "JPEG"
+    elif ".png" in fpath:
+        ext = "PNG"
+    with open(os.path.join(fpath), "wb") as f:
+        Image.fromarray(image.astype("uint8")).save(f, format=ext)
+
+
 def pil_read(fpath):
     with open(os.path.join(fpath), "rb") as f:
         img = Image.open(f)

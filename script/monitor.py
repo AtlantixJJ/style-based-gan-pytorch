@@ -71,15 +71,12 @@ if "seg" in args.task:
     generator.load_state_dict(torch.load(
         model_files[-1], map_location='cuda:0'))
     generator.eval()
-    #mean_style = generator.mean_style(torch.randn(1024, 512).to(device))
-
+ 
     set_lerp_val(generator.generator.progression, lerp)
     original_generation = generator(latent,
                                     noise=noise,
                                     step=step,
                                     alpha=alpha)
-                                    #mean_style=mean_style,
-                                    #style_weight=0.7)
     original_generation = normalize_image(original_generation)
 
     segmentations = get_segmentation(generator.generator.progression)
@@ -91,7 +88,6 @@ if "seg" in args.task:
     res = torch.cat(res, 0)
     print("=> Write image to %s" % (savepath + '_segmentation.png'))
     vutils.save_image(res, savepath + '_segmentation.png', nrow=4)
-
 
 if "latest" in args.task:
     print("=> Load from %s" % model_files[-1])

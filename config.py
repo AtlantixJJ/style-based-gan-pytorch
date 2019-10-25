@@ -116,17 +116,17 @@ class SConfig(BaseConfig):
     
     def parse(self):
         super(SConfig, self).parse()
-        self.task = "seg"
         self.dataset_path = self.args.dataset
         self.seg_coef = self.args.seg
         self.semantic_config = self.args.seg_cfg
         self.imsize = self.args.imsize
-        self.ds = dataset.LatentSegmentationDataset(self.dataset_path, size=self.imsize)
-        self.dl = DataLoader(self.ds,
-            batch_size=self.batch_size,
-            num_workers=4,
-            shuffle=False,
-            pin_memory=True)
+        if self.task == "seg": 
+            self.ds = dataset.LatentSegmentationDataset(self.dataset_path, size=self.imsize)
+            self.dl = DataLoader(self.ds,
+                batch_size=self.batch_size,
+                num_workers=4,
+                shuffle=False,
+                pin_memory=True)
         self.record = {'loss': [], 'mseloss': [], 'segloss': []}
 
         self.name = self.task + "_" + str(self.seg_coef) + "_" + self.semantic_config
