@@ -19,22 +19,36 @@ import torch.nn.functional as F
 import torchvision.utils as vutils
 from torch.autograd import Variable
 
+
+class MultiGPUTensor(object):
+    def __init__(self, root, n_gpu):
+        self.root = root
+        self.n_gpu = n_gpu
+        self.create_copy()
+    
+    def create_copy(self):
+        self.val = []
+        for i in range(self.n_gpu):
+            self.val.append(self.root.detach().to("cuda:" + str(i)))
+    
+    def sync(self):
+        for i in range(self.n_gpu):
+            self.val[i].copy_(self.root)
+
 # define the colormap
 CMAP = plt.cm.jet
 # extract all colors from the .jet map
 CMAP_LIST = [CMAP(i) for i in range(CMAP.N)]
 # create the new map
 CMAP = CMAP.from_list('Custom cmap', CMAP_LIST, CMAP.N)
-# define the bins and normalize
-# COLOR_BOUND = np.linspace(0, N, N+1)
-# COLOR_NORM = matplotlib.colors.BoundaryNorm(COLOR_BOUND, CMAP.N)
-
-def label2rgb(label_map):
-    n_labels = label_map.max()
+def label2rgb(label_map, n_labels=None):
+    if n_labels is None:
+        n_labels = label_map.max()
     # normalize map
     norm_map = label_map / float(n_labels)
     # convert to RGB
     return CMAP(norm_map)
+
 
 def imread(fpath):
     with open(os.path.join(fpath), "rb") as f:
@@ -84,11 +98,19 @@ def get_masks(blocks, step=6):
             masks.append(None)
     return masks
 
-def get_segmentation(blocks, step=6):
+def get_segmentation(blocks, step=-1, detach=True):
     seg = []
     for i, blk in enumerate(blocks):
-        if hasattr(blk, "segmentation"):
-            seg.append(blk.segmentation)
+        if step > 0 and step != i:
+            continue
+        if blk.n_class > 0:
+            input = blk.seg_input
+            if detach:
+                input = input.detach()
+            net_device = next(blk.extractor.parameters()).device
+            if input.device != net_device:
+                input = input.cpu().to(net_device)
+            seg.append(blk.extractor(input))
     return seg
 
 def visualize_masks(masks):
@@ -112,16 +134,32 @@ def set_lerp_val(progression, lerp_val):
         p.lerp = lerp_val
 
 
-def get_generator_lr(g, lr1, lr2, STEP=6):
+def get_generator_lr(g, lr1, lr2):
     dic = []
     for i, blk in enumerate(g.progression):
-        if i > STEP:
-            break
         dic.append({"params": blk.conv1.parameters(), "lr": lr1})
         dic.append({"params": blk.conv2.parameters(), "lr": lr1})
         if blk.att > 0:
             dic.append({"params": blk.attention1.parameters(), "lr": lr2})
             dic.append({"params": blk.attention2.parameters(), "lr": lr2})
+    return dic
+
+
+def get_generator_blockconv_lr(g, lr):
+    dic = []
+    for i, blk in enumerate(g.progression):
+        dic.append({"params": blk.conv1.parameters(), "lr": lr})
+        dic.append({"params": blk.conv2.parameters(), "lr": lr})
+        dic.append({"params": blk.noise1.parameters(), "lr": lr})
+        dic.append({"params": blk.noise2.parameters(), "lr": lr})
+    return dic
+
+
+def get_generator_extractor_lr(g, lr):
+    dic = []
+    for i, blk in enumerate(g.progression):
+        if "conv" in blk.segcfg:
+            dic.append({"params": blk.extractor.parameters(), "lr": lr})
     return dic
 
 

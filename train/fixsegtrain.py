@@ -13,100 +13,77 @@ from utils import *
 from loss import *
 from model.seg import StyledGenerator
 
-STEP = 8
+STEP = 8 # 1024px resolution
 ALPHA = 1
 
 cfg = config.SConfig()
 cfg.parse()
 cfg.print_info()
 cfg.setup()
-
+# GPU1: main network + auxiliary network GPU2: extractor
 state_dict = torch.load("checkpoint/faceparse_unet.pth", map_location='cpu')
 faceparser = unet.unet()
 faceparser.load_state_dict(state_dict)
-faceparser = faceparser.to(cfg.device2)
+faceparser = faceparser.to(cfg.device)
 faceparser.eval()
 del state_dict
 
 state_dicts = torch.load(cfg.load_path, map_location='cpu')
-tg = StyledGenerator(512)
-tg.load_state_dict(state_dicts['generator'])
-tg.eval()
-tg = tg.to(cfg.device2)
 sg = StyledGenerator(512, semantic=cfg.semantic_config)
 sg.load_state_dict(state_dicts['generator'])
 sg.train()
-sg = sg.to(cfg.device1)
+sg = sg.to(cfg.device)
+# the extractor module in on another GPU
+#for i, blk in enumerate(sg.generator.progression):
+#	if blk.n_class > 0:
+#		blk.extractor = blk.extractor.to(cfg.device2)
 del state_dicts
 
 # new parameter adaption stage
-g_optim1 = torch.optim.Adam(get_generator_extractor_lr( # 1e-4, 1e-3
+g_optim = torch.optim.Adam(get_generator_extractor_lr(
     sg.generator, cfg.lr), betas=(0.9, 0.9))
-g_optim1.add_param_group({
-    'params': sg.style.parameters(),
-    'lr': cfg.lr * 0.001}) # 1e-6
-g_optim2 = torch.optim.Adam(get_generator_extractor_lr(
-    sg.generator, cfg.lr * 0.2, cfg.lr), betas=(0.9, 0.9)) # 2e-4, 1e-3
-g_optim2.add_param_group({
-    'params': sg.style.parameters(),
-    'lr': cfg.lr * 0.02}) # 2e-5
 logsoftmax = torch.nn.CrossEntropyLoss()
-mse = torch.nn.MSELoss()
-logsoftmax = logsoftmax.to(cfg.device1)
-mse = mse.cuda(cfg.device1)
+logsoftmax = logsoftmax.to(cfg.device2)
 
-latent1 = torch.randn(cfg.batch_size, 512).to(cfg.device1)
-latent2 = latent1.clone().to(cfg.device2)
-noise1 = [0] * (STEP + 1)
-noise2 = []
+latent = torch.randn(cfg.batch_size, 512).to(cfg.device)
+noise = [0] * (STEP + 1)
 for k in range(STEP + 1):
     size = 4 * 2 ** k
-    noise1[k] = torch.randn(cfg.batch_size, 1, size, size).to(cfg.device1)
-for k in range(STEP + 1):
-    noise2.append(noise1[k].clone().to(cfg.device2))
+    noise[k] = torch.randn(cfg.batch_size, 1, size, size).to(cfg.device)
 
-record = cfg.record
-avgmseloss = 0
+record = {"loss":[],"segloss":[]}
 count = 0
 
 for i in tqdm(range(cfg.n_iter)):
-	latent1.normal_()
-	latent2.copy_(latent1, True) # asynchronous
+	latent.normal_()
 	for k in range(STEP + 1):
-		noise1[k].normal_()
-		noise2[k].copy_(noise2[k], True) # asynchronous
+		noise[k].normal_()
 
-	gen = sg(latent1, step=STEP, alpha=ALPHA, noise=noise1)
 	with torch.no_grad():
-		image = tg(latent2, noise=noise2, step=STEP, alpha=ALPHA)
-		image = F.interpolate(image, cfg.imsize, mode="bilinear")
-		label = faceparser(image).argmax(1)
-		image = image.detach().cpu().to(cfg.device1)
-		label = label.detach().cpu().to(cfg.device1)
+		gen = sg(latent,
+			noise=noise,
+			step=STEP,
+			alpha=ALPHA)
+		gen = F.interpolate(gen, cfg.imsize, mode="bilinear")
+		label = faceparser(gen).argmax(1).detach()
 
-	mseloss = cfg.mse_coef * mse(F.interpolate(gen, cfg.imsize, mode="bilinear"), image)
-	segs = get_segmentation(sg.generator.progression)
-	seglosses = []
-	for s in segs:
-		seglosses.append(logsoftmax(
-			F.interpolate(s, label.shape[2:], mode="bilinear"),
-			label))
-	segloss = cfg.seg_coef * sum(seglosses) / len(seglosses)
-
-	loss = mseloss + segloss
-	with torch.autograd.detect_anomaly():
-		loss.backward()
-	
-	if i < 1000:
-		g_optim = g_optim1
-	else:
-		g_optim = g_optim2
-
-	g_optim.step()
-	g_optim.zero_grad()
+	segs = []
+	for j in range(STEP - 1):
+		if sg.generator.progression[j].n_class <= 0:
+			continue
+		segmentation = get_segmentation(sg.generator.progression, j)[0]
+		segs.append(segmentation)
+		segloss = logsoftmax(F.interpolate(
+			segmentation,
+			label.shape[2:],
+			mode="bilinear"), label)
+		loss = segloss
+		with torch.autograd.detect_anomaly():
+			loss.backward()
+		g_optim.step()
+		g_optim.zero_grad()
 
 	record['loss'].append(torch2numpy(loss))
-	record['mseloss'].append(torch2numpy(mseloss))
 	record['segloss'].append(torch2numpy(segloss))
 
 	if cfg.debug:
@@ -121,8 +98,6 @@ for i in tqdm(range(cfg.n_iter)):
 		torch.save(sg.state_dict(), cfg.expr_dir + "/iter_%06d.model" % i)
 
 	if i % 1000 == 0 or cfg.debug:
-		vutils.save_image(gen[:4], cfg.expr_dir + '/gen_%06d.png' % i,
-							nrow=2, normalize=True, range=(-1, 1))
 		vutils.save_image(image[:4], cfg.expr_dir + '/target_%06d.png' % i,
 							nrow=2, normalize=True, range=(-1, 1))
 

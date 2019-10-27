@@ -392,7 +392,7 @@ class StyledConvBlock(nn.Module):
         out = self.adain2(out, style)
 
         if self.n_class > 0:
-            self.segmentation = self.extractor(out)
+            self.seg_input = out
 
         return out
 

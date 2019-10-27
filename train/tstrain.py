@@ -43,13 +43,13 @@ sg = tg.to(cfg.device2)
 
 # new parameter adaption stage
 g_optim1 = torch.optim.Adam(get_generator_lr(
-    sg.generator, cfg.stage1_lr * 0.1, cfg.stage1_lr, 0), betas=(0.9, 0.9))
+    sg.generator, cfg.stage1_lr * 0.1, cfg.stage1_lr), betas=(0.9, 0.9))
 g_optim1.add_param_group({
     'params': sg.style.parameters(),
     'lr': cfg.stage1_lr * 0.001})
 # normal learning rate stage
 g_optim2 = torch.optim.Adam(get_generator_lr(
-    sg.generator, cfg.stage2_lr, cfg.stage2_lr, 1), betas=(0.9, 0.9))
+    sg.generator, cfg.stage2_lr, cfg.stage2_lr), betas=(0.9, 0.9))
 g_optim2.add_param_group({
     'params': sg.style.parameters(),
     'lr': cfg.stage2_lr * 0.01})

@@ -1,6 +1,5 @@
 import torch.nn as nn
-
-from model_utils import *
+from lib.face_parsing.model_utils import *
 
 
 class unet(nn.Module):

@@ -64,16 +64,19 @@ class BaseConfig(object):
         self.load = self.args.load
         self.batch_size = self.args.batch_size
         self.gpu = list(range(len(self.args.gpu.split(","))))
+        self.n_gpu = len(self.gpu)
         os.environ['CUDA_VISIBLE_DEVICES'] = self.args.gpu
 
         if len(self.gpu) == 1:
             self.device = 'cuda'
             self.device1 = 'cuda:0'
             self.device2 = 'cuda:0'
+            self.device3 = 'cuda:0'
         elif len(self.gpu) > 1:
             self.device = 'cuda'
             self.device1 = 'cuda:0'
             self.device2 = 'cuda:1'
+            self.device3 = 'cuda:2'
         else:
             self.device = 'cpu'
 
@@ -111,12 +114,14 @@ class SConfig(BaseConfig):
     
         self.parser.add_argument("--dataset", default="datasets/stylegan", help="The path to segmentation dataset")
         self.parser.add_argument("--seg", default=1., type=float, help="Coefficient of segmentation loss")
+        self.parser.add_argument("--mse", default=1., type=float, help="Coefficient of MSE loss")
         self.parser.add_argument("--seg-cfg", default="conv1-19", help="Configure of segmantic segmentation extractor")
         self.parser.add_argument("--imsize", default=512, help="Train image and label size")
     
     def parse(self):
         super(SConfig, self).parse()
         self.dataset_path = self.args.dataset
+        self.mse_coef = self.args.mse
         self.seg_coef = self.args.seg
         self.semantic_config = self.args.seg_cfg
         self.imsize = self.args.imsize
@@ -136,10 +141,12 @@ class SConfig(BaseConfig):
         super(SConfig, self).print_info()
         print("=> Segmentation configure: %s" % self.semantic_config)
         print("=> Segmentation loss coefficient: %.4f" % self.seg_coef)
+        print("=> MSE loss coefficient: %.4f" % self.mse_coef)
         print("=> Segmentation dataset %s" % self.dataset_path)
-        print("=> Number samples: %d" % len(self.ds))
-
-
+        if self.task == "seg":
+            print("=> Number samples: %d" % len(self.ds))
+# python train/tssegtrain.py --task tsseg --gpu 3,5 --batch_size 4 --seg 0.2 --mse 10.0 --seg-cfg conv1-19
+# python train/tssegtrain.py --task tsseg --gpu 2,6 --batch_size 4 --seg 0.2 --mse 10.0 --seg-cfg conv2-19
 class TSConfig(BaseConfig):
     def __init__(self):
         super(TSConfig, self).__init__()
