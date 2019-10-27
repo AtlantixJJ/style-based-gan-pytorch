@@ -93,14 +93,11 @@ for i in tqdm(range(cfg.n_iter)):
 			l.append(record[k][-1])
 		print(l)
 
-	if i % 1000 == 0 and i > 0:
+	if i % 100 == 0 and i > 0:
 		print("=> Snapshot model %d" % i)
 		torch.save(sg.state_dict(), cfg.expr_dir + "/iter_%06d.model" % i)
 
-	if i % 1000 == 0 or cfg.debug:
-		vutils.save_image(image[:4], cfg.expr_dir + '/target_%06d.png' % i,
-							nrow=2, normalize=True, range=(-1, 1))
-
+	if i % 100 == 0 or cfg.debug:
 		tarlabels = [torch.from_numpy(tensor2label(
 						label[i:i+1],
 						label.shape[1]))
