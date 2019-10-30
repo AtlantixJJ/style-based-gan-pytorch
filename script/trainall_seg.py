@@ -1,30 +1,25 @@
 import os
-basecmd = "python train/segtrain.py --seg-mtd %s --gpu %s --batch_size %d &"
-gpus = ["0,2", "1,3", "1,4", "0,5", "0,6"]
+basecmd = "python train/fixsegtrain.py --task fixadainseg --seg-cfg %s --gpu %s --batch_size %d --iter-num 2000 &"
+gpus = ["0", "1", "2", "3", "5", "6"]
 slots = [""] * len(gpus)
-atts = [2, 4, 8]
-"""
-att_mtds = ["sep-conv1-ch", "sep-conv1-elt", "sep-conv2-ch", "sep-conv2-elt",
-            "sep-gencos1-ch", "sep-gen1-ch", "sep-gen1-elt",
-            "sep-gencos2-ch", "sep-gen2-ch", "sep-gen2-elt"]
-"""
-att_mtds = ["uniaft-conv1-ch", "unibfr-conv1-ch"]
 
+seg_cfgs = ["1conv1-19", "3conv1-19",
+            "1conv2-19", "3conv2-19",
+            "1conv3-19", "3conv3-19"]
 
-def args_gen(atts, att_mtds, gpus):
+def args_gen(seg_cfgs, gpus):
     l = []
     count = 0
 
-    for att in atts:
-        for att_mtd in att_mtds:
-            gpu = gpus[count]
-            batch_size = 4
-            l.append((count, (att, att_mtd, gpu, batch_size)))
-            count = (count + 1) % len(gpus)
+    for segcfg in seg_cfgs:
+        gpu = gpus[count]
+        batch_size = 8
+        l.append((count, (segcfg, gpu, batch_size)))
+        count = (count + 1) % len(gpus)
     return l
 
 
-for count, arg in args_gen(atts, att_mtds, gpus):
+for count, arg in args_gen(seg_cfgs, gpus):
     cmd = basecmd % arg
     slots[count] += cmd + "& "
 

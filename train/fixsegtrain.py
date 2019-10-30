@@ -51,10 +51,10 @@ for k in range(STEP + 1):
     size = 4 * 2 ** k
     noise[k] = torch.randn(cfg.batch_size, 1, size, size).to(cfg.device)
 
-record = {"loss":[],"segloss":[]}
+record = {"loss":[], "segloss":[]}
 count = 0
 
-for i in tqdm(range(cfg.n_iter)):
+for i in tqdm(range(cfg.n_iter + 1)):
 	latent.normal_()
 	for k in range(STEP + 1):
 		noise[k].normal_()
@@ -68,7 +68,7 @@ for i in tqdm(range(cfg.n_iter)):
 		label = faceparser(gen).argmax(1).detach()
 
 	segs = []
-	for j in range(STEP - 1):
+	for j in range(STEP + 1):
 		if sg.generator.progression[j].n_class <= 0:
 			continue
 		segmentation = get_segmentation(sg.generator.progression, j)[0]
@@ -113,3 +113,5 @@ for i in tqdm(range(cfg.n_iter)):
 		vutils.save_image(tarviz, cfg.expr_dir + "/tarlabel_viz_%05d.png" % i, nrow=2)
 
 		write_log(cfg.expr_dir, record)
+
+os.system("python script/monitor.py --task log,seg --model %s --step 8" % cfg.expr_dir)

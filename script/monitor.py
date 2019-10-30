@@ -36,6 +36,7 @@ for i in range(step + 1):
     noise.append(torch.randn(1, 1, size, size, device=device))
 
 cfg = config.config_from_name(args.model)
+print(cfg)
 if 'seg' in args.task:
     from model.seg import StyledGenerator
     with open("datasets/stylegan/train/latents.npz", 'rb') as fp:

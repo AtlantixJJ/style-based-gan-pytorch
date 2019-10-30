@@ -98,6 +98,7 @@ def get_masks(blocks, step=6):
             masks.append(None)
     return masks
 
+
 def get_segmentation(blocks, step=-1, detach=True):
     seg = []
     for i, blk in enumerate(blocks):
