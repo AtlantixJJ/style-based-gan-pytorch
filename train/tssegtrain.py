@@ -1,3 +1,6 @@
+"""
+Teacher student training of SRGAN.
+"""
 import sys
 sys.path.insert(0, ".")
 import os
@@ -40,16 +43,13 @@ sg = sg.to(cfg.device1)
 del state_dicts
 
 # new parameter adaption stage
-g_optim1 = torch.optim.Adam(get_generator_extractor_lr( # 1e-4, 1e-3
-    sg.generator, cfg.lr), betas=(0.9, 0.9))
-g_optim1.add_param_group({
-    'params': sg.style.parameters(),
-    'lr': cfg.lr * 0.001}) # 1e-6
+g_optim1 = torch.optim.Adam(get_generator_extractor_lr(
+    sg.generator, cfg.lr), betas=(0.9, 0.9)) # 1e-3
 g_optim2 = torch.optim.Adam(get_generator_extractor_lr(
-    sg.generator, cfg.lr * 0.2, cfg.lr), betas=(0.9, 0.9)) # 2e-4, 1e-3
-g_optim2.add_param_group({
-    'params': sg.style.parameters(),
-    'lr': cfg.lr * 0.02}) # 2e-5
+    sg.generator, cfg.lr), betas=(0.9, 0.9))
+params = get_generator_blockconv_lr(sg.generator, cfg.lr * 0.1) # 1e-4
+for p in params:
+	g_optim2.add_param_group(d)
 logsoftmax = torch.nn.CrossEntropyLoss()
 mse = torch.nn.MSELoss()
 logsoftmax = logsoftmax.to(cfg.device1)

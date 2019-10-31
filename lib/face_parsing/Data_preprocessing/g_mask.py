@@ -1,3 +1,4 @@
+import sys
 import os
 import cv2
 import glob
@@ -8,18 +9,19 @@ from utils import make_folder
 #list2	 
 label_list = ['skin', 'nose', 'eye_g', 'l_eye', 'r_eye', 'l_brow', 'r_brow', 'l_ear', 'r_ear', 'mouth', 'u_lip', 'l_lip', 'hair', 'hat', 'ear_r', 'neck_l', 'neck', 'cloth']
 
-folder_base = 'CelebAMaskHQ-mask-anno'
-folder_save = 'CelebAMaskHQ-mask'
+basedir = sys.argv[1]
+folder_base = basedir + '/CelebAMask-HQ-mask-anno'
+folder_save = basedir + '/CelebAMask-HQ-mask'
 img_num = 30000
 
 make_folder(folder_save)
 
 for k in range(img_num):
-	folder_num = k / 2000
+	folder_num = int(k / 2000)
 	im_base = np.zeros((512, 512))
 	for idx, label in enumerate(label_list):
 		filename = os.path.join(folder_base, str(folder_num), str(k).rjust(5, '0') + '_' + label + '.png')
-		if (os.path.exists(filename)):
+		if os.path.exists(filename):
 			print (label, idx+1)
 			im=cv2.imread(filename)
 			im = im[:, :, 0]

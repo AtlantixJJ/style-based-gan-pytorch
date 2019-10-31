@@ -1,6 +1,6 @@
 import os
-basecmd = "python train/fixsegtrain.py --task fixadainseg --seg-cfg %s --gpu %s --batch_size %d --iter-num 2000 &"
-gpus = ["0", "1", "2", "3", "5", "6"]
+basecmd = "python train/fixsegtrain.py --task diffadainseg --seg-cfg %s --gpu %s --batch_size %d --iter-num 2000 &"
+gpus = ["0", "1", "5", "6"]
 slots = [""] * len(gpus)
 
 seg_cfgs = ["1conv1-19", "3conv1-19",

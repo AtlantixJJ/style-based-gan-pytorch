@@ -41,7 +41,7 @@ if 'seg' in args.task:
     from model.seg import StyledGenerator
     with open("datasets/stylegan/train/latents.npz", 'rb') as fp:
         latents_np = np.load(fp)['arr_0']
-    latent = torch.from_numpy(latents_np[0:1]).to(device)
+    latent = torch.from_numpy(latents_np[100:101]).to(device)
     print(latent.shape)
 else:
     from model.default import StyledGenerator

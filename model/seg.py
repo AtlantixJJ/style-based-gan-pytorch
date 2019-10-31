@@ -276,10 +276,10 @@ class AdaptiveInstanceNorm(nn.Module):
 
     def forward(self, input, style):
         style = self.style(style).unsqueeze(2).unsqueeze(3)
-        self.gamma, self.beta = style.chunk(2, 1)
+        gamma, beta = style.chunk(2, 1)
 
         out = self.norm(input)
-        out = self.gamma * out + self.beta
+        out = gamma * out + beta
 
         return out
 
@@ -359,7 +359,7 @@ class StyledConvBlock(nn.Module):
         self.lrelu2 = nn.LeakyReLU(0.2)
 
         # semantic extraction
-        self.midims = out_channel // 2
+        self.midims = out_channel
         if len(semantic) > 0:
             self.segcfg, self.n_class = semantic.split("-")
             self.n_class = int(self.n_class)
@@ -371,10 +371,10 @@ class StyledConvBlock(nn.Module):
             padsize = (ksize - 1) // 2
             n_layer = int(self.segcfg[-1])
             if n_layer == 1:
-                _m = [EqualConv2d(out_channel * 2, self.n_class, ksize, 1, padsize)]
+                _m = [EqualConv2d(out_channel, self.n_class, ksize, 1, padsize)]
             else:
                 _m = []
-                _m.append(EqualConv2d(out_channel * 2, self.midims, ksize, 1, padsize))
+                _m.append(EqualConv2d(out_channel, self.midims, ksize, 1, padsize))
                 for i in range(n_layer - 2):
                     _m.append(nn.ReLU(inplace=True))
                     _m.append(EqualConv2d(self.midims, self.midims, ksize, 1, padsize))
@@ -390,13 +390,13 @@ class StyledConvBlock(nn.Module):
 
         out = self.conv2(out)
         out = self.noise2(out, noise)
-        out = self.lrelu2(out)
-        out = self.adain2(out, style)
+        out1 = self.lrelu2(out)
+        out2 = self.adain2(out1, style)
 
         if self.n_class > 0:
-            self.seg_input = torch.cat([self.adain2.gamma, self.adain2.beta], 1)
-
-        return out
+            self.seg_input = out2 - out1
+            
+        return out2
 
 
 class Generator(nn.Module):
