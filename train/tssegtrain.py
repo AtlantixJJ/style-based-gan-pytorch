@@ -49,7 +49,7 @@ g_optim2 = torch.optim.Adam(get_generator_extractor_lr(
     sg.generator, cfg.lr), betas=(0.9, 0.9))
 params = get_generator_blockconv_lr(sg.generator, cfg.lr * 0.1) # 1e-4
 for p in params:
-	g_optim2.add_param_group(d)
+	g_optim2.add_param_group(p)
 logsoftmax = torch.nn.CrossEntropyLoss()
 mse = torch.nn.MSELoss()
 logsoftmax = logsoftmax.to(cfg.device1)
@@ -70,6 +70,13 @@ avgmseloss = 0
 count = 0
 
 for i in tqdm(range(cfg.n_iter)):
+	if i < 1000:
+		g_optim = g_optim1
+	else:
+		g_optim = g_optim2
+
+	g_optim.zero_grad()
+
 	latent1.normal_()
 	latent2.copy_(latent1, True) # asynchronous
 	for k in range(STEP + 1):
@@ -96,14 +103,7 @@ for i in tqdm(range(cfg.n_iter)):
 	loss = mseloss + segloss
 	with torch.autograd.detect_anomaly():
 		loss.backward()
-	
-	if i < 1000:
-		g_optim = g_optim1
-	else:
-		g_optim = g_optim2
-
 	g_optim.step()
-	g_optim.zero_grad()
 
 	record['loss'].append(torch2numpy(loss))
 	record['mseloss'].append(torch2numpy(mseloss))
@@ -141,3 +141,5 @@ for i in tqdm(range(cfg.n_iter)):
 		vutils.save_image(tarviz, cfg.expr_dir + "/tarlabel_viz_%05d.png" % i, nrow=2)
 
 		write_log(cfg.expr_dir, record)
+
+os.system("python script/monitor.py --task log,seg --model %s --step 8" % cfg.expr_dir)
