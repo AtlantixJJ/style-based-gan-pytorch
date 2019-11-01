@@ -89,7 +89,7 @@ if "seg" in args.task:
 
     segmentations = generator.generator.extract_segmentation()
     segmentations = segmentations + [label]
-    labels = [torch.from_numpy(tensor2label(s[0], s.shape[1]))
+    labels = [torch.from_numpy(tensor2label(s[0].argmax(0), s.shape[1]))
         for s in segmentations]
     labels = [l.float().unsqueeze(0) for l in labels]
     res = labels + [original_generation]
