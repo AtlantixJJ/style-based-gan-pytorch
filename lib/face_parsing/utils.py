@@ -68,7 +68,7 @@ class Colorize(object):
 
         return color_image
 
-def tensor2label(label_tensor, n_label, imtype=np.uint8):
+def tensor2label(label_tensor, n_label=0, imtype=np.uint8):
     if n_label == 0:
         return tensor2im(label_tensor, imtype)
     label_tensor = label_tensor.cpu().float()

@@ -12,6 +12,7 @@ from utils import *
 from torchvision import utils as vutils
 import config
 from lib.face_parsing.utils import tensor2label
+from lib.face_parsing import unet
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--task", default="latest", help="log|latest|lerp|evol|seg")
@@ -39,10 +40,6 @@ cfg = config.config_from_name(args.model)
 print(cfg)
 if 'seg' in args.task:
     from model.seg import StyledGenerator
-    with open("datasets/stylegan/train/latents.npz", 'rb') as fp:
-        latents_np = np.load(fp)['arr_0']
-    latent = torch.from_numpy(latents_np[100:101]).to(device)
-    print(latent.shape)
 else:
     from model.default import StyledGenerator
 generator = StyledGenerator(512, **cfg).to(device)
@@ -68,19 +65,31 @@ if "log" in args.task:
     plt.close()
 
 if "seg" in args.task:
+    state_dict = torch.load("checkpoint/faceparse_unet.pth", map_location='cpu')
+    faceparser = unet.unet()
+    faceparser.load_state_dict(state_dict)
+    faceparser = faceparser.to(cfg.device2)
+    faceparser.eval()
+    del state_dict
+
     print("=> Load from %s" % model_files[-1])
     generator.load_state_dict(torch.load(
         model_files[-1], map_location='cuda:0'))
     generator.eval()
  
     set_lerp_val(generator.generator.progression, lerp)
-    original_generation = generator(latent,
+    with torch.no_grad():
+        original_generation = generator(latent,
                                     noise=noise,
                                     step=step,
                                     alpha=alpha)
+        image = F.interpolate(original_generation, cfg.imsize, mode="bilinear")
+        label = faceparser(image).argmax(1)
+
     original_generation = normalize_image(original_generation)
 
     segmentations = get_segmentation(generator.generator.progression)
+    segmentations = segmentations + [label]
     labels = [torch.from_numpy(tensor2label(s[0], s.shape[1]))
         for s in segmentations]
     labels = [l.float().unsqueeze(0) for l in labels]
