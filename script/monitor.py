@@ -68,7 +68,7 @@ if "seg" in args.task:
     state_dict = torch.load("checkpoint/faceparse_unet.pth", map_location='cpu')
     faceparser = unet.unet()
     faceparser.load_state_dict(state_dict)
-    faceparser = faceparser.to(cfg.device2)
+    faceparser = faceparser.cuda()
     faceparser.eval()
     del state_dict
 
