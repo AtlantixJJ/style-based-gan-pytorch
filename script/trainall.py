@@ -3,9 +3,9 @@ import os
 class TSSeg(object):
     def __init__(self):
         self.seg_cfgs = [
-            "1conv1-19", "3conv1-19",
-            "1conv2-19", "3conv2-19",
-            "1conv3-19", "3conv3-19"
+            "1conv1-64-19", "3conv1-64-19",
+            "1conv2-64-19", "3conv2-64-19",
+            "1conv3-64-19", "3conv3-64-19"
             ]
         self.basecmd = "python train/tssegtrain.py --task tsseg --seg-cfg %s --gpu %s --batch_size %d &"
     
