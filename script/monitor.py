@@ -88,7 +88,7 @@ if "seg" in args.task:
 
     original_generation = normalize_image(original_generation)
 
-    segmentations = get_segmentation(generator.generator.progression)
+    segmentations = generator.generator.extract_segmentation()
     segmentations = segmentations + [label]
     labels = [torch.from_numpy(tensor2label(s[0], s.shape[1]))
         for s in segmentations]
