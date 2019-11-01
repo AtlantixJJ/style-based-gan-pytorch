@@ -78,13 +78,12 @@ if "seg" in args.task:
     generator.eval()
  
     set_lerp_val(generator.generator.progression, lerp)
-    with torch.no_grad():
-        original_generation = generator(latent,
-                                    noise=noise,
-                                    step=step,
-                                    alpha=alpha)
-        image = F.interpolate(original_generation, 512, mode="bilinear")
-        label = faceparser(image).argmax(1)
+    original_generation = generator(latent,
+                                noise=noise,
+                                step=step,
+                                alpha=alpha)
+    image = F.interpolate(original_generation, 512, mode="bilinear")
+    label = faceparser(image).argmax(1)
 
     original_generation = normalize_image(original_generation)
 
