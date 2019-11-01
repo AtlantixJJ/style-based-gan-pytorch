@@ -35,20 +35,52 @@ class MultiGPUTensor(object):
         for i in range(self.n_gpu):
             self.val[i].copy_(self.root)
 
-# define the colormap
-CMAP = plt.cm.jet
-# extract all colors from the .jet map
-CMAP_LIST = [CMAP(i) for i in range(CMAP.N)]
-# create the new map
-CMAP = CMAP.from_list('Custom cmap', CMAP_LIST, CMAP.N)
-def label2rgb(label_map, n_labels=None):
-    if n_labels is None:
-        n_labels = label_map.max()
-    # normalize map
-    norm_map = label_map / float(n_labels)
-    # convert to RGB
-    return CMAP(norm_map)
 
+class Colorize(object):
+    def __init__(self, n=19):
+        self.cmap = labelcolormap(n)
+
+    def __call__(self, gray_image):
+        if isinstance(gray_image, torch.Tensor):
+            gray_image = gray_image.cpu().numpy()
+        size = gray_image.shape
+        if len(size) == 2:
+            h, w = size
+        else:
+            h, w = size[1:]
+            gray_image = gray_image[0]
+        color_image = np.zeros((3, h, w))
+
+        for label in range(self.cmap.shape[0]):
+            mask = (label == gray_image)
+            color_image[0][mask] = self.cmap[label][0]
+            color_image[1][mask] = self.cmap[label][1]
+            color_image[2][mask] = self.cmap[label][2]
+
+        return color_image.transpose(1, 2, 0)
+
+
+def labelcolormap(N):
+    edge_num = int(np.ceil(np.power(N+1, 1/3))) + 1
+    cmap = np.zeros((N, 3), dtype=np.uint8)
+    step_size = 255. / edge_num
+    count = 0
+    for i in range(1, edge_num + 1):
+        for j in range(1, edge_num + 1):
+            for k in range(1, edge_num + 1):
+                if count >= N:
+                    continue
+                cmap[count] = [int(step_size * n) for n in [i, j, k]]
+                count += 1
+    return cmap
+
+
+def plot_dic(dic, file):
+    for k, v in dic.items():
+        plt.plot(v)
+    plt.legend(list(dic.keys()))
+    plt.savefig(file)
+    plt.close()
 
 def imread(fpath):
     with open(os.path.join(fpath), "rb") as f:
@@ -189,20 +221,6 @@ def torch2numpy(x):
     return x.data.cpu().numpy()
 
 
-def write_log(expr_dir, record):
-    with open(expr_dir + "/log.txt", "w") as f:
-        for key in record.keys():
-            f.write("%s " % key)
-        f.write("\n")
-        for i in range(len(record['loss'])):
-            for key in record.keys():
-                try:
-                    f.write("%f " % record[key][i])
-                except:
-                    print("!> Error at %s %d" % (key, i))
-            f.write("\n")
-
-
 def lerp(a, b, x, y, i):
     """
     Args:
@@ -230,3 +248,38 @@ class PLComposite(object):
         for i in range(1, len(self.ins)):
             if self.ins[i-1] <= x and x <= self.ins[i]:
                 return lerp(self.ins[i-1], self.ins[i], self.outs[i-1], self.outs[i], x)
+
+#########
+## Logging related functions
+#########
+
+
+def parse_log(logfile):
+    with open(logfile) as f:
+        head = f.readline().strip().split(" ")
+        dic = {h: [] for h in head}
+        lines = f.readlines()
+
+    for l in lines:
+        items = l.strip().split(" ")
+        for h, v in zip(head, items):
+            dic[h].append(float(v))
+    return dic
+
+
+"""
+Args:
+    record: loss dic, must have loss component
+"""
+def write_log(expr_dir, record):
+    with open(expr_dir + "/log.txt", "w") as f:
+        for key in record.keys():
+            f.write("%s " % key)
+        f.write("\n")
+        for i in range(len(record['loss'])):
+            for key in record.keys():
+                try:
+                    f.write("%f " % record[key][i])
+                except:
+                    print("!> No enough data at %s[%d]" % (key, i))
+            f.write("\n")

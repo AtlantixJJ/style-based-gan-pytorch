@@ -21,6 +21,16 @@ parser.add_argument("--step", type=int, default=7)
 parser.add_argument("--lerp", type=float, default=1.0)
 args = parser.parse_args()
 
+if args.model == "expr":
+    # This is root, run for all the expr directory
+    files = os.listdir(args.model)
+    files.sort()
+    for f in files:
+        basecmd = "python script/monitor.py --task %s --step %d --lerp %d --model %s"
+        basecmd = basecmd % (args.task, args.step, args.lerp, osj(args.model, f))
+        os.system(basecmd)
+    exit(0)
+
 savepath = args.model.replace("expr/", "results/")
 
 device = 'cuda'
@@ -48,23 +58,12 @@ model_files.sort()
 
 if "log" in args.task:
     logfile = args.model + "/log.txt"
-    with open(logfile) as f:
-        head = f.readline().strip().split(" ")
-        dic = {h: [] for h in head}
-        lines = f.readlines()
-
-    for l in lines:
-        items = l.strip().split(" ")
-        for h, v in zip(head, items):
-            dic[h].append(float(v))
-
-    for k, v in dic.items():
-        plt.plot(v)
-    plt.legend(list(dic.keys()))
-    plt.savefig(savepath + "_loss.png")
-    plt.close()
+    dic = parse_log(logfile)
+    plot_dic(dic, savepath + "_loss.png")
 
 if "seg" in args.task:
+    colorizer = Colorize() #label to rgb
+
     state_dict = torch.load("checkpoint/faceparse_unet.pth", map_location='cpu')
     faceparser = unet.unet()
     faceparser.load_state_dict(state_dict)
@@ -72,31 +71,42 @@ if "seg" in args.task:
     faceparser.eval()
     del state_dict
 
-    print("=> Load from %s" % model_files[-1])
-    generator.load_state_dict(torch.load(
-        model_files[-1], map_location='cuda:0'))
-    generator.eval()
- 
-    set_lerp_val(generator.generator.progression, lerp)
-    original_generation = generator(latent,
-                                noise=noise,
-                                step=step,
-                                alpha=alpha)
-    image = F.interpolate(original_generation, 512, mode="bilinear")
-    label = faceparser(image).argmax(1)
+    tg = StyledGenerator(512)
+    state_dicts = torch.load("checkpoint/stylegan-1024px-new.model", map_location='cpu')
+    tg.load_state_dict(state_dicts['generator'])
+    tg = tg.cuda()
+    tg.eval()
+    del state_dicts
 
-    original_generation = normalize_image(original_generation)
+    for i, model_file in enumerate(model_files):
+        print("=> Load from %s" % model_file)
+        generator.load_state_dict(torch.load(model_file, map_location='cuda:0'))
+        generator.eval()
 
-    segmentations = generator.generator.extract_segmentation()
-    segmentations = segmentations + [label]
-    labels = [torch.from_numpy(tensor2label(s[0].argmax(0), s.shape[1]))
-        for s in segmentations]
-    labels = [l.float().unsqueeze(0) for l in labels]
-    res = labels + [original_generation]
-    res = [F.interpolate(m, 256).cpu() for m in res]
-    res = torch.cat(res, 0)
-    print("=> Write image to %s" % (savepath + '_segmentation.png'))
-    vutils.save_image(res, savepath + '_segmentation.png', nrow=4)
+        set_lerp_val(generator.generator.progression, lerp)
+        gen = generator(latent,
+                        noise=noise,
+                        step=step,
+                        alpha=alpha)
+        gen = (gen.clamp(-1, 1) + 1) / 2
+        segs = generator.generator.extract_segmentation()
+        segs = [s[0].argmax(0) for s in segs]
+
+        with torch.no_grad():
+            image = tg(latent, noise=noise, step=step, alpha=alpha)
+            image = F.interpolate(image, 512, mode="bilinear")
+            image = (image.clamp(-1, 1) + 1) / 2
+            label = faceparser(image)[0].argmax(0)
+        
+        segs += [label]
+        segs = [torch.from_numpy(colorizer(s)) / 255. for s in segs]
+        segs = [s.permute(2, 0, 1).float() for s in segs]
+
+        res = segs + [gen[0], image[0]]
+        res = [F.interpolate(m.unsqueeze(0), 256).cpu()[0] for m in res]
+        fpath = savepath + '{}_segmentation.png'.format(i)
+        print("=> Write image to %s" % fpath)
+        vutils.save_image(res, fpath, nrow=4)
 
 if "latest" in args.task:
     print("=> Load from %s" % model_files[-1])
@@ -118,7 +128,6 @@ if "latest" in args.task:
     masks = [torch.cat([m, m, m], 1) for m in masks]
     res = masks + [original_generation]
     res = [F.interpolate(m, 256) for m in res]
-    res = torch.cat(res, 0)
     print("=> Write image to %s" % (savepath + '_latest.png'))
     vutils.save_image(res, savepath + '_latest.png', nrow=cfg['att'])
 

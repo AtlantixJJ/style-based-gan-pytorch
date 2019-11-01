@@ -401,18 +401,16 @@ class Generator(nn.Module):
         def conv_block(in_dim, out_dim):
             midim = in_dim + out_dim // 2
             if n_layer == 1:
-                _m = [EqualConv2d(in_dim, out_dim, ksize, 1, padsize)]
+                _m = [EqualConv2d(in_dim, out_dim, ksize, 1, padsize), nn.ReLU(inplace=True)]
             else:
                 _m = []
                 _m.append(EqualConv2d(in_dim, midim, ksize, 1, padsize))
-                for i in range(n_layer - 2):
-                    _m.append(nn.ReLU(inplace=True))
-                    _m.append(EqualConv2d(midim, midim, ksize, 1, padsize))
                 _m.append(nn.ReLU(inplace=True))
-                _m.append(EqualConv2d(midim, self.n_class, ksize, 1, padsize))
-
+                for i in range(n_layer - 2):
+                    _m.append(EqualConv2d(midim, midim, ksize, 1, padsize))
+                    _m.append(nn.ReLU(inplace=True))
             return nn.Sequential(*_m)
-
+        
         # start from 16x16 resolution
         self.semantic_extractor = nn.ModuleList([
             conv_block(512, self.semantic_dim),
@@ -424,6 +422,16 @@ class Generator(nn.Module):
             conv_block(16 , self.semantic_dim)
         ])
         self.semantic_visualizer = EqualConv2d(self.semantic_dim, self.n_class, 1, 1)
+        if "res" in self.segcfg:
+            def residue(dim):
+                return nn.Sequential([
+                    EqualConv2d(dim, dim // 2, ksize, 1, padsize),
+                    nn.ReLU(inplace=True),
+                    EqualConv2d(dim // 2, dim, ksize, 1, padsize),
+                ])
+            self.residue = nn.ModuleList([
+                residue for i in range(len(self.semantic_extractor))
+                ])
 
         self.to_rgb = nn.ModuleList(
             [
@@ -452,6 +460,8 @@ class Generator(nn.Module):
                 else:
                     hidden = F.interpolate(hidden, scale_factor=2) + \
                                 self.semantic_extractor[count](blk.seg_input)
+                    if "res" in self.segcfg:
+                        hidden = hidden + self.residue[count](hidden)
                 outputs.append(self.semantic_visualizer(hidden))
                 count += 1
         return outputs
@@ -547,16 +557,16 @@ class StyledGenerator(nn.Module):
         self.style = nn.Sequential(*layers)
 
     def freeze_style(self, train=False):
-        for m in self.style.modules():
-            m.requires_grad = train
+        for param in self.style.parameters():
+            param.requires_grad = train
 
     def freeze_generator_progression(self, train=False):
-        for m in self.generator.progression:
-            m.requires_grad = train
+        for param in self.generator.progression.parameters():
+            param.requires_grad = train
 
     def freeze_generator_torgb(self, train=False):
-        for m in self.generator.to_rgb:
-            m.requires_grad = train
+        for param in self.generator.to_rgb.parameters():
+            param.requires_grad = train
 
     def all_level_forward(
         self,

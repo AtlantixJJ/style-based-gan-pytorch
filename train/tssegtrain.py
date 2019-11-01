@@ -144,5 +144,6 @@ for i in tqdm(range(cfg.n_iter)):
 		vutils.save_image(tarviz, cfg.expr_dir + "/tarlabel_viz_%05d.png" % i, nrow=2)
 
 		write_log(cfg.expr_dir, record)
+		plot_dic(record, cfg.expr_dir + "/loss.png")
 
 os.system("python script/monitor.py --task log,seg --model %s --step 8" % cfg.expr_dir)

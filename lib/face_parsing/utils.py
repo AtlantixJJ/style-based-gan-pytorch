@@ -57,11 +57,13 @@ class Colorize(object):
         self.cmap = torch.from_numpy(self.cmap[:n])
 
     def __call__(self, gray_image):
+        if len(gray_image.shape) == 3:
+            gray_image = gray_image[0]
         size = gray_image.size()
-        color_image = torch.ByteTensor(3, size[1], size[2]).fill_(0)
+        color_image = torch.ByteTensor(3, size[0], size[1]).fill_(0)
 
         for label in range(0, len(self.cmap)):
-            mask = (label == gray_image[0]).cpu()
+            mask = (label == gray_image).cpu()
             color_image[0][mask] = self.cmap[label][0]
             color_image[1][mask] = self.cmap[label][1]
             color_image[2][mask] = self.cmap[label][2]
@@ -72,10 +74,7 @@ def tensor2label(label_tensor, n_label=0, imtype=np.uint8):
     if n_label == 0:
         return tensor2im(label_tensor, imtype)
     label_tensor = label_tensor.cpu().float()
-    if label_tensor.size()[0] > 1:
-        label_tensor = label_tensor.max(0, keepdim=True)[1]
     label_tensor = Colorize(n_label)(label_tensor)
-    #label_numpy = np.transpose(label_tensor.numpy(), (1, 2, 0))
     label_numpy = label_tensor.numpy()
     label_numpy = label_numpy / 255.0
 

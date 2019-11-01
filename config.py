@@ -136,6 +136,8 @@ class SConfig(BaseConfig):
 
         self.name = self.task + "_" + str(self.seg_coef) + "_" + self.semantic_config
         self.expr_dir = osj("expr", self.name)
+        os.system("rm -r %s" % self.expr_dir)
+        os.system("mkdir %s" % self.expr_dir)
 
     def print_info(self):
         super(SConfig, self).print_info()
