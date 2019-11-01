@@ -317,8 +317,7 @@ class StyledConvBlock(nn.Module):
         style_dim=512,
         initial=False,
         upsample=False,
-        fused=False,
-        semantic=""
+        fused=False
     ):
         super().__init__()
 
@@ -358,30 +357,6 @@ class StyledConvBlock(nn.Module):
         self.adain2 = AdaptiveInstanceNorm(out_channel, style_dim)
         self.lrelu2 = nn.LeakyReLU(0.2)
 
-        # semantic extraction
-        self.midims = out_channel
-        if len(semantic) > 0:
-            self.segcfg, self.n_class = semantic.split("-")
-            self.n_class = int(self.n_class)
-        else:
-            self.segcfg = ""
-            self.n_class = -1
-        if "conv" in self.segcfg:
-            ksize = int(self.segcfg[0])
-            padsize = (ksize - 1) // 2
-            n_layer = int(self.segcfg[-1])
-            if n_layer == 1:
-                _m = [EqualConv2d(out_channel, self.n_class, ksize, 1, padsize)]
-            else:
-                _m = []
-                _m.append(EqualConv2d(out_channel, self.midims, ksize, 1, padsize))
-                for i in range(n_layer - 2):
-                    _m.append(nn.ReLU(inplace=True))
-                    _m.append(EqualConv2d(self.midims, self.midims, ksize, 1, padsize))
-                _m.append(nn.ReLU(inplace=True))
-                _m.append(EqualConv2d(self.midims, self.n_class, ksize, 1, padsize))
-            self.extractor = nn.Sequential(*_m)
-
     def forward(self, input, style, noise):
         out = self.conv1(input)
         out = self.noise1(out, noise)
@@ -390,17 +365,15 @@ class StyledConvBlock(nn.Module):
 
         out = self.conv2(out)
         out = self.noise2(out, noise)
-        out1 = self.lrelu2(out)
-        out2 = self.adain2(out1, style)
+        out = self.lrelu2(out)
+        out = self.adain2(out, style)
 
-        if self.n_class > 0:
-            self.seg_input = out2 - out1
-            
-        return out2
+        self.seg_input = out 
+        return out
 
 
 class Generator(nn.Module):
-    def __init__(self, code_dim, fused=True, semantic=""):
+    def __init__(self, code_dim, fused=True, semantic="1conv1-64-19"):
         super().__init__()
 
         self.progression = nn.ModuleList(
@@ -408,20 +381,49 @@ class Generator(nn.Module):
                 StyledConvBlock(512, 512, 3, 1, initial=True),  # 4
                 StyledConvBlock(512, 512, 3, 1, upsample=True),  # 8
                 StyledConvBlock(512, 512, 3, 1, upsample=True),  # 16
-                StyledConvBlock(512, 512, 3, 1,
-                    upsample=True, semantic=semantic),  # 32
-                StyledConvBlock(512, 256, 3, 1,
-                    upsample=True, semantic=semantic),  # 64
-                StyledConvBlock(256, 128, 3, 1,
-                    upsample=True, fused=fused, semantic=semantic),  # 128
-                StyledConvBlock(128, 64, 3, 1,
-                    upsample=True, fused=fused, semantic=semantic),  # 256
-                StyledConvBlock(64, 32, 3, 1,
-                    upsample=True, fused=fused, semantic=semantic),  # 512
-                StyledConvBlock(32, 16, 3, 1,
-                    upsample=True, fused=fused, semantic=semantic),  # 1024
+                StyledConvBlock(512, 512, 3, 1, upsample=True),  # 32
+                StyledConvBlock(512, 256, 3, 1, upsample=True),  # 64
+                StyledConvBlock(256, 128, 3, 1, upsample=True, fused=fused),  # 128
+                StyledConvBlock(128, 64, 3, 1, upsample=True, fused=fused),  # 256
+                StyledConvBlock(64, 32, 3, 1, upsample=True, fused=fused),  # 512
+                StyledConvBlock(32, 16, 3, 1, upsample=True, fused=fused),  # 1024
             ]
         )
+
+        self.segcfg, self.semantic_dim, self.n_class = semantic.split("-")
+        self.n_class = int(self.n_class)
+        self.semantic_dim = int(self.semantic_dim)
+        
+        ksize = int(self.segcfg[0])
+        padsize = (ksize - 1) // 2
+        n_layer = int(self.segcfg[-1])
+
+        def conv_block(in_dim, out_dim):
+            midim = in_dim + out_dim // 2
+            if n_layer == 1:
+                _m = [EqualConv2d(in_dim, out_dim, ksize, 1, padsize)]
+            else:
+                _m = []
+                _m.append(EqualConv2d(in_dim, midim, ksize, 1, padsize))
+                for i in range(n_layer - 2):
+                    _m.append(nn.ReLU(inplace=True))
+                    _m.append(EqualConv2d(midim, midim, ksize, 1, padsize))
+                _m.append(nn.ReLU(inplace=True))
+                _m.append(EqualConv2d(midim, self.n_class, ksize, 1, padsize))
+
+            return nn.Sequential(*_m)
+
+        # start from 16x16 resolution
+        self.semantic_extractor = nn.ModuleList([
+            conv_block(512, self.semantic_dim),
+            conv_block(512, self.semantic_dim),
+            conv_block(256, self.semantic_dim),
+            conv_block(128, self.semantic_dim),
+            conv_block(64 , self.semantic_dim),
+            conv_block(32 , self.semantic_dim),
+            conv_block(16 , self.semantic_dim)
+        ])
+        self.semantic_visualizer = EqualConv2d(self.semantic_dim, self.n_class, 1, 1)
 
         self.to_rgb = nn.ModuleList(
             [
@@ -438,6 +440,21 @@ class Generator(nn.Module):
         )
 
         # self.blur = Blur()
+
+    def extract_segmentation(self):
+        count = 0
+        outputs = []
+        for blk in self.progression:
+            # resolution >= 16
+            if blk.seg_input.size(2) >= 16:
+                if count == 0:
+                    hidden = self.semantic_extractor[count](blk.seg_input)
+                else:
+                    hidden = F.interpolate(hidden, scale_factor=2) + \
+                                self.semantic_extractor[count](blk.seg_input)
+                outputs.append(self.semantic_visualizer(hidden))
+                count += 1
+        return outputs
 
     def forward(self, style, noise, step=0, alpha=-1, mixing_range=(-1, -1)):
         out = noise[0]
@@ -520,7 +537,7 @@ class StyledGenerator(nn.Module):
     def __init__(self, code_dim=512, n_mlp=8, semantic=""):
         super().__init__()
 
-        self.generator = Generator(code_dim, semantic=semantic)
+        self.generator = Generator(code_dim)
 
         layers = [PixelNorm()]
         for i in range(n_mlp):
@@ -528,6 +545,18 @@ class StyledGenerator(nn.Module):
             layers.append(nn.LeakyReLU(0.2))
 
         self.style = nn.Sequential(*layers)
+
+    def freeze_style(self, train=False):
+        for m in self.style.modules():
+            m.requires_grad = train
+
+    def freeze_generator_progression(self, train=False):
+        for m in self.generator.progression:
+            m.requires_grad = train
+
+    def freeze_generator_torgb(self, train=False):
+        for m in self.generator.to_rgb:
+            m.requires_grad = train
 
     def all_level_forward(
         self,

@@ -40,16 +40,21 @@ sg = StyledGenerator(512, semantic=cfg.semantic_config)
 sg.load_state_dict(state_dicts['generator'])
 sg.train()
 sg = sg.to(cfg.device1)
+sg.freeze_style() # do not change style branch
+sg.freeze_generator_progression()
+sg.freeze_generator_torgb()
 del state_dicts
 
 # new parameter adaption stage
-g_optim1 = torch.optim.Adam(get_generator_extractor_lr(
-    sg.generator, cfg.lr), betas=(0.9, 0.9)) # 1e-3
-g_optim2 = torch.optim.Adam(get_generator_extractor_lr(
-    sg.generator, cfg.lr), betas=(0.9, 0.9))
-params = get_generator_blockconv_lr(sg.generator, cfg.lr * 0.1) # 1e-4
-for p in params:
-	g_optim2.add_param_group(p)
+g_optim = torch.optim.Adam(sg.generator.semantic_extractor.parameters(),
+	lr=cfg.lr,
+	betas=(0.9, 0.9)) # 1e-3
+g_optim.add_param_group({
+	"params": sg.generator.semantic_visualizer.parameters(),
+	"lr": cfg.lr})
+g_optim.add_param_group({
+	"params": sg.generator.progression.parameters(),
+	"lr": cfg.lr})
 logsoftmax = torch.nn.CrossEntropyLoss()
 mse = torch.nn.MSELoss()
 logsoftmax = logsoftmax.to(cfg.device1)
@@ -70,12 +75,8 @@ avgmseloss = 0
 count = 0
 
 for i in tqdm(range(cfg.n_iter)):
-	if i < 1000:
-		g_optim = g_optim1
-	else:
-		g_optim = g_optim2
-
-	g_optim.zero_grad()
+	if i == 1000:
+		sg.freeze_generator_progression(train=True)
 
 	latent1.normal_()
 	latent2.copy_(latent1, True) # asynchronous
@@ -92,7 +93,7 @@ for i in tqdm(range(cfg.n_iter)):
 		label = label.detach().cpu().to(cfg.device1)
 
 	mseloss = cfg.mse_coef * mse(F.interpolate(gen, cfg.imsize, mode="bilinear"), image)
-	segs = get_segmentation(sg.generator.progression)
+	segs = sg.generator.extract_segmentation()
 	seglosses = []
 	for s in segs:
 		seglosses.append(logsoftmax(
@@ -103,7 +104,9 @@ for i in tqdm(range(cfg.n_iter)):
 	loss = mseloss + segloss
 	with torch.autograd.detect_anomaly():
 		loss.backward()
+
 	g_optim.step()
+	g_optim.zero_grad()
 
 	record['loss'].append(torch2numpy(loss))
 	record['mseloss'].append(torch2numpy(mseloss))

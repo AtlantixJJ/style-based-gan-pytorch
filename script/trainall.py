@@ -13,13 +13,9 @@ class TSSeg(object):
         l = []
         count = 0
 
-        for segcfg in seg_cfgs:
+        for segcfg in self.seg_cfgs:
             gpu = gpus[count]
-            if "conv1" in segcfg:
-                batch_size = 4
-            else:
-                batch_size = 2
-
+            batch_size = 2
             l.append((count, (segcfg, gpu, batch_size)))
             count = (count + 1) % len(gpus)
         return l
@@ -38,8 +34,4 @@ def assign_run(command_generator, gpus):
         os.system(s[:-2])
 
 gpus = ["3,0", "4,1", "5,0", "6,1"]
-assign_run(TSSeg().command, gpus))
-
-
-
-
+assign_run(TSSeg().command, gpus)
