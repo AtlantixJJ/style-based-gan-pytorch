@@ -83,7 +83,7 @@ if "seg" in args.task:
                                     noise=noise,
                                     step=step,
                                     alpha=alpha)
-        image = F.interpolate(original_generation, cfg.imsize, mode="bilinear")
+        image = F.interpolate(original_generation, 512, mode="bilinear")
         label = faceparser(image).argmax(1)
 
     original_generation = normalize_image(original_generation)
