@@ -399,7 +399,7 @@ class Generator(nn.Module):
         n_layer = int(self.segcfg[-1])
 
         def conv_block(in_dim, out_dim):
-            midim = in_dim + out_dim // 2
+            midim = (in_dim + out_dim) // 2
             if n_layer == 1:
                 _m = [EqualConv2d(in_dim, out_dim, ksize, 1, padsize), nn.ReLU(inplace=True)]
             else:
@@ -430,7 +430,7 @@ class Generator(nn.Module):
                     EqualConv2d(dim // 2, dim, ksize, 1, padsize),
                 ])
             self.residue = nn.ModuleList([
-                residue for i in range(len(self.semantic_extractor))
+                residue(self.semantic_dim) for i in range(len(self.semantic_extractor))
                 ])
 
         self.to_rgb = nn.ModuleList(
@@ -458,7 +458,7 @@ class Generator(nn.Module):
                 if count == 0:
                     hidden = self.semantic_extractor[count](blk.seg_input)
                 else:
-                    hidden = F.interpolate(hidden, scale_factor=2) + \
+                    hidden = F.interpolate(hidden, scale_factor=2, mode="bilinear") + \
                                 self.semantic_extractor[count](blk.seg_input)
                     if "res" in self.segcfg:
                         hidden = hidden + self.residue[count](hidden)
