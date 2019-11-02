@@ -1,0 +1,1 @@
+python script/monitor.py --task log,seg --step --model expr
