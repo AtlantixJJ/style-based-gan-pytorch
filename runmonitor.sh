@@ -1,1 +1,1 @@
-python script/monitor.py --task log,seg --step --model expr
+python script/monitor.py --task log,seg --step 8 --model expr
