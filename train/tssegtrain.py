@@ -32,11 +32,11 @@ faceparser.eval()
 del state_dict
 
 state_dicts = torch.load(cfg.load_path, map_location='cpu')
-tg = StyledGenerator(512)
+tg = StyledGenerator()
 tg.load_state_dict(state_dicts['generator'])
 tg.eval()
 tg = tg.to(cfg.device2)
-sg = StyledGenerator(512, semantic=cfg.semantic_config)
+sg = StyledGenerator(semantic=cfg.semantic_config)
 sg.load_state_dict(state_dicts['generator'])
 sg.train()
 sg = sg.to(cfg.device1)
