@@ -362,3 +362,6 @@ class StyledGenerator(nn.Module):
         super().__init__()
         self.g_mapping = G_mapping()
         self.g_synthesis = G_synthesis()
+
+    def forward(self, x):
+        return self.g_synthesis(self.g_mapping(x))
