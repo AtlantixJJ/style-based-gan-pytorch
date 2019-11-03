@@ -360,8 +360,8 @@ class G_synthesis(nn.Module):
 class StyledGenerator(nn.Module):
     def __init__(self):
         super().__init__()
-        self.generator = G_mapping()
-        self.style = G_synthesis()
+        self.g_mapping = G_mapping()
+        self.g_synthesis = G_synthesis()
 
 """
 g_all = nn.Sequential(OrderedDict([
