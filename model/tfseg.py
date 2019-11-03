@@ -329,7 +329,9 @@ class G_synthesis(nn.Module):
         num_styles = num_layers if use_styles else 1
         torgbs = []
         blocks = []
+        self.stage = []
         for res in range(2, resolution_log2 + 1):
+            self.stage.append(0)
             channels = nf(res-1)
             name = '{s}x{s}'.format(s=2**res)
             if res == 2:
@@ -353,15 +355,67 @@ class G_synthesis(nn.Module):
                 x = m(dlatents_in[:, 2*i:2*i+2])
             else:
                 x = m(x, dlatents_in[:, 2*i:2*i+2])
+            self.stage[i] = x
         rgb = self.torgb(x)
         return rgb
 
 
 class StyledGenerator(nn.Module):
-    def __init__(self):
+    def __init__(self, semantic="3res2-64-19"):
         super().__init__()
         self.g_mapping = G_mapping()
         self.g_synthesis = G_synthesis()
+
+        self.segcfg, self.semantic_dim, self.n_class = semantic.split("-")
+        self.n_class = int(self.n_class)
+        self.semantic_dim = int(self.semantic_dim)
+        
+        ksize = int(self.segcfg[0])
+        padsize = (ksize - 1) // 2
+        n_layer = int(self.segcfg[-1])
+
+        def conv_block(in_dim, out_dim):
+            midim = (in_dim + out_dim) // 2
+            if n_layer == 1:
+                _m = [MyConv2d(in_dim, out_dim, ksize), nn.ReLU(inplace=True)]
+            else:
+                _m = []
+                _m.append(MyConv2d(in_dim, midim, ksize))
+                _m.append(nn.ReLU(inplace=True))
+                for i in range(n_layer - 2):
+                    _m.append(MyConv2d(midim, midim, ksize))
+                    _m.append(nn.ReLU(inplace=True))
+            return nn.Sequential(*_m)
+        
+        # start from 16x16 resolution
+        self.semantic_extractor = nn.ModuleList([
+            conv_block(512, self.semantic_dim),
+            conv_block(512, self.semantic_dim),
+            conv_block(256, self.semantic_dim),
+            conv_block(128, self.semantic_dim),
+            conv_block(64 , self.semantic_dim),
+            conv_block(32 , self.semantic_dim),
+            conv_block(16 , self.semantic_dim)
+        ])
+        self.semantic_visualizer = MyConv2d(self.semantic_dim, self.n_class, 1)
+        if "res" in self.segcfg:
+            def residue(dim):
+                return nn.Sequential([
+                    MyConv2d(dim, dim // 2, ksize),
+                    nn.ReLU(inplace=True),
+                    MyConv2d(dim // 2, dim, ksize),
+                ])
+            self.residue = nn.ModuleList([
+                residue(self.semantic_dim) for i in range(len(self.semantic_extractor))
+                ])
+
+    def freeze_g_mapping(self, train=False):
+        for param in self.g_mapping.parameters():
+            param.requires_grad = train
+
+    def freeze_g_synthesis(self, train=False):
+        for param in self.g_synthesis.parameters():
+            param.requires_grad = train
 
     def forward(self, x):
         return self.g_synthesis(self.g_mapping(x))

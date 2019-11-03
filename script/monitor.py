@@ -49,10 +49,10 @@ for i in range(step + 1):
 cfg = config.config_from_name(args.model)
 print(cfg)
 if 'seg' in args.task:
-    from model.seg import StyledGenerator
+    from model.tfseg import StyledGenerator
 else:
-    from model.default import StyledGenerator
-generator = StyledGenerator(512, **cfg).to(device)
+    from model.tf import StyledGenerator
+generator = StyledGenerator(**cfg).to(device)
 model_files = glob.glob(args.model + "/*.model")
 model_files.sort()
 
@@ -72,7 +72,7 @@ if "seg" in args.task:
     del state_dict
 
     tg = StyledGenerator(512)
-    state_dicts = torch.load("checkpoint/stylegan-1024px-new.model", map_location='cpu')
+    state_dicts = torch.load("checkpoint/karras2019stylegan-ffhq-1024x1024.for_g_all.pt", map_location='cpu')
     tg.load_state_dict(state_dicts['generator'])
     tg = tg.cuda()
     tg.eval()
