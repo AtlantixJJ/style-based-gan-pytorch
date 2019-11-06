@@ -404,11 +404,11 @@ class StyledGenerator(nn.Module):
         self.semantic_visualizer = MyConv2d(self.semantic_dim, self.n_class, 1)
         if "res" in self.segcfg:
             def residue(dim):
-                return nn.Sequential([
+                return nn.Sequential(
                     MyConv2d(dim, dim // 2, ksize),
                     nn.ReLU(inplace=True),
                     MyConv2d(dim // 2, dim, ksize),
-                ])
+                )
             self.residue = nn.ModuleList([
                 residue(self.semantic_dim) for i in range(len(self.semantic_extractor))
                 ])
