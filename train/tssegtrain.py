@@ -45,15 +45,9 @@ sg.freeze_g_synthesis()
 del state_dicts
 
 # new parameter adaption stage
-g_optim = torch.optim.Adam(sg.generator.semantic_extractor.parameters(),
+g_optim = torch.optim.Adam(sg.semantic_branch.parameters(),
 	lr=cfg.lr,
 	betas=(0.9, 0.9)) # 1e-3
-g_optim.add_param_group({
-	"params": sg.generator.semantic_visualizer.parameters(),
-	"lr": cfg.lr})
-g_optim.add_param_group({
-	"params": sg.generator.progression.parameters(),
-	"lr": cfg.lr})
 logsoftmax = torch.nn.CrossEntropyLoss()
 mse = torch.nn.MSELoss()
 logsoftmax = logsoftmax.to(cfg.device1)

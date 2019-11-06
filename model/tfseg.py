@@ -412,6 +412,10 @@ class StyledGenerator(nn.Module):
             self.residue = nn.ModuleList([
                 residue(self.semantic_dim) for i in range(len(self.semantic_extractor))
                 ])
+        self.semantic_branch = nn.ModuleList([
+            self.semantic_extractor,
+            self.semantic_visualizer,
+            self.residue if "res" in self.segcfg else None])
 
     def freeze_g_mapping(self, train=False):
         for param in self.g_mapping.parameters():
