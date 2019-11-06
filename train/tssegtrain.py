@@ -37,7 +37,7 @@ tg.load_state_dict(state_dicts)
 tg.eval()
 tg = tg.to(cfg.device2)
 sg = model.tfseg.StyledGenerator(semantic=cfg.semantic_config)
-sg.load_state_dict(state_dicts)
+sg.load_state_dict(state_dicts, strict=False)
 sg.train()
 sg = sg.to(cfg.device1)
 sg.freeze_g_mapping() # do not change style branch
