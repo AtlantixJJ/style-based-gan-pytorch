@@ -8,7 +8,13 @@ class TSSeg(object):
             "3res2-64-19",
             "3res2-128-19",
             "3res3-64-19",
-            "3res3-128-19"
+            "3res3-128-19",
+            "3conv1-64-19",
+            "3conv1-128-19",
+            "3conv2-64-19",
+            "3conv2-128-19",
+            "3conv3-64-19",
+            "3conv3-128-19",
             ]
         self.basecmd = "python train/tssegtrain.py --task tsseg --seg-cfg %s --gpu %s --batch_size %d --iter-num 2000 &"
     

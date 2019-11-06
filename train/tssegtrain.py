@@ -48,6 +48,9 @@ del state_dicts
 g_optim = torch.optim.Adam(sg.semantic_branch.parameters(),
 	lr=cfg.lr,
 	betas=(0.9, 0.9)) # 1e-3
+g_optim.add_param_group({
+    'params': sg.g_synthesis.parameters(),
+    'lr': cfg.lr * 0.1})
 logsoftmax = torch.nn.CrossEntropyLoss()
 mse = torch.nn.MSELoss()
 logsoftmax = logsoftmax.to(cfg.device1)
@@ -63,7 +66,7 @@ for k in range(STEP + 1):
 for k in range(STEP + 1):
     noise2.append(noise1[k].clone().to(cfg.device2))
 
-record = {"loss":[],"segloss":[]}
+record = cfg.record
 avgmseloss = 0
 count = 0
 
@@ -85,7 +88,7 @@ for i in tqdm(range(cfg.n_iter)):
 		image = image.detach().cpu().to(cfg.device1)
 		label = label.detach().cpu().to(cfg.device1)
 
-	#mseloss = cfg.mse_coef * mse(F.interpolate(gen, cfg.imsize, mode="bilinear"), image)
+	mseloss = cfg.mse_coef * mse(F.interpolate(gen, cfg.imsize, mode="bilinear"), image)
 	segs = sg.extract_segmentation()
 	seglosses = []
 	for s in segs:
@@ -94,7 +97,7 @@ for i in tqdm(range(cfg.n_iter)):
 			label))
 	segloss = cfg.seg_coef * sum(seglosses) / len(seglosses)
 
-	loss = segloss
+	loss = mseloss + segloss
 	with torch.autograd.detect_anomaly():
 		loss.backward()
 
@@ -102,7 +105,7 @@ for i in tqdm(range(cfg.n_iter)):
 	g_optim.zero_grad()
 
 	record['loss'].append(torch2numpy(loss))
-	#record['mseloss'].append(torch2numpy(mseloss))
+	record['mseloss'].append(torch2numpy(mseloss))
 	record['segloss'].append(torch2numpy(segloss))
 
 	if cfg.debug:

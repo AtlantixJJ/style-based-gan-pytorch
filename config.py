@@ -114,7 +114,7 @@ class SConfig(BaseConfig):
     
         self.parser.add_argument("--dataset", default="datasets/stylegan", help="The path to segmentation dataset")
         self.parser.add_argument("--seg", default=1., type=float, help="Coefficient of segmentation loss")
-        self.parser.add_argument("--mse", default=1., type=float, help="Coefficient of MSE loss")
+        self.parser.add_argument("--mse", default=10., type=float, help="Coefficient of MSE loss")
         self.parser.add_argument("--seg-cfg", default="conv1-19", help="Configure of segmantic segmentation extractor")
         self.parser.add_argument("--imsize", default=512, help="Train image and label size")
     
