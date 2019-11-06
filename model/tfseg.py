@@ -347,7 +347,6 @@ class G_synthesis(nn.Module):
             last_channels = channels
         self.torgb = MyConv2d(channels, num_channels, 1, gain=1, use_wscale=use_wscale)
         self.blocks = nn.ModuleDict(OrderedDict(blocks))
-        self.seg_input = [0] * len(self.blocks.values())
         
     def forward(self, dlatents_in):
         # Input: Disentangled latents (W) [minibatch, num_layers, dlatent_size].
@@ -358,7 +357,6 @@ class G_synthesis(nn.Module):
                 x = m(dlatents_in[:, 2*i:2*i+2])
             else:
                 x = m(x, dlatents_in[:, 2*i:2*i+2])
-                self.seg_input[i] = x
             self.stage[i] = x
         rgb = self.torgb(x)
         return rgb
@@ -431,7 +429,7 @@ class StyledGenerator(nn.Module):
     def extract_segmentation(self):
         count = 0
         outputs = []
-        for seg_input in self.g_synthesis.seg_input:
+        for seg_input in self.g_synthesis.stage:
             # resolution >= 16
             if seg_input.size(2) >= 16:
                 if count == 0:
