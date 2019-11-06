@@ -86,7 +86,7 @@ for i in tqdm(range(cfg.n_iter)):
 		label = label.detach().cpu().to(cfg.device1)
 
 	#mseloss = cfg.mse_coef * mse(F.interpolate(gen, cfg.imsize, mode="bilinear"), image)
-	segs = sg.generator.extract_segmentation()
+	segs = sg.extract_segmentation()
 	seglosses = []
 	for s in segs:
 		seglosses.append(logsoftmax(
