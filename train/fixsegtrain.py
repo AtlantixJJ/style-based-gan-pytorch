@@ -31,6 +31,7 @@ faceparser = faceparser.cuda()
 faceparser.eval()
 del state_dict
 
+state_dicts = torch.load(cfg.load_path, map_location='cpu')
 sg = model.tfseg.StyledGenerator(semantic=cfg.semantic_config)
 sg.load_state_dict(state_dicts, strict=False)
 sg.train()
@@ -104,7 +105,7 @@ for i in tqdm(range(cfg.n_iter)):
 	if i % 1000 == 0 or cfg.debug:
 		vutils.save_image(gen[:4], cfg.expr_dir + '/gen_%06d.png' % i,
 							nrow=2, normalize=True, range=(-1, 1))
-							
+
 		tarlabels = [torch.from_numpy(tensor2label(
 						label[i:i+1],
 						label.shape[1]))

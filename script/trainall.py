@@ -12,7 +12,7 @@ class TSSeg(object):
             "3conv2-64-19",
             "3conv2-32-19",
             ]
-        self.basecmd = "python train/tssegtrain.py --task tsseg --seg-cfg %s --gpu %s --batch_size %d --iter-num 2000 &"
+        self.basecmd = "python train/fixsegtrain.py --task tsseg --seg-cfg %s --gpu %s --batch_size %d --iter-num 2000 &"
     
     def args_gen(self, gpus):
         l = []
