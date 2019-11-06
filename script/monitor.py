@@ -71,38 +71,25 @@ if "seg" in args.task:
     faceparser.eval()
     del state_dict
 
-    tg = StyledGenerator(512)
-    state_dicts = torch.load("checkpoint/karras2019stylegan-ffhq-1024x1024.for_g_all.pt", map_location='cpu')
-    tg.load_state_dict(state_dicts['generator'])
-    tg = tg.cuda()
-    tg.eval()
-    del state_dicts
-
     for i, model_file in enumerate(model_files):
         print("=> Load from %s" % model_file)
         generator.load_state_dict(torch.load(model_file, map_location='cuda:0'))
         generator.eval()
 
-        set_lerp_val(generator.generator.progression, lerp)
-        gen = generator(latent,
-                        noise=noise,
-                        step=step,
-                        alpha=alpha)
+        gen = generator(latent)
         gen = (gen.clamp(-1, 1) + 1) / 2
-        segs = generator.generator.extract_segmentation()
+        segs = generator.extract_segmentation()
         segs = [s[0].argmax(0) for s in segs]
 
         with torch.no_grad():
-            image = tg(latent, noise=noise, step=step, alpha=alpha)
-            image = F.interpolate(image, 512, mode="bilinear")
-            image = (image.clamp(-1, 1) + 1) / 2
+            gen = F.interpolate(gen, 512, mode="bilinear")
             label = faceparser(image)[0].argmax(0)
         
         segs += [label]
         segs = [torch.from_numpy(colorizer(s)) / 255. for s in segs]
         segs = [s.permute(2, 0, 1).float() for s in segs]
 
-        res = segs + [gen[0], image[0]]
+        res = segs + [gen[0]]
         res = [F.interpolate(m.unsqueeze(0), 256).cpu()[0] for m in res]
         fpath = savepath + '{}_segmentation.png'.format(i)
         print("=> Write image to %s" % fpath)
