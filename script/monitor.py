@@ -83,7 +83,7 @@ if "seg" in args.task:
 
         with torch.no_grad():
             gen = F.interpolate(gen, 512, mode="bilinear")
-            label = faceparser(image)[0].argmax(0)
+            label = faceparser(gen)[0].argmax(0)
         
         segs += [label]
         segs = [torch.from_numpy(colorizer(s)) / 255. for s in segs]
