@@ -56,7 +56,7 @@ for k in range(STEP + 1):
     size = 4 * 2 ** k
     noise[k] = torch.randn(cfg.batch_size, 1, size, size).cuda()
 
-record = cfg.record
+record = {"loss":[], "segloss":[]}
 avgmseloss = 0
 count = 0
 
