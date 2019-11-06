@@ -63,7 +63,7 @@ for k in range(STEP + 1):
 for k in range(STEP + 1):
     noise2.append(noise1[k].clone().to(cfg.device2))
 
-record = cfg.record
+record = {"loss":[],"segloss":[]}
 avgmseloss = 0
 count = 0
 
@@ -77,15 +77,15 @@ for i in tqdm(range(cfg.n_iter)):
 		noise1[k].normal_()
 		noise2[k].copy_(noise2[k], True) # asynchronous
 
-	gen = sg(latent1, step=STEP, alpha=ALPHA, noise=noise1)
+	gen = sg(latent1)
 	with torch.no_grad():
-		image = tg(latent2, noise=noise2, step=STEP, alpha=ALPHA)
+		image = tg(latent2)
 		image = F.interpolate(image, cfg.imsize, mode="bilinear")
 		label = faceparser(image).argmax(1)
 		image = image.detach().cpu().to(cfg.device1)
 		label = label.detach().cpu().to(cfg.device1)
 
-	mseloss = cfg.mse_coef * mse(F.interpolate(gen, cfg.imsize, mode="bilinear"), image)
+	#mseloss = cfg.mse_coef * mse(F.interpolate(gen, cfg.imsize, mode="bilinear"), image)
 	segs = sg.generator.extract_segmentation()
 	seglosses = []
 	for s in segs:
@@ -94,7 +94,7 @@ for i in tqdm(range(cfg.n_iter)):
 			label))
 	segloss = cfg.seg_coef * sum(seglosses) / len(seglosses)
 
-	loss = mseloss + segloss
+	loss = segloss
 	with torch.autograd.detect_anomaly():
 		loss.backward()
 
@@ -102,7 +102,7 @@ for i in tqdm(range(cfg.n_iter)):
 	g_optim.zero_grad()
 
 	record['loss'].append(torch2numpy(loss))
-	record['mseloss'].append(torch2numpy(mseloss))
+	#record['mseloss'].append(torch2numpy(mseloss))
 	record['segloss'].append(torch2numpy(segloss))
 
 	if cfg.debug:
