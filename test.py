@@ -5,7 +5,7 @@ import argparse
 import glob
 import numpy as np
 import utils
-from model.seg import StyledGenerator
+from model.tfseg import StyledGenerator
 import config
 
 class SegmentationDataset(torch.utils.data.Dataset):
@@ -32,7 +32,7 @@ class SegmentationDataset(torch.utils.data.Dataset):
 
 rootdir = "/home/xujianjin/data/datasets/CelebAMask-HQ/"
 ds = SegmentationDataset(
-    latent_dir="/home/xujianjin/data/stylegan-encoder/reconstruct",
+    latent_dir=rootdir+"dlatent5000",
     image_dir=rootdir+"CelebA-HQ-img",
     seg_dir=rootdir+"CelebAMask-HQ-mask")
 
@@ -45,7 +45,7 @@ parser.add_argument("--step", type=int, default=8)
 args = parser.parse_args()
 
 cfg = config.config_from_name(args.model)
-generator = StyledGenerator(512, **cfg).cuda()
+generator = StyledGenerator(**cfg).cuda()
 
 model_files = glob.glob(args.model + "/*.model")
 model_files.sort()
@@ -61,7 +61,4 @@ faceparser = faceparser.cuda()
 faceparser.eval()
 del state_dict
 
-original_generation = generator(latent,
-                            noise=noise,
-                            step=step,
-                            alpha=alpha)
+gen = generator(latent)
