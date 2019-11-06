@@ -7,14 +7,10 @@ class TSSeg(object):
             "3res1-128-19",
             "3res2-64-19",
             "3res2-128-19",
-            "3res3-64-19",
-            "3res3-128-19",
             "3conv1-64-19",
             "3conv1-128-19",
             "3conv2-64-19",
             "3conv2-128-19",
-            "3conv3-64-19",
-            "3conv3-128-19",
             ]
         self.basecmd = "python train/tssegtrain.py --task tsseg --seg-cfg %s --gpu %s --batch_size %d --iter-num 2000 &"
     
@@ -24,7 +20,7 @@ class TSSeg(object):
 
         for segcfg in self.seg_cfgs:
             gpu = gpus[count]
-            batch_size = 2
+            batch_size = 1
             l.append((count, (segcfg, gpu, batch_size)))
             count = (count + 1) % len(gpus)
         return l
