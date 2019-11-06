@@ -31,6 +31,7 @@ class MyLinear(nn.Module):
             bias = bias * self.b_mul
         return F.linear(x, self.weight * self.w_mul, bias)
 
+
 class MyConv2d(nn.Module):
     """Conv layer with equalized learning rate and custom learning rate multiplier."""
     def __init__(self, input_channels, output_channels, kernel_size, gain=2**(0.5), use_wscale=False, lrmul=1, bias=True,
@@ -154,6 +155,7 @@ class BlurLayer(nn.Module):
             groups=x.size(1)
         )
         return x
+
 
 def upscale2d(x, factor=2, gain=1):
     assert x.dim() == 4
@@ -345,6 +347,7 @@ class G_synthesis(nn.Module):
             last_channels = channels
         self.torgb = MyConv2d(channels, num_channels, 1, gain=1, use_wscale=use_wscale)
         self.blocks = nn.ModuleDict(OrderedDict(blocks))
+        self.seg_input = [0] * len(self.blocks.values())
         
     def forward(self, dlatents_in):
         # Input: Disentangled latents (W) [minibatch, num_layers, dlatent_size].
@@ -355,6 +358,7 @@ class G_synthesis(nn.Module):
                 x = m(dlatents_in[:, 2*i:2*i+2])
             else:
                 x = m(x, dlatents_in[:, 2*i:2*i+2])
+                self.seg_input[i] = x
             self.stage[i] = x
         rgb = self.torgb(x)
         return rgb
@@ -419,3 +423,20 @@ class StyledGenerator(nn.Module):
 
     def forward(self, x):
         return self.g_synthesis(self.g_mapping(x))
+    
+    def extract_segmentation(self):
+        count = 0
+        outputs = []
+        for seg_input in self.g_synthesis.seg_input:
+            # resolution >= 16
+            if seg_input.size(2) >= 16:
+                if count == 0:
+                    hidden = self.semantic_extractor[count](seg_input)
+                else:
+                    hidden = F.interpolate(hidden, scale_factor=2, mode="bilinear") + \
+                                self.semantic_extractor[count](seg_input)
+                    if "res" in self.segcfg:
+                        hidden = hidden + self.residue[count](hidden)
+                outputs.append(self.semantic_visualizer(hidden))
+                count += 1
+        return outputs

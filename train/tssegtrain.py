@@ -14,7 +14,7 @@ from lib.face_parsing import unet
 import config
 from utils import *
 from loss import *
-from model.seg import StyledGenerator
+import model
 
 STEP = 8
 ALPHA = 1
@@ -32,17 +32,16 @@ faceparser.eval()
 del state_dict
 
 state_dicts = torch.load(cfg.load_path, map_location='cpu')
-tg = StyledGenerator()
-tg.load_state_dict(state_dicts['generator'])
+tg = model.tf.StyledGenerator()
+tg.load_state_dict(state_dicts)
 tg.eval()
 tg = tg.to(cfg.device2)
-sg = StyledGenerator(semantic=cfg.semantic_config)
-sg.load_state_dict(state_dicts['generator'])
+sg = model.tfseg.StyledGenerator(semantic=cfg.semantic_config)
+sg.load_state_dict(state_dicts)
 sg.train()
 sg = sg.to(cfg.device1)
-sg.freeze_style() # do not change style branch
-sg.freeze_generator_progression()
-sg.freeze_generator_torgb()
+sg.freeze_g_mapping() # do not change style branch
+sg.freeze_g_synthesis()
 del state_dicts
 
 # new parameter adaption stage
@@ -76,7 +75,7 @@ count = 0
 
 for i in tqdm(range(cfg.n_iter)):
 	if i == 1000:
-		sg.freeze_generator_progression(train=True)
+		sg.freeze_g_synthesis(train=True)
 
 	latent1.normal_()
 	latent2.copy_(latent1, True) # asynchronous
