@@ -387,6 +387,7 @@ class StyledGenerator(nn.Module):
                 for i in range(n_layer - 2):
                     _m.append(MyConv2d(midim, midim, ksize))
                     _m.append(nn.ReLU(inplace=True))
+                _m.append(MyConv2d(midim, out_dim, ksize))
             return nn.Sequential(*_m)
         
         # start from 16x16 resolution
