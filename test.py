@@ -7,6 +7,8 @@ import numpy as np
 import utils
 from model.tfseg import StyledGenerator
 import config
+from lib.face_parsing import unet
+from lib.face_parsing.utils import tensor2label
 
 class SegmentationDataset(torch.utils.data.Dataset):
     def __init__(self, latent_dir, image_dir, seg_dir):
