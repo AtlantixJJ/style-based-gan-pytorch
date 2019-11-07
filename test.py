@@ -81,6 +81,6 @@ for i in range(1, seg_logit.shape[1]):
     mask_gt = (label == i)
     score = compute_iou(mask_dt, mask_gt)
     print(score)
-utils.imwrite("seg_dt.png", tensor2label(seg))
-utils.imwrite("seg_gt.png", tensor2label(label))
+utils.imwrite("seg_dt.png", tensor2label(seg, 19))
+utils.imwrite("seg_gt.png", tensor2label(label, 19))
 
