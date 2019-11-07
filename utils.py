@@ -285,6 +285,56 @@ class PLComposite(object):
                 return lerp(self.ins[i-1], self.ins[i], self.outs[i-1], self.outs[i], x)
 
 #########
+### Evaluation
+#########
+
+
+def compute_iou(a, b):
+    if b.any() == False:
+        return -1
+    return (a & b).astype("float32").sum() / (a | b).astype("float32").sum()
+
+
+def compute_score(seg, label, n=19):
+    res = []
+    for i in range(1, n):
+        mask_dt = (seg == i)
+        mask_gt = (label == i)
+        score = compute_iou(mask_dt, mask_gt)
+        res.append(score)
+    return res
+
+
+def aggregate(record):
+    record["class_acc"] = [-1] * 19
+    total = 0
+    cnt = 0
+    for i in range(1, 19):
+        arr = np.array(record[i])
+        arr = arr[arr > -1]
+        cnt += arr.shape[0]
+        total += arr.sum()
+        record["class_acc"][i] = arr.mean()
+    record["acc"] = total / cnt
+    if "sigma" in record.keys():
+        record["esd"] = np.array(record["sigma"]).mean()
+    return record
+
+
+def summarize(record):
+    label_list = ['skin', 'nose', 'eye_g', 'eye', 'brow', 'ear', 'mouth', 'u_lip', 'l_lip', 'hair', 'hat', 'ear_r', 'neck_l', 'neck', 'cloth']
+
+    print("=> Total accuracy: %.3f" % record["acc"])
+    print("=> Class wise accuracy:")
+    for i in range(1, 19):
+        if record["class_acc"][i] == -1:
+            continue
+        print("=> %s:\t%.3f" % (label_list[i - 1], record["class_acc"][i]))
+    if "esd" in record.keys():
+        print("=> Image expected standard deviation: %.3f" % record["esd"])
+
+
+#########
 ## Logging related functions
 #########
 

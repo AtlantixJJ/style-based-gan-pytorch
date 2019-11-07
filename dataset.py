@@ -1,5 +1,6 @@
 import torch
 import os
+from os.path import join as osj
 from PIL import Image
 from torchvision import transforms
 import numpy as np
@@ -69,26 +70,28 @@ class ImageSegmentationDataset(torch.utils.data.Dataset):
         return len(self.imagefiles)
 
 
-class LatentSegmentationDataset(ImageSegmentationDataset):
-    def __init__(self, data_path, size):
-        super(LatentSegmentationDataset, self).__init__(data_path, size)
+class LatentSegmentationDataset(torch.utils.data.Dataset):
+    def __init__(self, latent_dir, image_dir, seg_dir, map_class=[(4, 5), (6, 7), (8, 9)]):
+        super(LatentSegmentationDataset, self).__init__()
+        self.map_class = map_class
+        self.latent_dir = latent_dir
+        self.image_dir = image_dir
+        self.seg_dir = seg_dir
+        self.latent_files = os.listdir(self.latent_dir)
+        self.latent_files.sort()
 
-        with open(self.root_dir + "/train/latents.npz", 'rb') as fp:
-            latents_np = np.load(fp)['arr_0']
-        self.latents = torch.from_numpy(latents_np)
-        del latents_np
-        # must make sure this is equal to generate_stylegan_dataset.py
-        N = 10000
-        self.noises = []
-        for k in range(9):
-            size = 4 * 2 ** k
-            self.noises.append(torch.randn(1, size, size))
-    
-    def __getitem__(self, idx):
-        latent = self.latents[idx]
-        for k in range(9):
-            self.noises[k].normal_()
-        image = utils.pil_read(self.image_dir + "/" + self.imagefiles[idx])
-        label = utils.pil_read(self.label_dir + "/" + self.labelfiles[idx])
-        image_t, label_t = self.transform(image, label)
-        return latent, [n.clone() for n in self.noises], image_t, label_t
+    def __len__(self):
+        return len(self.latent_files)
+
+    def __getitem__(self, index):
+        name = self.latent_files[index]
+        latent_path = osj(self.latent_dir, name)
+        image_path = osj(self.image_dir, name.replace(".npy", ".jpg"))
+        seg_path = osj(self.seg_dir, name.replace(".npy", ".png"))
+        latent = np.load(latent_path)
+        image = utils.imread(image_path).copy()
+        label = utils.imread(seg_path).copy()
+        if self.map_class is not None:
+            for ct,cf in self.map_class:
+                label[label == cf] = ct
+        return latent, image, label

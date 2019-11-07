@@ -86,7 +86,7 @@ if "seg" in args.task:
             label = faceparser(gen)[0].argmax(0)
         
         segs += [label]
-        segs = [torch.from_numpy(colorizer(s)) / 255. for s in segs]
+        segs = [colorizer(s) / 255. for s in segs]
         segs = [s.permute(2, 0, 1).float() for s in segs]
 
         res = segs + [gen[0]]
