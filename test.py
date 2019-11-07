@@ -29,8 +29,8 @@ class SegmentationDataset(torch.utils.data.Dataset):
         image_path = osj(self.image_dir, name.replace(".npy", ".jpg"))
         seg_path = osj(self.seg_dir, name.replace(".npy", ".png"))
         latent = np.load(latent_path)
-        image = utils.imread(image_path)
-        label = utils.imread(seg_path)
+        image = utils.imread(image_path).copy()
+        label = utils.imread(seg_path).copy()
         if self.map_class is not None:
             for ct,cf in self.map_class:
                 label[label == cf] = ct
