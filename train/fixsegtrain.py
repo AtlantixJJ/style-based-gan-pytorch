@@ -64,7 +64,7 @@ for i in tqdm(range(cfg.n_iter + 1)):
 
 	with torch.no_grad():
 		gen = sg(latent)
-		gen = F.interpolate(gen, cfg.imsize, mode="bilinear")
+		gen = F.interpolate(gen, 512, mode="bilinear")
 		label = faceparser(gen).argmax(1)
 
 	segs = sg.extract_segmentation()

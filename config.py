@@ -158,6 +158,7 @@ class FixSegConfig(BaseConfig):
 
     def parse(self):
         super(FixSegConfig, self).parse()
+        self.task = "fixseg"
         self.seg_coef = self.args.seg
         self.seg_net_path = self.args.seg_net
         self.semantic_config = self.args.seg_cfg
