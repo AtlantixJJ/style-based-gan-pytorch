@@ -83,14 +83,15 @@ for latent, image, label in ds:
     latent = torch.from_numpy(latent).unsqueeze(0).float().cuda()
     image = torch.from_numpy(image).float().cuda()
     image = (image.permute(2, 0, 1) - 127.5) / 127.5
-    gen, seg = generator.predict(latent)
+    with torch.no_grad():
+        gen, seg = generator.predict(latent)
     gen = gen[0]
     seg = seg[0].detach().cpu().numpy()
     score = compute_score(seg, label)
     for i,s in enumerate(score):
         record[i+1].append(s)
     sigma = torch.sqrt(((gen - image)**2).mean())
-    record['sigma'].append(sigma)
+    record['sigma'].append(utils.torch2numpy(sigma))
 
 #utils.imwrite("gen.png", gen)
 #utils.imwrite("seg_dt.png", utils.numpy2label(seg, 19))
