@@ -316,36 +316,8 @@ def compute_score(seg, label, n=19, map_class=[(4, 5), (6, 7), (8, 9)], ignore_c
     return res
 
 
-def aggregate(record):
-    record["class_acc"] = [-1] * 18
-    total = 0
-    cnt = 0
-    for i in range(0, 18):
-        arr = np.array(record[i])
-        arr = arr[arr > -1]
-        cnt += arr.shape[0]
-        total += arr.sum()
-        record["class_acc"][i] = arr.mean()
-    record["acc"] = total / cnt
-    if "sigma" in record.keys():
-        record["esd"] = np.array(record["sigma"]).mean()
-    return record
-
-
-def summarize(record):
-    label_list = ['skin', 'nose', 'eye_g', 'eye', 'r_eye', 'brow', 'r_brow', 'ear', 'r_ear', 'mouth', 'u_lip', 'l_lip', 'hair', 'hat', 'ear_r', 'neck_l', 'neck', 'cloth']
-
-    print("=> Total accuracy: %.3f" % record["acc"])
-    print("=> Class wise accuracy:")
-    for i in range(1, 19):
-        if 0 <= record["class_acc"][i] and record["class_acc"][i] <= 1:
-            print("=> %s:\t%.3f" % (label_list[i - 1], record["class_acc"][i]))
-    if "esd" in record.keys():
-        print("=> Image expected standard deviation: %.3f" % record["esd"])
-
-
-class SegmentationEval(object):
-    def __init__(self, resdic=None):
+class MaskCelebAEval(object):
+    def __init__(self, resdic=None, map_id=True):
         self.dic = {}
         self.raw_label = ['background', 'skin', 'nose', 'eye_g', 'eye', 'r_eye', 'brow', 'r_brow', 'ear', 'r_ear', 'mouth', 'u_lip', 'l_lip', 'hair', 'hat', 'ear_r', 'neck_l', 'neck', 'cloth']
         self.dic["class"] = ['background', 'skin', 'nose', 'eye_g', 'eye', 'brow', 'ear', 'mouth', 'u_lip', 'l_lip', 'hair', 'hat', 'ear_r', 'neck_l', 'neck', 'cloth']
@@ -353,7 +325,7 @@ class SegmentationEval(object):
         self.ignore_class = 0
         self.dic["class_result"] = [[]] * self.n_class
         self.id_to_contiguous_id()
-        print(self.id2cid)
+        self.map_id = map_id
 
     def id_to_contiguous_id(self):
         cnt = 0
@@ -361,6 +333,39 @@ class SegmentationEval(object):
         for name in self.dic["class"]:
             self.id2cid[self.raw_label.index(name)] = cnt
             cnt += 1
+    
+    def idmap(self, x):
+        for fr,to in self.id2cid.items():
+            if fr == to:
+                continue
+            x[x == fr] = to
+        return x
+
+    def accumulate(self, scores):
+        for i,s in enumerate(scores):
+            self.dic["class_result"][i].append(s)
+
+    def aggregate(self):
+        self.dic["class_acc"] = [-1] * self.n_class
+        total = 0
+        cnt = 0
+        for i in range(self.n_class):
+            arr = np.array(self.dic["class_result"][i])
+            arr = arr[arr > -1]
+            cnt += arr.shape[0]
+            total += arr.sum()
+            self.dic["class_result"][i] = arr.mean()
+        self.dic["acc"] = total / cnt
+
+    def summarize(self):
+        print("=> Total accuracy: %.3f" % self.dic["acc"])
+        print("=> Class wise accuracy:")
+        for i in range(1, 19):
+            if 0 <= self.dic["class_acc"][i]:
+                print("=> %s:\t%.3f" % (self.dic["class"][i - 1], self.dic["class_acc"][i]))
+
+    def save(self, fpath):
+        np.save(fpath, self.dic)
 
 #########
 ## Logging related functions

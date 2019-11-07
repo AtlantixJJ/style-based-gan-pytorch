@@ -163,7 +163,11 @@ class FixSegConfig(BaseConfig):
         self.seg_net_path = self.args.seg_net
         self.semantic_config = self.args.seg_cfg
         self.record = {'loss': [], 'segloss': []}
-        self.id2cid = {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 6: 5, 8: 6, 10: 7, 11: 8, 12: 9, 13: 10, 14: 11, 15: 12, 16: 13, 17: 14, 18: 15}
+        if "faceparse_unet" in self.seg_net_path:
+            self.map_id = True
+            self.id2cid = {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 6: 5, 8: 6, 10: 7, 11: 8, 12: 9, 13: 10, 14: 11, 15: 12, 16: 13, 17: 14, 18: 15}
+        else:
+            self.map_id = False
         self.name = self.task + "_" + str(self.seg_coef) + "_" + self.semantic_config
         self.expr_dir = osj("expr", self.name)
         os.system("rm -r %s" % self.expr_dir)

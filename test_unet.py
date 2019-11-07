@@ -24,7 +24,8 @@ faceparser = faceparser.cuda()
 faceparser.eval()
 del state_dict
 
-tar_record = {i:[] for i in range(0, ds.n_class)}
+evaluator = utils.MaskCelebAEval(map_id=True)
+tar_record = {i:[] for i in range(0, evaluator.n_class)}
 for latent, image, label in ds:
     image = torch.from_numpy(image).float().cuda()
     image = (image.permute(2, 0, 1) - 127.5) / 127.5
@@ -32,9 +33,11 @@ for latent, image, label in ds:
         image_ = F.interpolate(image.unsqueeze(0), (512, 512))
         tar_seg = faceparser(image_)[0]
         tar_seg = tar_seg.argmax(0).detach().cpu().numpy()
+        if evaluator.map_id:
+            tar_seg = evaluator.map_id(tar_seg)
+            label = evaluator.map_id(label)
     tar_score = utils.compute_score(tar_seg, label)
-    for i in range(0, ds.n_class):
-        tar_record[i].append(tar_score[i])
-tar_record = utils.aggregate(tar_record)
-utils.summarize(tar_record)
-np.save("tar_record.npy", tar_record)
+    evaluator.accumulate(tar_score)
+evaluator.aggregate()
+evaluator.summarize()
+evaluator.save("tar_record.npy")
