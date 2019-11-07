@@ -71,9 +71,8 @@ class ImageSegmentationDataset(torch.utils.data.Dataset):
 
 
 class LatentSegmentationDataset(torch.utils.data.Dataset):
-    def __init__(self, latent_dir, image_dir, seg_dir, map_class=[(4, 5), (6, 7), (8, 9)]):
+    def __init__(self, latent_dir, image_dir, seg_dir):
         super(LatentSegmentationDataset, self).__init__()
-        self.map_class = map_class
         self.latent_dir = latent_dir
         self.image_dir = image_dir
         self.seg_dir = seg_dir
@@ -91,7 +90,4 @@ class LatentSegmentationDataset(torch.utils.data.Dataset):
         latent = np.load(latent_path)
         image = utils.imread(image_path).copy()
         label = utils.imread(seg_path).copy()
-        if self.map_class is not None:
-            for ct,cf in self.map_class:
-                label[label == cf] = ct
         return latent, image, label

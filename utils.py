@@ -295,12 +295,19 @@ def compute_iou(a, b):
     return (a & b).astype("float32").sum() / (a | b).astype("float32").sum()
 
 
-def compute_score(seg, label, n=19):
+def compute_score(seg, label, n=19, map_class=[(4, 5), (6, 7), (8, 9)]):
     res = []
+    dt_masks = []
+    gt_masks = []
     for i in range(1, n):
-        mask_dt = (seg == i)
-        mask_gt = (label == i)
-        score = compute_iou(mask_dt, mask_gt)
+        dt_masks.append(seg == i)
+        gt_masks.append(label == i)
+    if map_class is not None:
+        for ct, cf in map_class:
+            dt_masks[ct] = dt_masks[ct] | dt_masks[cf]
+            gt_masks[ct] = gt_masks[ct] | gt_masks[cf]
+    for i in range(1, n):
+        score = compute_iou(gt_masks[i], dt_masks[i])
         res.append(score)
     return res
 
@@ -322,7 +329,7 @@ def aggregate(record):
 
 
 def summarize(record):
-    label_list = ['skin', 'nose', 'eye_g', 'eye', 'brow', 'ear', 'mouth', 'u_lip', 'l_lip', 'hair', 'hat', 'ear_r', 'neck_l', 'neck', 'cloth']
+    label_list = ['skin', 'nose', 'eye_g', 'eye', 'r_eye', 'brow', 'r_brow', 'ear', 'r_ear', 'mouth', 'u_lip', 'l_lip', 'hair', 'hat', 'ear_r', 'neck_l', 'neck', 'cloth']
 
     print("=> Total accuracy: %.3f" % record["acc"])
     print("=> Class wise accuracy:")
