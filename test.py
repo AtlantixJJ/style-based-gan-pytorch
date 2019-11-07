@@ -54,8 +54,9 @@ generator = generator.cuda()
 model_files = glob.glob(args.model + "/*.model")
 model_files.sort()
 print("=> Load from %s" % model_files[-1])
-generator.load_state_dict(torch.load(
-    model_files[-1], map_location='cuda:0'))
+missed = generator.load_state_dict(torch.load(
+    model_files[-1], map_location='cuda:0'), strict=True)
+print(missed)
 generator.eval()
 
 state_dict = torch.load("checkpoint/faceparse_unet.pth", map_location='cpu')
