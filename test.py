@@ -79,7 +79,7 @@ seg_logit = generator.extract_segmentation()[-1]
 seg_logit = F.interpolate(seg_logit, (512, 512), mode="bilinear")
 seg_logit = seg_logit[0]
 seg = seg_logit.argmax(dim=0).detach().cpu()
-seg = seg.numpy().astype("bool")
+seg = seg.numpy()
 for i in range(1, seg_logit.shape[0]):
     mask_dt = (seg == i)
     mask_gt = (label == i)
