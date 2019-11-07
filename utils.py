@@ -342,7 +342,7 @@ class MaskCelebAEval(object):
             arr = np.array(self.dic["class_result"][i])
             arr = arr[arr > -1]
             if arr.shape[0] == 0:
-                self.dic["class_acc"] = -1
+                self.dic["class_acc"][i] = -1
                 continue
             cnt += arr.shape[0]
             total += arr.sum()
