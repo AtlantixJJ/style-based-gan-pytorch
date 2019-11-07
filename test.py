@@ -65,7 +65,8 @@ faceparser = faceparser.cuda()
 faceparser.eval()
 del state_dict
 
-gen = generator(latent.cuda())
+gen = generator.g_synthesis(latent.unsqueeze(0).cuda())
 segs = generator.extract_segmentation()[-1]
-for i in range(segs.shape[1]):
-    pass
+for i in range(1, segs.shape[1]):
+    mask = (segmentation == i)
+
