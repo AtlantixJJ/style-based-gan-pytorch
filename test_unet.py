@@ -36,7 +36,7 @@ for latent, image, label in ds:
         if evaluator.map_id:
             tar_seg = evaluator.idmap(tar_seg)
             label = evaluator.idmap(label)
-    tar_score = utils.compute_score(tar_seg, label)
+    tar_score = evaluator.compute_score(tar_seg, label)
     evaluator.accumulate(tar_score)
 evaluator.aggregate()
 evaluator.summarize()

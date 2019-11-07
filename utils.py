@@ -295,34 +295,13 @@ def compute_iou(a, b):
     return (a & b).astype("float32").sum() / (a | b).astype("float32").sum()
 
 
-def compute_score(seg, label, n=19, map_class=[(4, 5), (6, 7), (8, 9)], ignore_classes=[0]):
-    res = []
-    dt_masks = []
-    gt_masks = []
-    for i in range(0, n):
-        dt_masks.append(seg == i)
-        gt_masks.append(label == i)
-    if map_class is not None:
-        for ct, cf in map_class:
-            ignore_classes.append(cf)
-            dt_masks[ct] = dt_masks[ct] | dt_masks[cf]
-            gt_masks[ct] = gt_masks[ct] | gt_masks[cf]
-    for i in range(0, n):
-        if i in ignore_classes:
-            score = -1
-        else:
-            score = compute_iou(gt_masks[i], dt_masks[i])
-        res.append(score)
-    return res
-
-
 class MaskCelebAEval(object):
     def __init__(self, resdic=None, map_id=True):
         self.dic = {}
         self.raw_label = ['background', 'skin', 'nose', 'eye_g', 'eye', 'r_eye', 'brow', 'r_brow', 'ear', 'r_ear', 'mouth', 'u_lip', 'l_lip', 'hair', 'hat', 'ear_r', 'neck_l', 'neck', 'cloth']
         self.dic["class"] = ['background', 'skin', 'nose', 'eye_g', 'eye', 'brow', 'ear', 'mouth', 'u_lip', 'l_lip', 'hair', 'hat', 'ear_r', 'neck_l', 'neck', 'cloth']
         self.n_class = len(self.dic["class"])
-        self.ignore_class = 0
+        self.ignore_classes = [0]
         self.dic["class_result"] = [[]] * self.n_class
         self.id_to_contiguous_id()
         self.map_id = map_id
@@ -340,6 +319,23 @@ class MaskCelebAEval(object):
                 continue
             x[x == fr] = to
         return x
+
+    def compute_score(self, seg, label):
+        res = []
+        dt_masks = []
+        gt_masks = []
+        for i in range(self.n_class):
+            if i in self.ignore_classes:
+                continue
+            dt_masks.append(seg == i)
+            gt_masks.append(label == i)
+        for i in range(self.n_class):
+            if i in self.ignore_classes:
+                score = -1
+            else:
+                score = compute_iou(gt_masks[i], dt_masks[i])
+            res.append(score)
+        return res
 
     def accumulate(self, scores):
         for i,s in enumerate(scores):
