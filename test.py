@@ -68,8 +68,8 @@ for latent, image, label in ds:
     gen = gen[0]
     seg = seg[0].detach().cpu().numpy()
     score = utils.compute_score(seg, label)
-    for i in range(1, 19):
-        record[i].append(score[i - 1])
+    for i in range(0, 18):
+        record[i].append(score[i])
     sigma = torch.sqrt(((gen - image)**2).mean())
     record['sigma'].append(utils.torch2numpy(sigma)[()])
 
