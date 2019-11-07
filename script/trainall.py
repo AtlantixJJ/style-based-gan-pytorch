@@ -38,5 +38,5 @@ def assign_run(command_generator, gpus):
         print(s[:-2])
         os.system(s[:-2])
 
-gpus = ["0", "3"]
+gpus = ["0", "1", "2", "3"]
 assign_run(TSSeg().command, gpus)
