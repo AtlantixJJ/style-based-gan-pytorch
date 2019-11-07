@@ -123,7 +123,7 @@ for latent, image, label in ds:
     tar_score = compute_score(tar_seg, label)
     for i in range(1, 19):
         record[i].append(score[i - 1])
-        tar_record[i].append(tar_record[i - 1])
+        tar_record[i].append(tar_score[i - 1])
     sigma = torch.sqrt(((gen - image)**2).mean())
     record['sigma'].append(utils.torch2numpy(sigma)[()])
     tar_record['sigma'].append(utils.torch2numpy(sigma)[()])
