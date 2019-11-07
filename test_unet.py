@@ -34,8 +34,8 @@ for latent, image, label in ds:
         tar_seg = faceparser(image_)[0]
         tar_seg = tar_seg.argmax(0).detach().cpu().numpy()
         if evaluator.map_id:
-            tar_seg = evaluator.map_id(tar_seg)
-            label = evaluator.map_id(label)
+            tar_seg = evaluator.idmap(tar_seg)
+            label = evaluator.idmap(label)
     tar_score = utils.compute_score(tar_seg, label)
     evaluator.accumulate(tar_score)
 evaluator.aggregate()
