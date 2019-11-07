@@ -108,7 +108,7 @@ for latent, image, label in ds:
     for i,s in enumerate(score):
         record[i+1].append(s)
     sigma = torch.sqrt(((gen - image)**2).mean())
-    record['sigma'].append(utils.torch2numpy(sigma)[0])
+    record['sigma'].append(utils.torch2numpy(sigma)[()])
 
 
 
