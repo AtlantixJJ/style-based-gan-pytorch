@@ -302,7 +302,7 @@ class MaskCelebAEval(object):
         self.dic["class"] = ['background', 'skin', 'nose', 'eye_g', 'eye', 'brow', 'ear', 'mouth', 'u_lip', 'l_lip', 'hair', 'hat', 'ear_r', 'neck_l', 'neck', 'cloth']
         self.n_class = len(self.dic["class"])
         self.ignore_classes = [0]
-        self.dic["class_result"] = [[]] * self.n_class
+        self.dic["class_result"] = [[] for i in range(self.n_class)]
         self.id_to_contiguous_id()
         self.map_id = map_id
 
@@ -331,8 +331,7 @@ class MaskCelebAEval(object):
         return res
 
     def accumulate(self, scores):
-        print(scores)
-        for i,s in enumerate(scores):
+        for i, s in enumerate(scores):
             self.dic["class_result"][i].append(s)
 
     def aggregate(self):
