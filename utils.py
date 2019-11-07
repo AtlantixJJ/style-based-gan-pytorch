@@ -322,6 +322,8 @@ class MaskCelebAEval(object):
 
     def compute_score(self, seg, label):
         res = []
+        print(np.unique(seg))
+        print(np.unique(label))
         for i in range(self.n_class):
             if i in self.ignore_classes:
                 score = -1
@@ -352,7 +354,9 @@ class MaskCelebAEval(object):
         for i in range(self.n_class):
             if self.dic["class_acc"][i] < 0:
                 continue
-            print("=> %s:\t%.3f" % (self.dic["class"][i - 1], self.dic["class_acc"][i]))
+            print("=> %s:\t%.3f" % (
+                self.dic["class"][i],
+                self.dic["class_acc"][i]))
 
     def save(self, fpath):
         np.save(fpath, self.dic)
