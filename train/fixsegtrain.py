@@ -72,7 +72,7 @@ for i in tqdm(range(cfg.n_iter + 1)):
 	seglosses = []
 	for c, s in zip(coefs, segs):
 		if s.shape[2] < label.shape[2]:
-			label_ = F.interpolate(label.cpu(), s.shape[2:]).cuda()
+			label_ = F.interpolate(label.cpu().unsqueeze(1), s.shape[2:]).cuda()
 			l = logsoftmax(s, label_)
 		elif s.shape[2] > label.shape[2]:
 			l = logsoftmax(F.interpolate(s, label.shape[2:]), label)
