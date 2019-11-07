@@ -443,3 +443,15 @@ class StyledGenerator(nn.Module):
                 outputs.append(self.semantic_visualizer(hidden))
                 count += 1
         return outputs
+    
+    def predict(self, latent):
+        # start from w+
+        if latent.dim() == 3 and latent.shape[1] == 18:
+            gen = self.g_synthesis(latent).clamp(-1, 1)
+            #gen_np = gen[0].detach().cpu().numpy()
+            #gen_np = ((gen_np + 1) * 127.5).transpose(1, 2, 0)
+            seg_logit = self.extract_segmentation()[-1]
+            seg_logit = F.interpolate(seg_logit, (512, 512), mode="bilinear")
+            seg = seg_logit.argmax(dim=1)
+            #seg = seg.numpy()
+        return gen, seg

@@ -34,12 +34,9 @@ class SegmentationDataset(torch.utils.data.Dataset):
 
 rootdir = "/home/xujianjin/data/datasets/CelebAMask-HQ/"
 ds = SegmentationDataset(
-    latent_dir=rootdir+"dlatent5000",
+    latent_dir=rootdir+"dlatent",
     image_dir=rootdir+"CelebA-HQ-img",
     seg_dir=rootdir+"CelebAMask-HQ-mask")
-
-latent, image, label = ds[10]
-latent = torch.from_numpy(latent)
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--model", default="")
@@ -71,21 +68,29 @@ def compute_iou(a, b):
         return -1
     return (a & b).astype("float32").sum() / (a | b).astype("float32").sum()
 
-gen = generator.g_synthesis(latent.unsqueeze(0).cuda())
-gen = (gen.clamp(-1, 1) + 1) * 127.5
-gen = gen.detach().cpu().numpy()
-gen = gen[0].transpose(1, 2, 0)
-seg_logit = generator.extract_segmentation()[-1]
-seg_logit = F.interpolate(seg_logit, (512, 512), mode="bilinear")
-seg_logit = seg_logit[0]
-seg = seg_logit.argmax(dim=0).detach().cpu()
-seg = seg.numpy()
-for i in range(1, seg_logit.shape[0]):
-    mask_dt = (seg == i)
-    mask_gt = (label == i)
-    score = compute_iou(mask_dt, mask_gt)
-    print(score)
-utils.imwrite("gen.png", gen)
-utils.imwrite("seg_dt.png", utils.numpy2label(seg, 19))
-utils.imwrite("seg_gt.png", utils.numpy2label(label, 19))
+def compute_score(seg, label, n=19):
+    res = []
+    for i in range(1, n):
+        mask_dt = (seg == i)
+        mask_gt = (label == i)
+        score = compute_iou(mask_dt, mask_gt)
+        res.append(score)
+    return res
+
+record = {i:[] for i in range(1,19)}
+record['sigma'] = []
+for latent, image, label in ds:
+    latent = torch.from_numpy(latent).unsqueeze(0).float().cuda()
+    image = torch.from_numpy(image).float().cuda()
+    image = (image.permute(2, 0, 1) - 127.5) / 127.5
+    seg, gen = generator.predict(latent)
+    score = compute_score(seg[0].detach().cpu().numpy(), label)
+    for i,s in enumerate(score):
+        record[i+1].append(s)
+    sigma = torch.sqrt(((gen[0] - image)**2).mean())
+    record['sigma'].append(sigma)
+
+#utils.imwrite("gen.png", gen)
+#utils.imwrite("seg_dt.png", utils.numpy2label(seg, 19))
+#utils.imwrite("seg_gt.png", utils.numpy2label(label, 19))
 
