@@ -47,7 +47,9 @@ parser.add_argument("--step", type=int, default=8)
 args = parser.parse_args()
 
 cfg = config.config_from_name(args.model)
-generator = StyledGenerator(**cfg).cuda()
+print(cfg)
+generator = StyledGenerator(**cfg)
+generator = generator.cuda()
 
 model_files = glob.glob(args.model + "/*.model")
 model_files.sort()
