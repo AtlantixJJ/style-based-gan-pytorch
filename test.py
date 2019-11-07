@@ -47,6 +47,18 @@ parser.add_argument("--model", default="")
 parser.add_argument("--step", type=int, default=8)
 args = parser.parse_args()
 
+if args.model == "expr":
+    # This is root, run for all the expr directory
+    files = os.listdir(args.model)
+    files.sort()
+    for f in files:
+        basecmd = "python test.py --model %s"
+        basecmd = basecmd % osj(args.model, f)
+        os.system(basecmd)
+    exit(0)
+
+out_prefix = args.model.replace("expr/", "results/")
+
 cfg = config.config_from_name(args.model)
 print(cfg)
 generator = StyledGenerator(**cfg)
@@ -92,7 +104,8 @@ def aggregate(record):
         total += arr.sum()
         record["class_acc"][i] = arr.mean()
     record["acc"] = total / cnt
-    record["esd"] = np.array(record["sigma"]).mean()
+    if "sigma" in record.keys():
+        record["esd"] = np.array(record["sigma"]).mean()
     return record
 
 def summarize(record):
@@ -106,8 +119,6 @@ def summarize(record):
 
 record = {i:[] for i in range(1,19)}
 record['sigma'] = []
-tar_record = {i:[] for i in range(1,19)}
-tar_record['sigma'] = []
 for latent, image, label in ds:
     latent = torch.from_numpy(latent).unsqueeze(0).float().cuda()
     image = torch.from_numpy(image).float().cuda()
@@ -130,8 +141,23 @@ for latent, image, label in ds:
 
 record = aggregate(record)
 summarize(record)
+np.save(f"{out_prefix}_record.npy", record)
+
+tar_record = {i:[] for i in range(1,19)}
+for latent, image, label in ds:
+    image = torch.from_numpy(image).float().cuda()
+    image = (image.permute(2, 0, 1) - 127.5) / 127.5
+    with torch.no_grad():
+        image_ = F.interpolate(image.unsqueeze(0), (512, 512))
+        tar_seg = faceparser(image_)[0]
+        tar_seg = tar_seg.argmax(0).detach().cpu().numpy()
+    tar_score = compute_score(tar_seg, label)
+    for i in range(1, 19):
+        tar_record[i].append(tar_score[i - 1])
 tar_record = aggregate(tar_record)
 summarize(tar_record)
+np.save("tar_record.npy", tar_record)
+
 
 #utils.imwrite("gen.png", gen)
 #utils.imwrite("seg_dt.png", utils.numpy2label(seg, 19))

@@ -1,5 +1,48 @@
 # Style-Based GAN in PyTorch
 
+=> Total accuracy: 0.667
+=> Class wise accuracy:
+=> skin:        0.923
+=> nose:        0.882
+=> eye_g:       0.030
+=> l_eye:       nan
+=> r_eye:       0.309
+=> l_brow:      nan
+=> r_brow:      0.504
+=> l_ear:       nan
+=> r_ear:       0.736
+=> mouth:       0.768
+=> u_lip:       0.749
+=> l_lip:       0.811
+=> hair:        0.889
+=> hat: 0.756
+=> ear_r:       0.445
+=> neck_l:      0.000
+=> neck:        0.842
+=> cloth:       0.743
+
+=> Total accuracy: 0.515
+=> Class wise accuracy:
+=> skin:        0.818
+=> nose:        0.779
+=> eye_g:       0.009
+=> l_eye:       nan
+=> r_eye:       0.267
+=> l_brow:      nan
+=> r_brow:      0.363
+=> l_ear:       nan
+=> r_ear:       0.424
+=> mouth:       0.565
+=> u_lip:       0.607
+=> l_lip:       0.688
+=> hair:        0.681
+=> hat: 0.001
+=> ear_r:       0.019
+=> neck_l:      0.000
+=> neck:        0.661
+=> cloth:       0.433
+=> Image expected standard deviation: 0.210
+
 ##### Update (2019/09/01)
 
 I found bugs in the implementation thanks to @adambielski and @TropComplique! (https://github.com/rosinality/style-based-gan-pytorch/issues/33, https://github.com/rosinality/style-based-gan-pytorch/issues/34) I have fixed this and updated checkpoints
