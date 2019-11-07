@@ -115,7 +115,8 @@ def summarize(record):
     print("=> Class wise accuracy:")
     for i in range(1, 19):
         print("=> %s:\t%.3f" % (label_list[i - 1], record["class_acc"][i]))
-    print("=> Image expected standard deviation: %.3f" % record["esd"])
+    if "esd" in record.keys():
+        print("=> Image expected standard deviation: %.3f" % record["esd"])
 
 record = {i:[] for i in range(1,19)}
 record['sigma'] = []
