@@ -76,7 +76,7 @@ for i in tqdm(range(cfg.n_iter + 1)):
 			label_ = F.interpolate(label.unsqueeze(1).float(), s.shape[2:])
 			label_ = label_.squeeze(1).long()
 			print(label_.shape, label_.max(), label_.min())
-			l = logsoftmax(s, )
+			l = logsoftmax(s, label_)
 		elif s.shape[2] > label.shape[2]:
 			l = logsoftmax(F.interpolate(s, label.shape[2:]), label)
 		else:
