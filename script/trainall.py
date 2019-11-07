@@ -5,8 +5,8 @@ class TSSeg(object):
         self.seg_cfgs = [
             "3res1-64-19",
             "3res2-64-19",
-            "3conv2-32-19",
-            "3conv1-32-19",
+            #"3conv2-32-19",
+            #"3conv1-32-19",
             ]
         self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --gpu %s --batch_size %d --iter-num 2000 &"
     
@@ -34,5 +34,5 @@ def assign_run(command_generator, gpus):
         print(s[:-2])
         os.system(s[:-2])
 
-gpus = ["0", "1", "2", "3"]
+gpus = ["0", "3"]
 assign_run(TSSeg().command, gpus)
