@@ -147,8 +147,33 @@ class SConfig(BaseConfig):
         print("=> Segmentation dataset %s" % self.dataset_path)
         if self.task == "seg":
             print("=> Number samples: %d" % len(self.ds))
-# python train/tssegtrain.py --task tsseg --gpu 3,5 --batch_size 4 --seg 0.2 --mse 10.0 --seg-cfg conv1-19
-# python train/tssegtrain.py --task tsseg --gpu 2,6 --batch_size 4 --seg 0.2 --mse 10.0 --seg-cfg conv2-19
+
+class FixSegConfig(BaseConfig):
+    def __init__(self):
+        super(FixSegConfig, self).__init__()
+
+        self.parser.add_argument("--seg-net", default="checkpoint/faceparse_unet.pth", help="The load path of semantic segmentation network")
+        self.parser.add_argument("--seg", default=1., type=float, help="Coefficient of segmentation loss")
+        self.parser.add_argument("--seg-cfg", default="3conv1-64-18", help="Configure of segmantic segmentation extractor")
+
+    def parse(self):
+        super(FixSegConfig, self).parse()
+        self.seg_coef = self.args.seg
+        self.seg_net_path = self.args.seg_net
+        self.semantic_config = self.args.seg_cfg
+        self.record = {'loss': [], 'segloss': []}
+
+        self.name = self.task + "_" + str(self.seg_coef) + "_" + self.semantic_config
+        self.expr_dir = osj("expr", self.name)
+        os.system("rm -r %s" % self.expr_dir)
+        os.system("mkdir %s" % self.expr_dir)
+
+    def print_info(self):
+        super(FixSegConfig, self).print_info()
+        print("=> Segmentation configure: %s" % self.semantic_config)
+        print("=> Segmentation loss coefficient: %.4f" % self.seg_coef)
+        print("=> MSE loss coefficient: %.4f" % self.mse_coef)
+
 class TSConfig(BaseConfig):
     def __init__(self):
         super(TSConfig, self).__init__()

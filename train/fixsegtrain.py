@@ -19,12 +19,12 @@ import model
 STEP = 8
 ALPHA = 1
 
-cfg = config.SConfig()
+cfg = config.FixSegConfig()
 cfg.parse()
 cfg.print_info()
 cfg.setup()
 
-state_dict = torch.load("checkpoint/faceparse_unet.pth", map_location='cpu')
+state_dict = torch.load(cfg.seg_net_path, map_location='cpu')
 faceparser = unet.unet()
 faceparser.load_state_dict(state_dict)
 faceparser = faceparser.cuda()
@@ -36,17 +36,14 @@ sg = model.tfseg.StyledGenerator(semantic=cfg.semantic_config)
 sg.load_state_dict(state_dicts, strict=False)
 sg.train()
 sg = sg.cuda()
-sg.freeze_g_mapping() # do not change style branch
-sg.freeze_g_synthesis()
+sg.freeze_g_mapping() # fix main trunk
+sg.freeze_g_synthesis() # fix main trunk
 del state_dicts
 
 # new parameter adaption stage
 g_optim = torch.optim.Adam(sg.semantic_branch.parameters(),
 	lr=cfg.lr,
-	betas=(0.9, 0.9)) # 1e-3
-#g_optim.add_param_group({
-#    'params': sg.g_synthesis.parameters(),
-#    'lr': cfg.lr * 0.1})
+	betas=(0.9, 0.9))
 logsoftmax = torch.nn.CrossEntropyLoss()
 logsoftmax = logsoftmax.cuda()
 
@@ -56,7 +53,7 @@ for k in range(STEP + 1):
     size = 4 * 2 ** k
     noise[k] = torch.randn(cfg.batch_size, 1, size, size).cuda()
 
-record = {"loss":[], "segloss":[]}
+record = cfg.record
 avgmseloss = 0
 count = 0
 
