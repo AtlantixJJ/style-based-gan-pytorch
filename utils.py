@@ -39,40 +39,75 @@ class MultiGPUTensor(object):
 class Colorize(object):
     def __init__(self, n=19):
         self.cmap = labelcolormap(n)
+        self.cmap = torch.from_numpy(self.cmap[:n])
 
     def __call__(self, gray_image):
-        if isinstance(gray_image, torch.Tensor):
-            gray_image = gray_image.cpu().numpy()
-        size = gray_image.shape
+        size = gray_image.size()
         if len(size) == 2:
             h, w = size
         else:
             h, w = size[1:]
             gray_image = gray_image[0]
-        color_image = np.zeros((3, h, w))
+        color_image = torch.ByteTensor(3, h, w).fill_(0)
 
-        for label in range(self.cmap.shape[0]):
-            mask = (label == gray_image)
+        for label in range(0, len(self.cmap)):
+            mask = (label == gray_image).cpu()
             color_image[0][mask] = self.cmap[label][0]
             color_image[1][mask] = self.cmap[label][1]
             color_image[2][mask] = self.cmap[label][2]
 
-        return color_image.transpose(1, 2, 0)
+        return color_image
 
+def uint82bin(n, count=8):
+    """returns the binary of integer n, count refers to amount of bits"""
+    return ''.join([str((n >> y) & 1) for y in range(count-1, -1, -1)])
 
 def labelcolormap(N):
-    edge_num = int(np.ceil(np.power(N+1, 1/3))) + 1
+    """
+    edge_num = int(np.ceil(np.power(N + , 1/3))) - 1
     cmap = np.zeros((N, 3), dtype=np.uint8)
     step_size = 255. / edge_num
-    count = 0
-    for i in range(1, edge_num + 1):
-        for j in range(1, edge_num + 1):
-            for k in range(1, edge_num + 1):
-                if count >= N:
+    cmap[0] = (0, 0, 0)
+    count = 1
+    for i in range(edge_num + 1):
+        for j in range(edge_num + 1):
+            for k in range(edge_num + 1):
+                if count >= N or (i == j and j == k):
                     continue
                 cmap[count] = [int(step_size * n) for n in [i, j, k]]
                 count += 1
+    """
+
+    cmap = np.zeros((N, 3), dtype=np.uint8)
+    for i in range(N):
+        r, g, b = 0, 0, 0
+        id = i
+        for j in range(7):
+            str_id = uint82bin(id)
+            r = r ^ (np.uint8(str_id[-1]) << (7-j))
+            g = g ^ (np.uint8(str_id[-2]) << (7-j))
+            b = b ^ (np.uint8(str_id[-3]) << (7-j))
+            id = id >> 3
+        cmap[i, 0] = r
+        cmap[i, 1] = g
+        cmap[i, 2] = b
     return cmap
+
+
+def tensor2label(label_tensor, n_label, imtype=np.uint8):
+    label_tensor = label_tensor.cpu().float()
+    if label_tensor.size()[0] > 1:
+        label_tensor = label_tensor.max(0, keepdim=True)[1]
+    label_tensor = Colorize(n_label)(label_tensor)
+    label_numpy = label_tensor.numpy()
+    label_numpy = label_numpy / 255.0
+
+    return label_numpy
+
+
+def numpy2label(label_np, n_label):
+    img_t = Colorize(n_label)(torch.from_numpy(label_np))
+    return img_t.numpy().transpose(1, 2, 0)
 
 
 def plot_dic(dic, file):

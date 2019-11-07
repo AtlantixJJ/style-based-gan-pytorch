@@ -9,7 +9,6 @@ import utils
 from model.tfseg import StyledGenerator
 import config
 from lib.face_parsing import unet
-from lib.face_parsing.utils import tensor2label
 
 class SegmentationDataset(torch.utils.data.Dataset):
     def __init__(self, latent_dir, image_dir, seg_dir):
@@ -81,6 +80,6 @@ for i in range(1, seg_logit.shape[1]):
     mask_gt = (label == i)
     score = compute_iou(mask_dt, mask_gt)
     print(score)
-utils.imwrite("seg_dt.png", tensor2label(seg, 19))
-utils.imwrite("seg_gt.png", tensor2label(label, 19))
+utils.imwrite("seg_dt.png", utils.numpy2label(seg, 19))
+utils.imwrite("seg_gt.png", utils.numpy2label(label, 19))
 
