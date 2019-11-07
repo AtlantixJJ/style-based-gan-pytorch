@@ -57,22 +57,20 @@ faceparser = faceparser.cuda()
 faceparser.eval()
 del state_dict
 
-record = {i:[] for i in range(0,18)}
-record['sigma'] = []
+evaluator = utils.MaskCelebAEval(map_id=True)
+
 for latent, image, label in ds:
     latent = torch.from_numpy(latent).unsqueeze(0).float().cuda()
     image = torch.from_numpy(image).float().cuda()
     image = (image.permute(2, 0, 1) - 127.5) / 127.5
     with torch.no_grad():
         gen, seg = generator.predict(latent)
+    if evaluator.map_id:
+        label = evaluator.idmap(label)
     gen = gen[0]
     seg = seg[0].detach().cpu().numpy()
-    score = utils.compute_score(seg, label)
-    for i in range(0, 18):
-        record[i].append(score[i])
-    sigma = torch.sqrt(((gen - image)**2).mean())
-    record['sigma'].append(utils.torch2numpy(sigma)[()])
-
-record = utils.aggregate(record)
-utils.summarize(record)
-np.save(f"{out_prefix}_record.npy", record)
+    score = evaluator.compute_score(seg, label)
+    evaluator.accumulate(score)
+evaluator.aggregate()
+evaluator.summarize()
+evaluator.save(f"{out_prefix}_record.npy")

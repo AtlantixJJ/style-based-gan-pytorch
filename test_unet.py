@@ -33,9 +33,9 @@ for i, (latent, image, label) in enumerate(ds):
         image_ = F.interpolate(image.unsqueeze(0), (512, 512))
         tar_seg = faceparser(image_)[0]
         tar_seg = tar_seg.argmax(0).detach().cpu().numpy()
-        if evaluator.map_id:
-            tar_seg = evaluator.idmap(tar_seg)
-            label = evaluator.idmap(label)
+    if evaluator.map_id:
+        tar_seg = evaluator.idmap(tar_seg)
+        label = evaluator.idmap(label)
     tar_score = evaluator.compute_score(tar_seg, label)
     evaluator.accumulate(tar_score)
 evaluator.aggregate()
