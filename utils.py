@@ -320,7 +320,7 @@ def aggregate(record):
     record["class_acc"] = [-1] * 19
     total = 0
     cnt = 0
-    for i in range(1, 19):
+    for i in range(0, 18):
         arr = np.array(record[i])
         arr = arr[arr > -1]
         cnt += arr.shape[0]
