@@ -441,11 +441,34 @@ class StyledGenerator(nn.Module):
             ])
         self.semantic_visualizer = MyConv2d(self.semantic_dim, self.n_class, 1)
 
-
         self.semantic_branch = nn.ModuleList([
             self.semantic_extractor,
             self.semantic_visualizer,
             self.residue if "res" in self.segcfg else None])
+    
+    def extract_segmentation_residue(self):
+        count = 0
+        outputs = []
+        for seg_input in self.g_synthesis.stage:
+            if seg_input.size(2) >= 16:
+                if count == 0:
+                    hidden = self.semantic_extractor[count](seg_input)
+                else:
+                    hidden = F.interpolate(hidden, scale_factor=2) + \
+                                self.semantic_extractor[count](seg_input)
+                    hidden = hidden + self.residue[count](hidden)
+                outputs.append(self.semantic_visualizer(hidden))
+                count += 1
+        return outputs
+    
+    def extract_segmentation_conv(self):
+        count = 0
+        outputs = []
+        for seg_input in self.g_synthesis.stage:
+            if seg_input.size(2) >= 16:
+                outputs.append(self.semantic_extractor[count](seg_input))
+                count += 1
+        return outputs
 
     def freeze_g_mapping(self, train=False):
         for param in self.g_mapping.parameters():
@@ -459,21 +482,10 @@ class StyledGenerator(nn.Module):
         return self.g_synthesis(self.g_mapping(x))
     
     def extract_segmentation(self):
-        count = 0
-        outputs = []
-        for seg_input in self.g_synthesis.stage:
-            # resolution >= 16
-            if seg_input.size(2) >= 16:
-                if count == 0:
-                    hidden = self.semantic_extractor[count](seg_input)
-                else:
-                    hidden = F.interpolate(hidden, scale_factor=2, mode="bilinear") + \
-                                self.semantic_extractor[count](seg_input)
-                    if "res" in self.segcfg:
-                        hidden = hidden + self.residue[count](hidden)
-                outputs.append(self.semantic_visualizer(hidden))
-                count += 1
-        return outputs
+        if "conv" in self.segcfg:
+            return self.extract_segmentation_conv()
+        elif "res" in self.segcfg:
+            return self.extract_segmentation_residue()
     
     def predict(self, latent):
         # start from w+
