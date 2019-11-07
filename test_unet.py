@@ -42,36 +42,6 @@ ds = SegmentationDataset(
     image_dir=rootdir+"CelebA-HQ-img",
     seg_dir=rootdir+"CelebAMask-HQ-mask")
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--model", default="")
-parser.add_argument("--step", type=int, default=8)
-args = parser.parse_args()
-
-if args.model == "expr":
-    # This is root, run for all the expr directory
-    files = os.listdir(args.model)
-    files.sort()
-    for f in files:
-        basecmd = "python test.py --model %s"
-        basecmd = basecmd % osj(args.model, f)
-        os.system(basecmd)
-    exit(0)
-
-out_prefix = args.model.replace("expr/", "results/")
-
-cfg = config.config_from_name(args.model)
-print(cfg)
-generator = StyledGenerator(**cfg)
-generator = generator.cuda()
-
-model_files = glob.glob(args.model + "/*.model")
-model_files.sort()
-print("=> Load from %s" % model_files[-1])
-missed = generator.load_state_dict(torch.load(
-    model_files[-1], map_location='cuda:0'), strict=True)
-print(missed)
-generator.eval()
-
 state_dict = torch.load("checkpoint/faceparse_unet.pth", map_location='cpu')
 faceparser = unet.unet()
 faceparser.load_state_dict(state_dict)
