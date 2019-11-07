@@ -1,6 +1,7 @@
 import os
 from os.path import join as osj
 import torch
+import torch.nn.functional as F
 import argparse
 import glob
 import numpy as np
@@ -38,7 +39,7 @@ ds = SegmentationDataset(
     image_dir=rootdir+"CelebA-HQ-img",
     seg_dir=rootdir+"CelebAMask-HQ-mask")
 
-latent, image, segmentation = ds[10]
+latent, image, label = ds[10]
 latent = torch.from_numpy(latent)
 
 parser = argparse.ArgumentParser()
@@ -65,8 +66,21 @@ faceparser = faceparser.cuda()
 faceparser.eval()
 del state_dict
 
+def compute_iou(a, b):
+    if b.all() == False:
+        return -1
+    return (a & b).astype("float32").sum() / (a | b).astype("float32").sum()
+
 gen = generator.g_synthesis(latent.unsqueeze(0).cuda())
-segs = generator.extract_segmentation()[-1]
-for i in range(1, segs.shape[1]):
-    mask = (segmentation == i)
+seg_logit = generator.extract_segmentation()[-1]
+seg_logit = F.interpolate(seg_logit, (512, 512), mode="bilinear")
+seg = seg_logit.argmax(dim=0).detach().cpu()
+seg = seg.numpy().astype("bool")
+for i in range(1, seg_logit.shape[1]):
+    mask_dt = (seg == i)
+    mask_gt = (label == i)
+    score = compute_iou(mask_dt, mask_gt)
+    print(score)
+utils.imwrite("seg_dt.png", tensor2label(seg))
+utils.imwrite("seg_gt.png", tensor2label(label))
 
