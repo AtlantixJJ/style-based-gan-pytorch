@@ -295,7 +295,7 @@ def compute_iou(a, b):
     return (a & b).astype("float32").sum() / (a | b).astype("float32").sum()
 
 
-def compute_score(seg, label, n=19, map_class=[(4, 5), (6, 7), (8, 9)], ignore_classses=[0]):
+def compute_score(seg, label, n=19, map_class=[(4, 5), (6, 7), (8, 9)], ignore_classes=[0]):
     res = []
     dt_masks = []
     gt_masks = []
