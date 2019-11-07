@@ -92,25 +92,45 @@ def aggregate(record):
         total += arr.sum()
         record["class_acc"][i] = arr.mean()
     record["acc"] = total / cnt
+    record["esd"] = np.array(record["sigma"]).mean()
     return record
+
+def summarize(record):
+    label_list = ['skin', 'nose', 'eye_g', 'l_eye', 'r_eye', 'l_brow', 'r_brow', 'l_ear', 'r_ear', 'mouth', 'u_lip', 'l_lip', 'hair', 'hat', 'ear_r', 'neck_l', 'neck', 'cloth']
+
+    print("=> Total accuracy: %.3f" % record["acc"])
+    print("=> Class wise accuracy:")
+    for i in range(1, 19):
+        print("=> %s:\t%.3f" % (label_list[i - 1], record["class_acc"][i]))
+    print("=> Image expected standard deviation: %.3f" % record["esd"])
 
 record = {i:[] for i in range(1,19)}
 record['sigma'] = []
+tar_record = {i:[] for i in range(1,19)}
+tar_record['sigma'] = []
 for latent, image, label in ds:
     latent = torch.from_numpy(latent).unsqueeze(0).float().cuda()
     image = torch.from_numpy(image).float().cuda()
     image = (image.permute(2, 0, 1) - 127.5) / 127.5
     with torch.no_grad():
         gen, seg = generator.predict(latent)
+        tar_seg = faceparser(image.unsqueeze(0))[0]
+        tar_seg = tar_seg.argmax(0).detach().cpu().numpy()
     gen = gen[0]
     seg = seg[0].detach().cpu().numpy()
     score = compute_score(seg, label)
-    for i,s in enumerate(score):
-        record[i+1].append(s)
+    tar_score = compute_score(tar_seg, label)
+    for i in range(1, 19):
+        record[i].append(score[i - 1])
+        tar_record[i].append(tar_record[i - 1])
     sigma = torch.sqrt(((gen - image)**2).mean())
     record['sigma'].append(utils.torch2numpy(sigma)[()])
+    tar_record['sigma'].append(utils.torch2numpy(sigma)[()])
 
-
+record = aggregate(record)
+summarize(record)
+tar_record = aggregate(tar_record)
+summarize(tar_record)
 
 #utils.imwrite("gen.png", gen)
 #utils.imwrite("seg_dt.png", utils.numpy2label(seg, 19))
