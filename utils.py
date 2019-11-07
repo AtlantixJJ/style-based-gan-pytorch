@@ -331,6 +331,7 @@ class MaskCelebAEval(object):
         return res
 
     def accumulate(self, scores):
+        print(scores)
         for i,s in enumerate(scores):
             self.dic["class_result"][i].append(s)
 
