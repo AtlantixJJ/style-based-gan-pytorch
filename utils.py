@@ -308,7 +308,7 @@ def compute_score(seg, label, n=19, map_class=[(4, 5), (6, 7), (8, 9)], ignore_c
             dt_masks[ct] = dt_masks[ct] | dt_masks[cf]
             gt_masks[ct] = gt_masks[ct] | gt_masks[cf]
     for i in range(0, n):
-        if i in ignore_class:
+        if i in ignore_classes:
             continue
         score = compute_iou(gt_masks[i], dt_masks[i])
         res.append(score)
