@@ -117,22 +117,17 @@ def summarize(record):
         print("=> %s:\t%.3f" % (label_list[i - 1], record["class_acc"][i]))
     print("=> Image expected standard deviation: %.3f" % record["esd"])
 
-record = {i:[] for i in range(1,19)}
-record['sigma'] = []
+tar_record = {i:[] for i in range(1,19)}
 for latent, image, label in ds:
-    latent = torch.from_numpy(latent).unsqueeze(0).float().cuda()
     image = torch.from_numpy(image).float().cuda()
     image = (image.permute(2, 0, 1) - 127.5) / 127.5
     with torch.no_grad():
-        gen, seg = generator.predict(latent)
-    gen = gen[0]
-    seg = seg[0].detach().cpu().numpy()
-    score = compute_score(seg, label)
+        image_ = F.interpolate(image.unsqueeze(0), (512, 512))
+        tar_seg = faceparser(image_)[0]
+        tar_seg = tar_seg.argmax(0).detach().cpu().numpy()
+    tar_score = compute_score(tar_seg, label)
     for i in range(1, 19):
-        record[i].append(score[i - 1])
-    sigma = torch.sqrt(((gen - image)**2).mean())
-    record['sigma'].append(utils.torch2numpy(sigma)[()])
-
-record = aggregate(record)
-summarize(record)
-np.save(f"{out_prefix}_record.npy", record)
+        tar_record[i].append(tar_score[i - 1])
+tar_record = aggregate(tar_record)
+summarize(tar_record)
+np.save("tar_record.npy", tar_record)
