@@ -376,6 +376,11 @@ class StyledGenerator(nn.Module):
         self.padsize = (self.ksize - 1) // 2
         self.n_layer = int(self.segcfg[-1])
 
+        if "conv" in self.segcfg:
+            self.build_conv_extractor()
+        elif "res" in self.segcfg:
+            self.build_residue_extractor()
+
     def build_conv_extractor(self):
         def conv_block(in_dim, out_dim):
             midim = (in_dim + out_dim) // 2
