@@ -115,7 +115,7 @@ for latent, image, label in ds:
     with torch.no_grad():
         gen, seg = generator.predict(latent)
         image_ = F.interpolate(image.unsqueeze(0), (512, 512))
-        tar_seg = faceparser()[0]
+        tar_seg = faceparser(image_)[0]
         tar_seg = tar_seg.argmax(0).detach().cpu().numpy()
     gen = gen[0]
     seg = seg[0].detach().cpu().numpy()
