@@ -317,7 +317,7 @@ def compute_score(seg, label, n=19, map_class=[(4, 5), (6, 7), (8, 9)], ignore_c
 
 
 def aggregate(record):
-    record["class_acc"] = [-1] * 19
+    record["class_acc"] = [-1] * 18
     total = 0
     cnt = 0
     for i in range(0, 18):
