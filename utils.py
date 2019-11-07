@@ -295,18 +295,20 @@ def compute_iou(a, b):
     return (a & b).astype("float32").sum() / (a | b).astype("float32").sum()
 
 
-def compute_score(seg, label, n=19, map_class=[(4, 5), (6, 7), (8, 9)]):
+def compute_score(seg, label, n=19, map_class=[(4, 5), (6, 7), (8, 9)], ignore_class=0):
     res = []
     dt_masks = []
     gt_masks = []
-    for i in range(1, n):
+    for i in range(0, n):
         dt_masks.append(seg == i)
         gt_masks.append(label == i)
     if map_class is not None:
         for ct, cf in map_class:
             dt_masks[ct] = dt_masks[ct] | dt_masks[cf]
             gt_masks[ct] = gt_masks[ct] | gt_masks[cf]
-    for i in range(1, n):
+    for i in range(0, n):
+        if i == ignore_class:
+            continue
         score = compute_iou(gt_masks[i], dt_masks[i])
         res.append(score)
     return res
