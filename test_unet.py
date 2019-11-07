@@ -11,7 +11,7 @@ import config
 from lib.face_parsing import unet
 
 class SegmentationDataset(torch.utils.data.Dataset):
-    def __init__(self, latent_dir, image_dir, seg_dir, map_class=[(3, 4), (5, 6), (7, 8)]):
+    def __init__(self, latent_dir, image_dir, seg_dir, map_class=[(4, 5), (6, 7), (8, 9)]):
         super(SegmentationDataset, self).__init__()
         self.map_class = map_class
         self.latent_dir = latent_dir
