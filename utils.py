@@ -322,8 +322,6 @@ class MaskCelebAEval(object):
 
     def compute_score(self, seg, label):
         res = []
-        print(np.unique(seg))
-        print(np.unique(label))
         for i in range(self.n_class):
             if i in self.ignore_classes:
                 score = -1
