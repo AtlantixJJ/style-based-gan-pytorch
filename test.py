@@ -66,6 +66,9 @@ generator = generator.cuda()
 
 model_files = glob.glob(args.model + "/*.model")
 model_files.sort()
+if len(model_files) == 0:
+    print("!> No model found, exit")
+    exit(0)
 print("=> Load from %s" % model_files[-1])
 missed = generator.load_state_dict(torch.load(
     model_files[-1], map_location='cuda:0'), strict=True)
