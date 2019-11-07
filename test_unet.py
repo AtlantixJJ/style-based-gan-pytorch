@@ -33,8 +33,8 @@ for latent, image, label in ds:
         tar_seg = faceparser(image_)[0]
         tar_seg = tar_seg.argmax(0).detach().cpu().numpy()
     tar_score = utils.compute_score(tar_seg, label)
-    for i in range(1, 19):
-        tar_record[i].append(tar_score[i - 1])
+    for i in range(0, 19):
+        tar_record[i].append(tar_score[i])
 tar_record = utils.aggregate(tar_record)
 utils.summarize(tar_record)
 np.save("tar_record.npy", tar_record)
