@@ -172,7 +172,6 @@ class FixSegConfig(BaseConfig):
         super(FixSegConfig, self).print_info()
         print("=> Segmentation configure: %s" % self.semantic_config)
         print("=> Segmentation loss coefficient: %.4f" % self.seg_coef)
-        print("=> MSE loss coefficient: %.4f" % self.mse_coef)
 
 class TSConfig(BaseConfig):
     def __init__(self):
