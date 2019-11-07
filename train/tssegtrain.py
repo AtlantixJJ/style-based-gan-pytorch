@@ -70,7 +70,7 @@ record = cfg.record
 avgmseloss = 0
 count = 0
 
-for i in tqdm(range(cfg.n_iter)):
+for i in tqdm(range(cfg.n_iter + 1)):
 	if i == 1000:
 		sg.freeze_g_synthesis(train=True)
 

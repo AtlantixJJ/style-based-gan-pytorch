@@ -91,6 +91,8 @@ if "seg" in args.task:
 
         res = segs + [gen[0]]
         res = [F.interpolate(m.unsqueeze(0), 256).cpu()[0] for m in res]
+        for r in res:
+            print(r.shape)
         fpath = savepath + '{}_segmentation.png'.format(i)
         print("=> Write image to %s" % fpath)
         vutils.save_image(res, fpath, nrow=4)
