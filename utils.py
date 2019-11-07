@@ -343,7 +343,7 @@ class MaskCelebAEval(object):
             arr = arr[arr > -1]
             cnt += arr.shape[0]
             total += arr.sum()
-            self.dic["class_result"][i] = arr.mean()
+            self.dic["class_acc"][i] = arr.mean()
         self.dic["acc"] = total / cnt
 
     def summarize(self):
