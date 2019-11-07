@@ -372,24 +372,60 @@ class StyledGenerator(nn.Module):
         self.n_class = int(self.n_class)
         self.semantic_dim = int(self.semantic_dim)
         
-        ksize = int(self.segcfg[0])
-        padsize = (ksize - 1) // 2
-        n_layer = int(self.segcfg[-1])
+        self.ksize = int(self.segcfg[0])
+        self.padsize = (self.ksize - 1) // 2
+        self.n_layer = int(self.segcfg[-1])
 
+    def build_conv_extractor(self):
         def conv_block(in_dim, out_dim):
             midim = (in_dim + out_dim) // 2
-            if n_layer == 1:
-                _m = [MyConv2d(in_dim, out_dim, ksize), nn.ReLU(inplace=True)]
+            if self.n_layer == 1:
+                _m = [MyConv2d(in_dim, out_dim, self.ksize)]
             else:
                 _m = []
-                _m.append(MyConv2d(in_dim, midim, ksize))
-                _m.append(nn.ReLU(inplace=True))
-                for i in range(n_layer - 2):
-                    _m.append(MyConv2d(midim, midim, ksize))
+                _m.append(MyConv2d(in_dim, midim, self.ksize))
+                for i in range(self.n_layer - 2):
                     _m.append(nn.ReLU(inplace=True))
-                _m.append(MyConv2d(midim, out_dim, ksize))
+                    _m.append(MyConv2d(midim, midim, self.ksize))
+                _m.append(MyConv2d(midim, out_dim, self.ksize))
             return nn.Sequential(*_m)
-        
+
+        # start from 16x16 resolution
+        self.semantic_extractor = nn.ModuleList([
+            conv_block(512, self.n_class),
+            conv_block(512, self.n_class),
+            conv_block(256, self.n_class),
+            conv_block(128, self.n_class),
+            conv_block(64 , self.n_class),
+            conv_block(32 , self.n_class),
+            conv_block(16 , self.n_class)
+        ])
+
+        self.semantic_branch = self.semantic_extractor
+
+    def build_residue_extractor(self):
+        def conv_block(in_dim, out_dim):
+            midim = (in_dim + out_dim) // 2
+            if self.n_layer == 1:
+                _m = [MyConv2d(in_dim, out_dim, self.ksize), nn.ReLU(inplace=True)]
+            else:
+                _m = []
+                _m.append(MyConv2d(in_dim, midim, self.ksize))
+                _m.append(nn.ReLU(inplace=True))
+                for i in range(self.n_layer - 2):
+                    _m.append(MyConv2d(midim, midim, self.ksize))
+                    _m.append(nn.ReLU(inplace=True))
+                _m.append(MyConv2d(midim, out_dim, self.ksize))
+                _m.append(nn.ReLU(inplace=True))
+            return nn.Sequential(*_m)
+
+        def residue(dim):
+            return nn.Sequential(
+                MyConv2d(dim, dim // 2, self.ksize),
+                nn.ReLU(inplace=True),
+                MyConv2d(dim // 2, dim, self.ksize),
+            )
+
         # start from 16x16 resolution
         self.semantic_extractor = nn.ModuleList([
             conv_block(512, self.semantic_dim),
@@ -400,17 +436,12 @@ class StyledGenerator(nn.Module):
             conv_block(32 , self.semantic_dim),
             conv_block(16 , self.semantic_dim)
         ])
+        self.residue = nn.ModuleList([
+            residue(self.semantic_dim) for i in range(len(self.semantic_extractor))
+            ])
         self.semantic_visualizer = MyConv2d(self.semantic_dim, self.n_class, 1)
-        if "res" in self.segcfg:
-            def residue(dim):
-                return nn.Sequential(
-                    MyConv2d(dim, dim // 2, ksize),
-                    nn.ReLU(inplace=True),
-                    MyConv2d(dim // 2, dim, ksize),
-                )
-            self.residue = nn.ModuleList([
-                residue(self.semantic_dim) for i in range(len(self.semantic_extractor))
-                ])
+
+
         self.semantic_branch = nn.ModuleList([
             self.semantic_extractor,
             self.semantic_visualizer,

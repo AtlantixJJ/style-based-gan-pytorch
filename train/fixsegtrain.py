@@ -44,9 +44,9 @@ del state_dicts
 g_optim = torch.optim.Adam(sg.semantic_branch.parameters(),
 	lr=cfg.lr,
 	betas=(0.9, 0.9)) # 1e-3
-g_optim.add_param_group({
-    'params': sg.g_synthesis.parameters(),
-    'lr': cfg.lr * 0.1})
+#g_optim.add_param_group({
+#    'params': sg.g_synthesis.parameters(),
+#    'lr': cfg.lr * 0.1})
 logsoftmax = torch.nn.CrossEntropyLoss()
 logsoftmax = logsoftmax.cuda()
 
@@ -61,24 +61,26 @@ avgmseloss = 0
 count = 0
 
 for i in tqdm(range(cfg.n_iter + 1)):
-	if i == 1001:
-		sg.freeze_g_synthesis(train=True)
-
 	latent.normal_()
 	for k in range(STEP + 1):
 		noise[k].normal_()
 
-	gen = sg(latent)
 	with torch.no_grad():
+		gen = sg(latent)
 		gen = F.interpolate(gen, cfg.imsize, mode="bilinear")
 		label = faceparser(gen).argmax(1)
 
 	segs = sg.extract_segmentation()
+	coefs = [1. for s in segs]
 	seglosses = []
-	for s in segs:
-		seglosses.append(logsoftmax(
-			F.interpolate(s, label.shape[2:], mode="bilinear"),
-			label))
+	for c, s in zip(coefs, segs):
+		if s.shape[2] < label.shape[2]:
+			l = logsoftmax(s, F.interpolate(label, s.shape[2:]))
+		elif s.shape[2] > label.shape[2]:
+			l = logsoftmax(F.interpolate(s, label.shape[2:]), label)
+		else:
+			l = logsoftmax(s, label)
+		seglosses.append(c * l)
 	segloss = cfg.seg_coef * sum(seglosses) / len(seglosses)
 
 	loss = segloss
