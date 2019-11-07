@@ -304,6 +304,8 @@ def compute_score(seg, label, n=19, map_class=[(4, 5), (6, 7), (8, 9)], ignore_c
         gt_masks.append(label == i)
     if map_class is not None:
         for ct, cf in map_class:
+            dt_masks[cf] &= False
+            gt_masks[cf] &= False
             dt_masks[ct] = dt_masks[ct] | dt_masks[cf]
             gt_masks[ct] = gt_masks[ct] | gt_masks[cf]
     for i in range(0, n):
