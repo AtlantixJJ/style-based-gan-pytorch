@@ -55,6 +55,9 @@ else:
 generator = StyledGenerator(**cfg).to(device)
 model_files = glob.glob(args.model + "/*.model")
 model_files.sort()
+if len(model_files) == 0:
+    print("!> No model found, exit")
+    exit(0)
 
 if "log" in args.task:
     logfile = args.model + "/log.txt"
