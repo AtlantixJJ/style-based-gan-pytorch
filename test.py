@@ -67,7 +67,7 @@ faceparser.eval()
 del state_dict
 
 def compute_iou(a, b):
-    if b.all() == False:
+    if b.any() == False:
         return -1
     return (a & b).astype("float32").sum() / (a | b).astype("float32").sum()
 
