@@ -11,8 +11,9 @@ import config
 from lib.face_parsing import unet
 
 class SegmentationDataset(torch.utils.data.Dataset):
-    def __init__(self, latent_dir, image_dir, seg_dir):
+    def __init__(self, latent_dir, image_dir, seg_dir, map_class=[(3, 4), (5, 6), (7, 8)]):
         super(SegmentationDataset, self).__init__()
+        self.map_class = map_class
         self.latent_dir = latent_dir
         self.image_dir = image_dir
         self.seg_dir = seg_dir
@@ -29,8 +30,11 @@ class SegmentationDataset(torch.utils.data.Dataset):
         seg_path = osj(self.seg_dir, name.replace(".npy", ".png"))
         latent = np.load(latent_path)
         image = utils.imread(image_path)
-        segmentation = utils.imread(seg_path)
-        return latent, image, segmentation
+        label = utils.imread(seg_path)
+        if self.map_class is not None:
+            for ct,cf in self.map_class:
+                label[label == cf] = ct
+        return latent, image, label
 
 rootdir = "/home/xujianjin/data/datasets/CelebAMask-HQ/"
 ds = SegmentationDataset(
@@ -77,6 +81,19 @@ def compute_score(seg, label, n=19):
         res.append(score)
     return res
 
+def aggregate(record):
+    record["class_acc"] = [-1] * 19
+    total = 0
+    cnt = 0
+    for i in range(1, 19):
+        arr = np.array(record[i])
+        arr = arr[arr > -1]
+        cnt += arr.shape[0]
+        total += arr.sum()
+        record["class_acc"][i] = arr.mean()
+    record["acc"] = total / cnt
+    return record
+
 record = {i:[] for i in range(1,19)}
 record['sigma'] = []
 for latent, image, label in ds:
@@ -91,7 +108,9 @@ for latent, image, label in ds:
     for i,s in enumerate(score):
         record[i+1].append(s)
     sigma = torch.sqrt(((gen - image)**2).mean())
-    record['sigma'].append(utils.torch2numpy(sigma))
+    record['sigma'].append(utils.torch2numpy(sigma)[0])
+
+
 
 #utils.imwrite("gen.png", gen)
 #utils.imwrite("seg_dt.png", utils.numpy2label(seg, 19))
