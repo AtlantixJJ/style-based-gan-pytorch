@@ -327,9 +327,8 @@ def summarize(record):
     print("=> Total accuracy: %.3f" % record["acc"])
     print("=> Class wise accuracy:")
     for i in range(1, 19):
-        if record["class_acc"][i] == -1:
-            continue
-        print("=> %s:\t%.3f" % (label_list[i - 1], record["class_acc"][i]))
+        if 0 <= record["class_acc"][i] and record["class_acc"][i] <= 1:
+            print("=> %s:\t%.3f" % (label_list[i - 1], record["class_acc"][i]))
     if "esd" in record.keys():
         print("=> Image expected standard deviation: %.3f" % record["esd"])
 
