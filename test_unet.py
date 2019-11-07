@@ -24,7 +24,7 @@ faceparser = faceparser.cuda()
 faceparser.eval()
 del state_dict
 
-tar_record = {i:[] for i in range(0,18)}
+tar_record = {i:[] for i in range(0, ds.n_class)}
 for latent, image, label in ds:
     image = torch.from_numpy(image).float().cuda()
     image = (image.permute(2, 0, 1) - 127.5) / 127.5
@@ -33,7 +33,7 @@ for latent, image, label in ds:
         tar_seg = faceparser(image_)[0]
         tar_seg = tar_seg.argmax(0).detach().cpu().numpy()
     tar_score = utils.compute_score(tar_seg, label)
-    for i in range(0, 18):
+    for i in range(0, ds.n_class):
         tar_record[i].append(tar_score[i])
 tar_record = utils.aggregate(tar_record)
 utils.summarize(tar_record)

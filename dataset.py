@@ -71,8 +71,9 @@ class ImageSegmentationDataset(torch.utils.data.Dataset):
 
 
 class LatentSegmentationDataset(torch.utils.data.Dataset):
-    def __init__(self, latent_dir, image_dir, seg_dir):
+    def __init__(self, latent_dir, image_dir, seg_dir, n_class=19):
         super(LatentSegmentationDataset, self).__init__()
+        self.n_class = n_class
         self.latent_dir = latent_dir
         self.image_dir = image_dir
         self.seg_dir = seg_dir

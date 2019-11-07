@@ -344,6 +344,24 @@ def summarize(record):
         print("=> Image expected standard deviation: %.3f" % record["esd"])
 
 
+class SegmentationEval(object):
+    def __init__(self, resdic=None):
+        self.dic = {}
+        self.raw_label = ['background', 'skin', 'nose', 'eye_g', 'eye', 'r_eye', 'brow', 'r_brow', 'ear', 'r_ear', 'mouth', 'u_lip', 'l_lip', 'hair', 'hat', 'ear_r', 'neck_l', 'neck', 'cloth']
+        self.dic["class"] = ['background', 'skin', 'nose', 'eye_g', 'eye', 'brow', 'ear', 'mouth', 'u_lip', 'l_lip', 'hair', 'hat', 'ear_r', 'neck_l', 'neck', 'cloth']
+        self.n_class = len(self.dic["class"])
+        self.ignore_class = 0
+        self.dic["class_result"] = [[]] * self.n_class
+        self.id_to_contiguous_id()
+        print(self.id2cid)
+
+    def id_to_contiguous_id(self):
+        cnt = 0
+        self.id2cid = {}
+        for name in self.dic["class"]:
+            self.id2cid[self.raw_label.index(name)] = cnt
+            cnt += 1
+
 #########
 ## Logging related functions
 #########

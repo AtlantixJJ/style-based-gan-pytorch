@@ -66,6 +66,7 @@ for i in tqdm(range(cfg.n_iter + 1)):
 		gen = sg(latent)
 		gen = F.interpolate(gen, 512, mode="bilinear")
 		label = faceparser(gen).argmax(1)
+		label = cfg.idmap(label.detach())
 
 	segs = sg.extract_segmentation()
 	coefs = [1. for s in segs]

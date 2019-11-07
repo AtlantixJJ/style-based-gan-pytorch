@@ -154,7 +154,7 @@ class FixSegConfig(BaseConfig):
 
         self.parser.add_argument("--seg-net", default="checkpoint/faceparse_unet.pth", help="The load path of semantic segmentation network")
         self.parser.add_argument("--seg", default=1., type=float, help="Coefficient of segmentation loss")
-        self.parser.add_argument("--seg-cfg", default="3conv1-64-19", help="Configure of segmantic segmentation extractor")
+        self.parser.add_argument("--seg-cfg", default="3conv1-64-16", help="Configure of segmantic segmentation extractor")
 
     def parse(self):
         super(FixSegConfig, self).parse()
@@ -163,11 +163,18 @@ class FixSegConfig(BaseConfig):
         self.seg_net_path = self.args.seg_net
         self.semantic_config = self.args.seg_cfg
         self.record = {'loss': [], 'segloss': []}
-
+        self.id2cid = {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 6: 5, 8: 6, 10: 7, 11: 8, 12: 9, 13: 10, 14: 11, 15: 12, 16: 13, 17: 14, 18: 15}
         self.name = self.task + "_" + str(self.seg_coef) + "_" + self.semantic_config
         self.expr_dir = osj("expr", self.name)
         os.system("rm -r %s" % self.expr_dir)
         os.system("mkdir %s" % self.expr_dir)
+    
+    def idmap(self, x):
+        for fr,to in self.id2cid.items():
+            if fr == to:
+                continue
+            x[x == fr] = to
+        return x
 
     def print_info(self):
         super(FixSegConfig, self).print_info()
