@@ -26,7 +26,7 @@ del state_dict
 
 evaluator = utils.MaskCelebAEval(map_id=True)
 tar_record = {i:[] for i in range(0, evaluator.n_class)}
-for i, latent, image, label in enumerate(ds):
+for i, (latent, image, label) in enumerate(ds):
     print(i)
     image = torch.from_numpy(image).float().cuda()
     image = (image.permute(2, 0, 1) - 127.5) / 127.5
