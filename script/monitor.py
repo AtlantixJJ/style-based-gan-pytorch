@@ -89,6 +89,8 @@ if "seg" in args.task:
             label = faceparser(gen)[0].argmax(0)
         
         segs += [label]
+        for s in segs:
+            print(s.shape, s.max())
         segs = [colorizer(s) / 255. for s in segs]
         segs = [s.permute(2, 0, 1).float() for s in segs]
 
