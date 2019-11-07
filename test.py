@@ -57,7 +57,7 @@ faceparser = faceparser.cuda()
 faceparser.eval()
 del state_dict
 
-record = {i:[] for i in range(1,19)}
+record = {i:[] for i in range(0,18)}
 record['sigma'] = []
 for latent, image, label in ds:
     latent = torch.from_numpy(latent).unsqueeze(0).float().cuda()
