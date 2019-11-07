@@ -322,18 +322,11 @@ class MaskCelebAEval(object):
 
     def compute_score(self, seg, label):
         res = []
-        dt_masks = []
-        gt_masks = []
-        for i in range(self.n_class):
-            if i in self.ignore_classes:
-                continue
-            dt_masks.append(seg == i)
-            gt_masks.append(label == i)
         for i in range(self.n_class):
             if i in self.ignore_classes:
                 score = -1
             else:
-                score = compute_iou(gt_masks[i], dt_masks[i])
+                score = compute_iou(seg == i, label == i)
             res.append(score)
         return res
 
