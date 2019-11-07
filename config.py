@@ -154,7 +154,7 @@ class FixSegConfig(BaseConfig):
 
         self.parser.add_argument("--seg-net", default="checkpoint/faceparse_unet.pth", help="The load path of semantic segmentation network")
         self.parser.add_argument("--seg", default=1., type=float, help="Coefficient of segmentation loss")
-        self.parser.add_argument("--seg-cfg", default="3conv1-64-18", help="Configure of segmantic segmentation extractor")
+        self.parser.add_argument("--seg-cfg", default="3conv1-64-19", help="Configure of segmantic segmentation extractor")
 
     def parse(self):
         super(FixSegConfig, self).parse()
