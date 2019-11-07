@@ -33,7 +33,7 @@ if args.model == "expr":
 
 savepath = args.model.replace("expr/", "results/")
 
-device = 'cuda'
+device = 'cpu'
 step = args.step
 alpha = 1
 lerp = args.lerp
@@ -70,7 +70,7 @@ if "seg" in args.task:
     state_dict = torch.load("checkpoint/faceparse_unet.pth", map_location='cpu')
     faceparser = unet.unet()
     faceparser.load_state_dict(state_dict)
-    faceparser = faceparser.cuda()
+    faceparser = faceparser.to(device)
     faceparser.eval()
     del state_dict
 
