@@ -349,9 +349,10 @@ class MaskCelebAEval(object):
     def summarize(self):
         print("=> Total accuracy: %.3f" % self.dic["acc"])
         print("=> Class wise accuracy:")
-        for i in range(1, 19):
-            if 0 <= self.dic["class_acc"][i]:
-                print("=> %s:\t%.3f" % (self.dic["class"][i - 1], self.dic["class_acc"][i]))
+        for i in range(self.n_class):
+            if self.dic["class_acc"][i] < 0:
+                continue
+            print("=> %s:\t%.3f" % (self.dic["class"][i - 1], self.dic["class_acc"][i]))
 
     def save(self, fpath):
         np.save(fpath, self.dic)
