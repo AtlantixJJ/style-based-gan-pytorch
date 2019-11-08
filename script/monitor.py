@@ -51,10 +51,10 @@ for i in range(step + 1):
 
 cfg = config.config_from_name(args.model)
 print(cfg)
-if 'seg' in args.task:
+if 'seg' in args.model:
     from model.tfseg import StyledGenerator
 else:
-    from model.tf import StyledGenerator
+    from model.default import StyledGenerator
 generator = StyledGenerator(**cfg).to(device)
 model_files = glob.glob(args.model + "/*.model")
 model_files.sort()

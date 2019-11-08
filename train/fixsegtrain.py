@@ -131,5 +131,5 @@ for i in tqdm(range(cfg.n_iter + 1)):
 		write_log(cfg.expr_dir, record)
 		plot_dic(record, cfg.expr_dir + "/loss.png")
 
-os.system(f"python script/monitor.py --task log,seg --model {cfg.expr_dir} --step 8 --gpu {cfg.gpu}")
-os.system(f"python test.py --model {cfg.expr_dir} --gpu {cfg.gpu}")
+#os.system(f"python script/monitor.py --task log,seg --model {cfg.expr_dir} --step 8 --gpu {cfg.gpu}")
+#os.system(f"python test.py --model {cfg.expr_dir} --gpu {cfg.gpu}")
