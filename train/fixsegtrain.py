@@ -106,7 +106,7 @@ for i in tqdm(range(cfg.n_iter + 1)):
 			l.append(record[k][-1])
 		print(l)
 
-	if i % 1000 == 0 and i > 0:
+	if (i % 1000 == 0 and i > 0) or i == cfg.n_iter:
 		print("=> Snapshot model %d" % i)
 		torch.save(sg.state_dict(), cfg.expr_dir + "/iter_%06d.model" % i)
 
