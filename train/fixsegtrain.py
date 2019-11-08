@@ -32,7 +32,7 @@ faceparser.eval()
 del state_dict
 
 state_dicts = torch.load(cfg.load_path, map_location='cpu')
-sg = model.tfseg.StyledGenerator(semantic=cfg.semantic_config)
+sg = model.tfgen.StyledGenerator(semantic=cfg.semantic_config)
 sg.load_state_dict(state_dicts, strict=False)
 sg.train()
 sg = sg.cuda()
