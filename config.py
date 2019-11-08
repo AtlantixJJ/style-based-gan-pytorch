@@ -119,6 +119,7 @@ class TSSegConfig(BaseConfig):
         self.parser.add_argument("--seg", default=1., type=float, help="Coefficient of segmentation loss")
         self.parser.add_argument("--mse", default=1., type=float, help="Coefficient of MSE loss")
         self.parser.add_argument("--seg-cfg", default="conv1-64-19", help="Configure of segmantic segmentation extractor")
+        self.parser.add_argument("--imsize", default=512, type=int, help="Train image size")
 
     def parse(self):
         super(TSSegConfig, self).parse()
