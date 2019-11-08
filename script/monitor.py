@@ -17,17 +17,20 @@ from lib.face_parsing import unet
 parser = argparse.ArgumentParser()
 parser.add_argument("--task", default="latest", help="log|latest|lerp|evol|seg")
 parser.add_argument("--model", default="")
+parser.add_argument("--gpu", default="0")
 parser.add_argument("--step", type=int, default=7)
 parser.add_argument("--lerp", type=float, default=1.0)
 args = parser.parse_args()
+
+os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
 if args.model == "expr":
     # This is root, run for all the expr directory
     files = os.listdir(args.model)
     files.sort()
     for f in files:
-        basecmd = "python script/monitor.py --task %s --step %d --lerp %d --model %s"
-        basecmd = basecmd % (args.task, args.step, args.lerp, osj(args.model, f))
+        basecmd = "python script/monitor.py --task %s --step %d --lerp %d --model %s --gpu %s"
+        basecmd = basecmd % (args.task, args.step, args.lerp, osj(args.model, f), args.gpu)
         os.system(basecmd)
     exit(0)
 

@@ -2,6 +2,7 @@ import os
 from os.path import join as osj
 import torch
 import torch.nn.functional as F
+import torchvision.utils as vutils
 import argparse
 import glob
 import numpy as np
@@ -20,7 +21,10 @@ ds = dataset.LatentSegmentationDataset(
 parser = argparse.ArgumentParser()
 parser.add_argument("--model", default="")
 parser.add_argument("--step", type=int, default=8)
+parser.add_argument("--gpu", default="0")
 args = parser.parse_args()
+
+os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
 if args.model == "expr":
     # This is root, run for all the expr directory
@@ -59,18 +63,26 @@ del state_dict
 
 evaluator = utils.MaskCelebAEval(map_id=True)
 
-for latent, image, label in ds:
-    latent = torch.from_numpy(latent).unsqueeze(0).float().cuda()
-    image = torch.from_numpy(image).float().cuda()
+for i, (latent_np, image_np, label_np) in enumerate(ds):
+    latent = torch.from_numpy(latent_np).unsqueeze(0).float().cuda()
+    image = torch.from_numpy(image_np).float().cuda()
     image = (image.permute(2, 0, 1) - 127.5) / 127.5
     with torch.no_grad():
         gen, seg = generator.predict(latent)
     if evaluator.map_id:
-        label = evaluator.idmap(label)
+        label = evaluator.idmap(label_np)
     gen = gen[0]
     seg = seg[0].detach().cpu().numpy()
     score = evaluator.compute_score(seg, label)
     evaluator.accumulate(score)
+    
+    if i == 0:
+        genlabel = torch.from_numpy(utils.tensor2label(s[0], ds.n_class))
+        genlabel = genlabel.float().unsqueeze(0)
+        gen = gen.unsqueeze(0)
+        res = [image, genlabel, gen]
+        vutils.save_image(res, f"{out_prefix}.png")
+
 evaluator.aggregate()
 evaluator.summarize()
 evaluator.save(f"{out_prefix}_record.npy")
