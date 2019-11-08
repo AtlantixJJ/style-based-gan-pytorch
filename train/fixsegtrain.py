@@ -132,3 +132,4 @@ for i in tqdm(range(cfg.n_iter + 1)):
 		plot_dic(record, cfg.expr_dir + "/loss.png")
 
 os.system("python script/monitor.py --task log,seg --model %s --step 8" % cfg.expr_dir)
+os.system("python test.py --model %s" % cfg.expr_dir)
