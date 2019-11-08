@@ -80,8 +80,9 @@ for i in tqdm(range(cfg.n_iter + 1)):
 			label_ = label_.squeeze(1).long()
 			l = logsoftmax(s, label_)
 		elif s.shape[2] > label.shape[2]:
-			l = logsoftmax(F.interpolate(s, label.shape[2:]), label,
-				mode="bilinear")
+			l = logsoftmax(
+				F.interpolate(s, label.shape[2:], mode="bilinear"),
+				label)
 		else:
 			l = logsoftmax(s, label)
 		seglosses.append(c * l)
