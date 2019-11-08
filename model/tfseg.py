@@ -442,15 +442,14 @@ class StyledGenerator(nn.Module):
             conv_block(16 , 16 )
         ])
         self.semantic_visualizer = MyConv2d(self.semantic_dim, self.n_class, 1)
-        self.semantic_reviser = nn.Sequential(
+        self.semantic_reviser = nn.ModuleList([
             conv_block(512, 512),
             conv_block(512, 256),
             conv_block(256, 128),
             conv_block(128, 64),
             conv_block(64 , 32),
             conv_block(32 , 16),
-            conv_block(16 , 8)
-        )
+            conv_block(16 , 8)])
 
         self.semantic_branch = nn.ModuleList([
             self.semantic_extractor,
