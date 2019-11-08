@@ -41,4 +41,4 @@ def assign_run(command_generator, gpus, false_exec=False):
             os.system(s[:-2])
 
 #gpus = ["0", "1", "2", "3"]; assign_run(FixSeg().command, gpus)
-gpus = ["2,3"]; assign_run(TSSeg().command, gpus, false_exec=True)
+gpus = ["2,3"]; assign_run(TSSeg().command, gpus)
