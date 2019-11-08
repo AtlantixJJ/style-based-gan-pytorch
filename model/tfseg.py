@@ -472,7 +472,7 @@ class StyledGenerator(nn.Module):
                     hidden = self.semantic_extractor[count](seg_input)
                 else:
                     previous = F.interpolate(hidden, scale_factor=2)
-                    previous = self.semantic_reviser[count](previous)
+                    previous = self.semantic_reviser[count - 1](previous)
                     hidden = previous + self.semantic_extractor[count](seg_input)
                 outputs.append(self.semantic_visualizer[count](hidden))
                 count += 1
