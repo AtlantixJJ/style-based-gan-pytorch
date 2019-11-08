@@ -75,7 +75,8 @@ for i in tqdm(range(cfg.n_iter + 1)):
 	for c, s in zip(coefs, segs):
 		# s: (batch, 19, h, w); label: (batch, h, w)
 		if s.shape[2] < label.shape[2]:
-			label_ = F.interpolate(label.unsqueeze(1).float(), s.shape[2:],
+			label_ = F.interpolate(
+				label.unsqueeze(1).float(), s.shape[2:],
 				mode="bilinear")
 			label_ = label_.squeeze(1).long()
 			l = logsoftmax(s, label_)

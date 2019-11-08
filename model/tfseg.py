@@ -448,11 +448,9 @@ class StyledGenerator(nn.Module):
             MyConv2d(128, self.n_class, 1),
             MyConv2d(64 , self.n_class, 1),
             MyConv2d(32 , self.n_class, 1),
-            MyConv2d(16 , self.n_class, 1),
-            MyConv2d(8  , self.n_class, 1)])
-        MyConv2d(self.semantic_dim, self.n_class, 1)
+            MyConv2d(16 , self.n_class, 1)])
+
         self.semantic_reviser = nn.ModuleList([
-            conv_block(512, 512),
             conv_block(512, 512),
             conv_block(512, 256),
             conv_block(256, 128),
@@ -473,8 +471,9 @@ class StyledGenerator(nn.Module):
                 if count == 0:
                     hidden = self.semantic_extractor[count](seg_input)
                 else:
-                    hidden = self.semantic_reviser[count](F.interpolate(hidden, scale_factor=2))
-                    hidden += self.semantic_extractor[count](seg_input)
+                    previous = F.interpolate(hidden, scale_factor=2)
+                    previous = self.semantic_reviser[count](previous)
+                    hidden = previous + self.semantic_extractor[count](seg_input)
                 outputs.append(self.semantic_visualizer[count](hidden))
                 count += 1
         return outputs
