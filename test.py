@@ -77,7 +77,7 @@ for i, (latent_np, image_np, label_np) in enumerate(ds):
     evaluator.accumulate(score)
     
     if i == 0:
-        genlabel = utils.tensor2label(seg[0], ds.n_class)
+        genlabel = utils.numpy2label(seg[0], ds.n_class)
         genlabel = genlabel.float().unsqueeze(0)
         gen = gen.unsqueeze(0)
         res = [image, genlabel, gen]

@@ -12,7 +12,7 @@ from torchvision import utils as vutils
 from lib.face_parsing.utils import tensor2label
 from lib.face_parsing import unet
 import config
-from utils import *
+import utils
 from loss import *
 import model
 
@@ -114,13 +114,11 @@ for i in tqdm(range(cfg.n_iter + 1)):
 		vutils.save_image(gen[:4], cfg.expr_dir + '/gen_%06d.png' % i,
 							nrow=2, normalize=True, range=(-1, 1))
 
-		tarlabels = [torch.from_numpy(tensor2label(
-						label[i:i+1],
-						label.shape[1]))
+		tarlabels = [utils.tensor2label(label[i:i+1], label.shape[1])
 						for i in range(label.shape[0])]
 		tarlabels = [l.float().unsqueeze(0) for l in tarlabels]
 		tarviz = torch.cat([F.interpolate(m, 256).cpu() for m in tarlabels])
-		genlabels = [torch.from_numpy(tensor2label(s[0].argmax(0), s.shape[1]))
+		genlabels = [utils.tensor2label(s[0].argmax(0), s.shape[1]))
 					for s in segs]
 		genlabels = [l.float().unsqueeze(0) for l in genlabels]
 		genviz = genlabels + [(gen[0:1] + 1) / 2]
