@@ -108,7 +108,7 @@ for i in tqdm(range(cfg.n_iter + 1)):
 		print("=> Snapshot model %d" % i)
 		torch.save(sg.state_dict(), cfg.expr_dir + "/iter_%06d.model" % i)
 
-	if i % 1000 == 0 or cfg.debug:
+	if i % 1000 == 0 or i == cfg.n_iter or cfg.debug:
 		vutils.save_image(gen[:4], cfg.expr_dir + '/gen_%06d.png' % i,
 							nrow=2, normalize=True, range=(-1, 1))
 

@@ -5,10 +5,10 @@ class TSSeg(object):
         self.seg_cfgs = [
             "3res1-64-16",
             "3res2-64-16",
-            "3conv1-64-16",
-            "3conv2-64-16"
+            "3res1-32-16",
+            "3res2-32-16",
             ]
-        self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --gpu %s --batch_size %d --iter-num 1000 &"
+        self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --gpu %s --batch_size %d --iter-num 200 &"
     
     def args_gen(self, gpus):
         l = []
