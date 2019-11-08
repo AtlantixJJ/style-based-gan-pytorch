@@ -455,7 +455,7 @@ class StyledGenerator(nn.Module):
         self.semantic_branch = nn.ModuleList([
             self.semantic_extractor,
             self.semantic_visualizer,
-            self.semantic_reviser)
+            self.semantic_reviser])
     
     def extract_segmentation_residue(self):
         count = 0
