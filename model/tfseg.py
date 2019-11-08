@@ -443,6 +443,7 @@ class StyledGenerator(nn.Module):
         ])
         self.semantic_visualizer = nn.ModuleList([
             MyConv2d(512, self.n_class, 1),
+            MyConv2d(512, self.n_class, 1),
             MyConv2d(256, self.n_class, 1),
             MyConv2d(128, self.n_class, 1),
             MyConv2d(64 , self.n_class, 1),
