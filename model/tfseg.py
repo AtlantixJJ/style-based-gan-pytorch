@@ -441,7 +441,15 @@ class StyledGenerator(nn.Module):
             conv_block(32 , 32 ),
             conv_block(16 , 16 )
         ])
-        self.semantic_visualizer = MyConv2d(self.semantic_dim, self.n_class, 1)
+        self.semantic_visualizer = nn.ModuleList([
+            MyConv2d(512, self.n_class, 1),
+            MyConv2d(256, self.n_class, 1),
+            MyConv2d(128, self.n_class, 1),
+            MyConv2d(64 , self.n_class, 1),
+            MyConv2d(32 , self.n_class, 1),
+            MyConv2d(16 , self.n_class, 1),
+            MyConv2d(8  , self.n_class, 1)])
+        MyConv2d(self.semantic_dim, self.n_class, 1)
         self.semantic_reviser = nn.ModuleList([
             conv_block(512, 512),
             conv_block(512, 256),
