@@ -298,19 +298,26 @@ def compute_iou(a, b):
 class MaskCelebAEval(object):
     def __init__(self, resdic=None, map_id=True):
         self.dic = {}
-        self.raw_label = ['background', 'skin', 'nose', 'eye_g', 'eye', 'r_eye', 'brow', 'r_brow', 'ear', 'r_ear', 'mouth', 'u_lip', 'l_lip', 'hair', 'hat', 'ear_r', 'neck_l', 'neck', 'cloth']
+        self.raw_label = ['background', 'skin', 'nose', 'eye_g', 'l_eye', 'r_eye', 'l_brow', 'r_brow', 'l_ear', 'r_ear', 'mouth', 'u_lip', 'l_lip', 'hair', 'hat', 'ear_r', 'neck_l', 'neck', 'cloth']
         self.dic["class"] = ['background', 'skin', 'nose', 'eye_g', 'eye', 'brow', 'ear', 'mouth', 'u_lip', 'l_lip', 'hair', 'hat', 'ear_r', 'neck_l', 'neck', 'cloth']
         self.n_class = len(self.dic["class"])
         self.ignore_classes = [0]
         self.dic["class_result"] = [[] for i in range(self.n_class)]
         self.id_to_contiguous_id()
+        print(self.id2cid)
         self.map_id = map_id
 
     def id_to_contiguous_id(self):
         cnt = 0
         self.id2cid = {}
-        for name in self.dic["class"]:
-            self.id2cid[self.raw_label.index(name)] = cnt
+        for id, name in enumerate(self.raw_label):
+            if name == "l_eye" or name == "r_eye":
+                name = "eye"
+            if name == "l_brow" or name == "r_brow":
+                name = "brow"
+            if name == "l_ear" or name == "r_ear":
+                name = "ear"
+            self.id2cid[id] = self.dic["class"].index(name)
             cnt += 1
     
     def idmap(self, x):

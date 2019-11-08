@@ -433,35 +433,23 @@ class StyledGenerator(nn.Module):
 
         # start from 16x16 resolution
         self.semantic_extractor = nn.ModuleList([
-            conv_block(512, 512),
-            conv_block(512, 512),
-            conv_block(256, 256),
-            conv_block(128, 128),
-            conv_block(64 , 64 ),
-            conv_block(32 , 32 ),
-            conv_block(16 , 16 )
+            conv_block(512, self.semantic_dim),
+            conv_block(512, self.semantic_dim),
+            conv_block(256, self.semantic_dim),
+            conv_block(128, self.semantic_dim),
+            conv_block(64 , self.semantic_dim),
+            conv_block(32 , self.semantic_dim),
+            conv_block(16 , self.semantic_dim)
         ])
-        self.semantic_visualizer = nn.ModuleList([
-            MyConv2d(512, self.n_class, 1),
-            MyConv2d(512, self.n_class, 1),
-            MyConv2d(256, self.n_class, 1),
-            MyConv2d(128, self.n_class, 1),
-            MyConv2d(64 , self.n_class, 1),
-            MyConv2d(32 , self.n_class, 1),
-            MyConv2d(16 , self.n_class, 1)])
-
-        self.semantic_reviser = nn.ModuleList([
-            conv_block(512, 512),
-            conv_block(512, 256),
-            conv_block(256, 128),
-            conv_block(128, 64 ),
-            conv_block(64 , 32 ),
-            conv_block(32 , 16 )])
+        self.residue = nn.ModuleList([
+            residue(self.semantic_dim) for i in range(len(self.semantic_extractor))
+            ])
+        self.semantic_visualizer = MyConv2d(self.semantic_dim, self.n_class, 1)
 
         self.semantic_branch = nn.ModuleList([
             self.semantic_extractor,
             self.semantic_visualizer,
-            self.semantic_reviser])
+            self.residue if "res" in self.segcfg else None])
     
     def extract_segmentation_residue(self):
         count = 0
@@ -471,10 +459,10 @@ class StyledGenerator(nn.Module):
                 if count == 0:
                     hidden = self.semantic_extractor[count](seg_input)
                 else:
-                    previous = F.interpolate(hidden, scale_factor=2)
-                    previous = self.semantic_reviser[count - 1](previous)
-                    hidden = previous + self.semantic_extractor[count](seg_input)
-                outputs.append(self.semantic_visualizer[count](hidden))
+                    hidden = F.interpolate(hidden, scale_factor=2) + \
+                                self.semantic_extractor[count](seg_input)
+                    hidden = hidden + self.residue[count](hidden)
+                outputs.append(self.semantic_visualizer(hidden))
                 count += 1
         return outputs
     
