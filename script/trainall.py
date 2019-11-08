@@ -28,7 +28,7 @@ class FixSeg(object):
 
 class TSSeg(FixSeg):
     def __init__(self):
-        self.segcfg = ["3conv1-64-19", "3conv2-64-19"]
+        self.seg_cfgs = ["3conv1-64-19", "3conv2-64-19"]
         self.basecmd = "python train/tssegtrain.py --task fixseg --seg-cfg %s --arch tfseg --gpu %s --batch_size 1 --iter-num 1000 &"
 
 def assign_run(command_generator, gpus, false_exec=False):
