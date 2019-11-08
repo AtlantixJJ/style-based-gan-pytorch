@@ -19,7 +19,7 @@ import model
 STEP = 8
 ALPHA = 1
 
-cfg = config.SConfig()
+cfg = config.TSSegConfig()
 cfg.parse()
 cfg.print_info()
 cfg.setup()
@@ -36,7 +36,7 @@ tg = model.tf.StyledGenerator()
 tg.load_state_dict(state_dicts)
 tg.eval()
 tg = tg.to(cfg.device2)
-sg = model.tfseg.StyledGenerator(semantic=cfg.semantic_config)
+sg = getattr(model, cfg.arch).StyledGenerator(semantic=cfg.semantic_config)
 sg.load_state_dict(state_dicts, strict=False)
 sg.train()
 sg = sg.to(cfg.device1)
@@ -71,7 +71,7 @@ avgmseloss = 0
 count = 0
 
 for i in tqdm(range(cfg.n_iter + 1)):
-	if i == 1000:
+	if i == 1001:
 		sg.freeze_g_synthesis(train=True)
 
 	latent1.normal_()
@@ -143,3 +143,4 @@ for i in tqdm(range(cfg.n_iter + 1)):
 		plot_dic(record, cfg.expr_dir + "/loss.png")
 
 os.system("python script/monitor.py --task log,seg --model %s --step 8" % cfg.expr_dir)
+os.system("python test.py --model %s" % cfg.expr_dir)

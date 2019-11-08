@@ -36,6 +36,7 @@ class BaseConfig(object):
             "--debug", default=False, help="Enable debugging output")
         self.parser.add_argument(
             "--task", default="ts", help="ts (teacher student training) | seg (given segmentation label)")
+        self.parser.add_argument("--arch", default="tfseg", help="Network definition")
         self.parser.add_argument(
             "--name", default="", help="Name of experiment, auto inference name if leave empty")
         # Training environment options
@@ -58,6 +59,7 @@ class BaseConfig(object):
         self.args = self.parser.parse_args()
         self.debug = self.args.debug
         self.task = self.args.task
+        self.arch = self.args.arch
         self.n_iter = self.args.iter_num
         self.lr = self.args.lr
         self.name = self.args.name
@@ -108,30 +110,24 @@ class BaseConfig(object):
         print("=> LR: %.4f" % self.lr)
         print("=> Batch size : %d " % self.batch_size)
 
-class SConfig(BaseConfig):
+
+class TSSegConfig(BaseConfig):
     def __init__(self):
-        super(SConfig, self).__init__()
+        super(TSSegConfig, self).__init__()
     
         self.parser.add_argument("--dataset", default="datasets/stylegan", help="The path to segmentation dataset")
         self.parser.add_argument("--seg", default=1., type=float, help="Coefficient of segmentation loss")
-        self.parser.add_argument("--mse", default=10., type=float, help="Coefficient of MSE loss")
-        self.parser.add_argument("--seg-cfg", default="conv1-19", help="Configure of segmantic segmentation extractor")
-        self.parser.add_argument("--imsize", default=512, help="Train image and label size")
-    
+        self.parser.add_argument("--mse", default=1., type=float, help="Coefficient of MSE loss")
+        self.parser.add_argument("--seg-cfg", default="conv1-64-19", help="Configure of segmantic segmentation extractor")
+
     def parse(self):
-        super(SConfig, self).parse()
+        super(TSSegConfig, self).parse()
+        self.task = "tsseg"
         self.dataset_path = self.args.dataset
         self.mse_coef = self.args.mse
         self.seg_coef = self.args.seg
         self.semantic_config = self.args.seg_cfg
         self.imsize = self.args.imsize
-        if self.task == "seg": 
-            self.ds = dataset.LatentSegmentationDataset(self.dataset_path, size=self.imsize)
-            self.dl = DataLoader(self.ds,
-                batch_size=self.batch_size,
-                num_workers=4,
-                shuffle=False,
-                pin_memory=True)
         self.record = {'loss': [], 'mseloss': [], 'segloss': []}
 
         self.name = self.task + "_" + str(self.seg_coef) + "_" + self.semantic_config
@@ -140,13 +136,12 @@ class SConfig(BaseConfig):
         os.system("mkdir %s" % self.expr_dir)
 
     def print_info(self):
-        super(SConfig, self).print_info()
+        super(TSSegConfig, self).print_info()
         print("=> Segmentation configure: %s" % self.semantic_config)
         print("=> Segmentation loss coefficient: %.4f" % self.seg_coef)
         print("=> MSE loss coefficient: %.4f" % self.mse_coef)
         print("=> Segmentation dataset %s" % self.dataset_path)
-        if self.task == "seg":
-            print("=> Number samples: %d" % len(self.ds))
+
 
 class FixSegConfig(BaseConfig):
     def __init__(self):
@@ -155,12 +150,10 @@ class FixSegConfig(BaseConfig):
         self.parser.add_argument("--seg-net", default="checkpoint/faceparse_unet.pth", help="The load path of semantic segmentation network")
         self.parser.add_argument("--seg", default=1., type=float, help="Coefficient of segmentation loss")
         self.parser.add_argument("--seg-cfg", default="3conv1-64-16", help="Configure of segmantic segmentation extractor")
-        self.parser.add_argument("--arch", default="tfseg", help="Network definition")
 
     def parse(self):
         super(FixSegConfig, self).parse()
         self.task = "fixseg"
-        self.arch = self.args.arch
         self.seg_coef = self.args.seg
         self.seg_net_path = self.args.seg_net
         self.semantic_config = self.args.seg_cfg

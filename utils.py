@@ -304,7 +304,6 @@ class MaskCelebAEval(object):
         self.ignore_classes = [0]
         self.dic["class_result"] = [[] for i in range(self.n_class)]
         self.id_to_contiguous_id()
-        print(self.id2cid)
         self.map_id = map_id
 
     def id_to_contiguous_id(self):
