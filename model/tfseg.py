@@ -445,10 +445,14 @@ class StyledGenerator(nn.Module):
             residue(self.semantic_dim) for i in range(len(self.semantic_extractor))
             ])
         self.semantic_visualizer = MyConv2d(self.semantic_dim, self.n_class, 1)
+        self.semantic_reviser = nn.Sequential(
+            MyConv2d(self.semantic_dim, self.semantic_dim, 3),
+            nn.ReLU(inplace=True))
 
         self.semantic_branch = nn.ModuleList([
             self.semantic_extractor,
             self.semantic_visualizer,
+            self.semantic_reviser,
             self.residue if "res" in self.segcfg else None])
     
     def extract_segmentation_residue(self):
@@ -462,6 +466,7 @@ class StyledGenerator(nn.Module):
                     hidden = F.interpolate(hidden, scale_factor=2) + \
                                 self.semantic_extractor[count](seg_input)
                     hidden = hidden + self.residue[count](hidden)
+                    hidden = self.semantic_reviser(hidden)
                 outputs.append(self.semantic_visualizer(hidden))
                 count += 1
         return outputs
