@@ -376,39 +376,9 @@ class StyledGenerator(nn.Module):
         self.padsize = (self.ksize - 1) // 2
         self.n_layer = int(self.segcfg[-1])
 
-        if "conv" in self.segcfg:
-            self.build_conv_extractor()
-        elif "res" in self.segcfg:
-            self.build_residue_extractor()
+        self.build_gen_extractor()
 
-    def build_conv_extractor(self):
-        def conv_block(in_dim, out_dim):
-            midim = (in_dim + out_dim) // 2
-            if self.n_layer == 1:
-                _m = [MyConv2d(in_dim, out_dim, self.ksize)]
-            else:
-                _m = []
-                _m.append(MyConv2d(in_dim, midim, self.ksize))
-                for i in range(self.n_layer - 2):
-                    _m.append(nn.ReLU(inplace=True))
-                    _m.append(MyConv2d(midim, midim, self.ksize))
-                _m.append(MyConv2d(midim, out_dim, self.ksize))
-            return nn.Sequential(*_m)
-
-        # start from 16x16 resolution
-        self.semantic_extractor = nn.ModuleList([
-            conv_block(512, self.n_class),
-            conv_block(512, self.n_class),
-            conv_block(256, self.n_class),
-            conv_block(128, self.n_class),
-            conv_block(64 , self.n_class),
-            conv_block(32 , self.n_class),
-            conv_block(16 , self.n_class)
-        ])
-
-        self.semantic_branch = self.semantic_extractor
-
-    def build_residue_extractor(self):
+    def build_gen_extractor(self):
         def conv_block(in_dim, out_dim):
             midim = (in_dim + out_dim) // 2
             if self.n_layer == 1:
@@ -423,13 +393,6 @@ class StyledGenerator(nn.Module):
                 _m.append(MyConv2d(midim, out_dim, self.ksize))
                 _m.append(nn.ReLU(inplace=True))
             return nn.Sequential(*_m)
-
-        def residue(dim):
-            return nn.Sequential(
-                MyConv2d(dim, dim // 2, self.ksize),
-                nn.ReLU(inplace=True),
-                MyConv2d(dim // 2, dim, self.ksize),
-            )
 
         # start from 16x16 resolution
         self.semantic_extractor = nn.ModuleList([
@@ -472,7 +435,7 @@ class StyledGenerator(nn.Module):
                     hidden = self.semantic_extractor[count](seg_input)
                 else:
                     previous = F.interpolate(hidden, scale_factor=2)
-                    previous = self.semantic_reviser[count - 1](previous)
+                    previous = self.semantic_upsampler[count - 1](previous)
                     hidden = previous + self.semantic_extractor[count](seg_input)
                 outputs.append(self.semantic_output[count](hidden))
                 count += 1
