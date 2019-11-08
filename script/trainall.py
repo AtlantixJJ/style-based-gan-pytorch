@@ -9,7 +9,7 @@ class TSSeg(object):
             "3conv2-64-16",
             ]
 
-        self.basecmd = "python train/fixsegtrain.py --task fixgen --seg-cfg %s --arch tfseg --gpu %s --batch_size 1 --iter-num 1000 &"
+        self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --arch tfseg --gpu %s --batch_size 1 --iter-num 1000 &"
     
     def args_gen(self, gpus):
         l = []
@@ -17,8 +17,7 @@ class TSSeg(object):
 
         for segcfg in self.seg_cfgs:
             gpu = gpus[count]
-            batch_size = 1
-            l.append((count, (segcfg, gpu, batch_size)))
+            l.append((count, (segcfg, gpu)))
             count = (count + 1) % len(gpus)
         return l
     
