@@ -14,7 +14,7 @@ args = parser.parse_args()
 cluster_alg = lib.rcc.RccCluster()
 
 # data
-feats = np.load(args.load)
+feats = np.load(args.load, allow_pickle=True)
 
 feat = feats[4]
 
