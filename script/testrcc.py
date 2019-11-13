@@ -43,8 +43,8 @@ cluster_alg = lib.rcc.RccCluster()
 
 # build model
 generator = StyledGenerator().to(device)
-state_dics = torch.load(args.model, map_location='cpu')
-generator.load_state_dict(state_dics['generator'])
+state_dict = torch.load(args.model, map_location='cpu')
+generator.load_state_dict(state_dict)
 generator.eval()
 # mean style for truncation
 # mean_style = generator.mean_style(torch.randn(1024, 512).to(device)).detach()
