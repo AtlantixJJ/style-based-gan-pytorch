@@ -15,7 +15,7 @@ matplotlib.use("agg")
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "--model", default="checkpoint/checkpoint/karras2019stylegan-ffhq-1024x1024.for_g_all.pt")
+    "--model", default="checkpoint/karras2019stylegan-ffhq-1024x1024.for_g_all.pt")
 args = parser.parse_args()
 
 # constants setup
