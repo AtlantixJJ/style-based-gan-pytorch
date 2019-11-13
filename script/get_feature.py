@@ -15,14 +15,8 @@ matplotlib.use("agg")
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "--model", default="checkpoint/stylegan-1024px-new.model")
+    "--model", default="checkpoint/checkpoint/karras2019stylegan-ffhq-1024x1024.for_g_all.pt")
 args = parser.parse_args()
-
-
-def open_image(name):
-    with open(name, "rb") as f:
-        return np.asarray(Image.open(f))
-
 
 # constants setup
 torch.manual_seed(1)
@@ -44,13 +38,17 @@ cluster_alg = lib.rcc.RccCluster()
 # build model
 generator = StyledGenerator().to(device)
 state_dict = torch.load(args.model, map_location='cpu')
-generator.load_state_dict(state_dict)
+missing_dict = generator.load_state_dict(state_dict, strict=False)
 generator.eval()
 # mean style for truncation
 # mean_style = generator.mean_style(torch.randn(1024, 512).to(device)).detach()
 
 out1 = generator(latent)
 feat_list = generator.g_synthesis.stage
+obj_arr = np.array([0] * len(feat_list), dtype="object")
+for i in range(len(feat_list)):
+    obj_arr[i] = feat_list[i].detach().numpy()
+np.save("feats.npy", obj_arr)
 
 """
 N = len(feat_list)
