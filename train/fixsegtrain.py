@@ -111,13 +111,11 @@ for i in tqdm(range(cfg.n_iter + 1)):
 		vutils.save_image(gen[:4], cfg.expr_dir + '/gen_%06d.png' % i,
 							nrow=2, normalize=True, range=(-1, 1))
 
-		tarlabels = [utils.tensor2label(label[i:i+1], label.shape[1])
+		tarlabels = [utils.tensor2label(label[i:i+1], label.shape[1]).unsqueeze(0)
 						for i in range(label.shape[0])]
-		tarlabels = [l.unsqueeze(0) for l in tarlabels]
 		tarviz = torch.cat([F.interpolate(m, 256).cpu() for m in tarlabels])
-		genlabels = [utils.tensor2label(s[0].argmax(0), s.shape[1])
+		genlabels = [utils.tensor2label(s[0].argmax(0), s.shape[1]).unsqueeze(0)
 					for s in segs]
-		genlabels = [l.unsqueeze(0) for l in genlabels]
 		gen_img = (gen[0:1].clamp(-1, 1) + 1) / 2
 		genviz = genlabels + [gen_img]
 		genviz = torch.cat([F.interpolate(m, 256).cpu() for m in genviz])
