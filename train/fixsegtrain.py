@@ -46,12 +46,12 @@ logsoftmax = logsoftmax.cuda()
 latent = torch.randn(cfg.batch_size, 512).cuda()
 
 if cfg.zero_noise:
-	noise = [0] * (STEP + 1)
+	noise = [0] * 18
 	for k in range(18):
 		size = 4 * 2 ** (k // 2)
 		noise[k] = torch.zeros(cfg.batch_size, 1, size, size).cuda()
 	sg.set_noise(noise)
-	
+
 record = cfg.record
 avgmseloss = 0
 count = 0
