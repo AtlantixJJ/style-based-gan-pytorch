@@ -12,7 +12,7 @@ from model.tfseg import StyledGenerator
 import config
 from lib.face_parsing import unet
 
-rootdir = "/home/xujianjin/data/datasets/CelebAMask-HQ/"
+rootdir = "datasets/CelebAMask-HQ/"
 ds = dataset.LatentSegmentationDataset(
     latent_dir=rootdir+"dlatent",
     image_dir=rootdir+"CelebA-HQ-img",
