@@ -415,7 +415,7 @@ class StyledGenerator(nn.Module):
 
         semantic_visualizer = nn.ModuleList([
             MyConv2d(self.semantic_dim, self.n_class, 1)
-                for i in range(len(semantic_extractor) - 1)
+                for i in range(len(semantic_extractor))
             ])
         
         self.semantic_branch = nn.ModuleList([
