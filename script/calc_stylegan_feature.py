@@ -75,7 +75,7 @@ for i, X in enumerate(feat_cases):
     label_map = labels.reshape(H, W)
     label_viz = utils.numpy2label(label_map, n_labels)
     utils.imwrite("rcc_%d.png" % i, label_viz)
-    pickle.dump(alg, open("rcc_cluster_%d.pkl" % i, "wb"))
+    pickle.dump(cluster_alg, open("rcc_cluster_%d.pkl" % i, "wb"))
 
 """
 N = len(feat_list)
