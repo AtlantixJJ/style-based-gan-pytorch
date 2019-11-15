@@ -3,13 +3,11 @@ import os
 class FixSeg(object):
     def __init__(self):
         self.seg_cfgs = [
-            "3res1-64-16",
-            "3res2-64-16",
             "3conv1-64-16",
             "3conv2-64-16",
             ]
 
-        self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --arch tfseg --gpu %s --batch_size 1 --iter-num 1000 &"
+        self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --arch tfseg --gpu %s --batch_size 1 --iter-num 1000 --zero 1 &"
     
     def args_gen(self, gpus):
         l = []
@@ -28,8 +26,8 @@ class FixSeg(object):
 
 class TSSeg(FixSeg):
     def __init__(self):
-        self.seg_cfgs = ["3conv1-64-16", "3conv2-64-16"]
-        self.basecmd = "python train/tssegtrain.py --task fixseg --seg-cfg %s --arch tfseg --gpu %s --batch_size 1 --iter-num 2000 --zero 1 &"
+        self.seg_cfgs = ["3conv1-64-19", "3conv2-64-19"]
+        self.basecmd = "python train/tssegtrain.py --task fixseg --seg-cfg %s --arch tfseg --gpu %s --batch_size 1 --iter-num 2000 &"
 
 def assign_run(command_generator, gpus, false_exec=False):
     slots = [""] * len(gpus)
@@ -40,5 +38,5 @@ def assign_run(command_generator, gpus, false_exec=False):
         if not false_exec:
             os.system(s[:-2])
 
-#gpus = ["0", "1", "2", "3"]; assign_run(FixSeg().command, gpus)
-gpus = ["2,3"]; assign_run(TSSeg().command, gpus)
+gpus = ["0", "1", "2", "3"]; assign_run(FixSeg().command, gpus)
+#gpus = ["2,3"]; assign_run(TSSeg().command, gpus)
