@@ -48,6 +48,7 @@ generator.eval()
 # mean_style = generator.mean_style(torch.randn(1024, 512).to(device)).detach()
 
 out1 = generator(latent)
+out1 = (out1.clamp(-1, 1) + 1) / 2
 feat_list = generator.g_synthesis.stage
 feats = np.array([0] * len(feat_list), dtype="object")
 for i in range(len(feat_list)):
