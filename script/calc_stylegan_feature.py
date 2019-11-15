@@ -4,7 +4,7 @@ import os
 os.environ["MKL_NUM_THREADS"]       = "8"
 os.environ["NUMEXPR_NUM_THREADS"]   = "8"
 os.environ["OMP_NUM_THREADS"]       = "8"
-import matplotlib
+import pickle
 import matplotlib.pyplot as plt
 import torch
 from torchvision import utils as vutils
@@ -25,9 +25,6 @@ args = parser.parse_args()
 # constants setup
 torch.manual_seed(1)
 device = 'cuda'
-
-# cluster
-cluster_alg = lib.rcc.RccCluster()
 
 # build model
 generator = StyledGenerator().to(device)
@@ -72,11 +69,13 @@ feat_cases = [feats[0:1].mean(0), feats[0:4].mean(0), feats[0:16].mean(0), feats
 for i, X in enumerate(feat_cases):
     C, H, W = X.shape
     X = X.reshape(C, H * W).transpose(1, 0)
+    cluster_alg = lib.rcc.RccCluster()
     cluster_alg.fit(X)
     labels, n_labels = cluster_alg.compute_assignment(1)
     label_map = labels.reshape(H, W)
     label_viz = utils.numpy2label(label_map, n_labels)
     utils.imwrite("rcc_%d.png" % i, label_viz)
+    pickle.dump(alg, open("rcc_cluster_%d.pkl" % i, "wb"))
 
 """
 N = len(feat_list)
