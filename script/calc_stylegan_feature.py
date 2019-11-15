@@ -1,5 +1,9 @@
 import sys
 sys.path.insert(0, ".")
+import os
+os.environ["MKL_NUM_THREADS"]       = "8"
+os.environ["NUMEXPR_NUM_THREADS"]   = "8"
+os.environ["OMP_NUM_THREADS"]       = "8"
 import matplotlib
 import matplotlib.pyplot as plt
 import torch
