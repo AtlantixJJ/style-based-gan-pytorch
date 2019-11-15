@@ -36,12 +36,13 @@ missing_dict = generator.load_state_dict(state_dict, strict=False)
 generator.eval()
 
 # set up input
-noise = []
+noise = [[] for i in range(18)]
 znoise = []
 for i in range(18):
     size = 4 * 2 ** (i // 2)
     znoise.append(torch.zeros(1, 1, size, size, device=device))
-    noise.append(torch.randn(32, 1, size, size, device=device))
+    for j in range(32):
+        noise[j].append(torch.randn(1, 1, size, size, device=device))
 latent = torch.randn(1, 512).to(device)
 
 feats = []
