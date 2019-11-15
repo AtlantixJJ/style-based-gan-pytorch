@@ -36,7 +36,7 @@ missing_dict = generator.load_state_dict(state_dict, strict=False)
 generator.eval()
 
 # set up input
-noise = [[] for i in range(18)]
+noise = [[] for i in range(32)]
 znoise = []
 for i in range(18):
     size = 4 * 2 ** (i // 2)
@@ -47,7 +47,7 @@ latent = torch.randn(1, 512).to(device)
 
 feats = []
 for i in range(32):
-    generator.set_noise([n[i:i+1] for n in noise])
+    generator.set_noise(noise[i])
     with torch.no_grad():
         out = generator(latent)
     feat = generator.g_synthesis.stage[6]
