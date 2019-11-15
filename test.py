@@ -80,7 +80,8 @@ for i, (latent_np, image_np, label_np) in enumerate(ds):
     evaluator.accumulate(score)
     
     if i == 0:
-        image = torch.from_numpy(image_np).float().permute(2, 0, 1) / 255.
+        image = torch.from_numpy(image_np).float()
+        image = image.permute(2, 0, 1).unsqueeze(0) / 255.
         genlabel = utils.numpy2label(seg, ds.n_class)
         genlabel = torch.from_numpy(genlabel).float().unsqueeze(0)
         gen = gen.unsqueeze(0)
