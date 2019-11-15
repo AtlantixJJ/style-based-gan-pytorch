@@ -86,7 +86,9 @@ for i, (latent_np, image_np, label_np) in enumerate(ds):
         genlabel = torch.from_numpy(genlabel).float().unsqueeze(0)
         gen = gen.unsqueeze(0)
         res = [image, genlabel, gen]
-        res = [F.interpolate(item, (256, 256)) for item in res]
+        res = [F.interpolate(item, (256, 256), mode="bilinear") for item in res]
+        for r in res:
+            print(r.shape)
         vutils.save_image(res, f"{out_prefix}.png")
 
 evaluator.aggregate()
