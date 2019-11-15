@@ -53,14 +53,18 @@ for k in range(STEP + 1):
     size = 4 * 2 ** k
     noise[k] = torch.randn(cfg.batch_size, 1, size, size).cuda()
 
+if cfg.zero_noise:
+	for k in range(STEP + 1):
+		noise[k].zero_()
 record = cfg.record
 avgmseloss = 0
 count = 0
 
 for i in tqdm(range(cfg.n_iter + 1)):
 	latent.normal_()
-	for k in range(STEP + 1):
-		noise[k].normal_()
+	if not cfg.zero_noise:
+		for k in range(STEP + 1):
+			noise[k].normal_()
 
 	with torch.no_grad():
 		gen = sg(latent)
