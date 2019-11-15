@@ -68,7 +68,6 @@ evaluator = utils.MaskCelebAEval(map_id=True)
 
 for i, (latent_np, image_np, label_np) in enumerate(ds):
     latent = torch.from_numpy(latent_np).unsqueeze(0).float().cuda()
-    image = torch.from_numpy(image_np) / 255.
     with torch.no_grad():
         gen, seg = generator.predict(latent)
         gen = (gen.clamp(-1, 1) + 1) / 2
@@ -81,6 +80,7 @@ for i, (latent_np, image_np, label_np) in enumerate(ds):
     evaluator.accumulate(score)
     
     if i == 0:
+        image = torch.from_numpy(image_np).float().permute(2, 0, 1) / 255.
         genlabel = utils.numpy2label(seg, ds.n_class)
         genlabel = torch.from_numpy(genlabel).float().unsqueeze(0)
         gen = gen.unsqueeze(0)
