@@ -18,8 +18,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--task", default="latest", help="log|latest|lerp|evol|seg")
 parser.add_argument("--model", default="")
 parser.add_argument("--gpu", default="0")
-parser.add_argument("--step", type=int, default=7)
-parser.add_argument("--lerp", type=float, default=1.0)
+parser.add_argument("--zero", type=int, default=0)
 args = parser.parse_args()
 
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
@@ -29,24 +28,20 @@ if args.model == "expr":
     files = os.listdir(args.model)
     files.sort()
     for f in files:
-        basecmd = "python script/monitor.py --task %s --step %d --lerp %d --model %s --gpu %s"
-        basecmd = basecmd % (args.task, args.step, args.lerp, osj(args.model, f), args.gpu)
+        basecmd = "python script/monitor.py --task %s --model %s --gpu %s --zero %d"
+        basecmd = basecmd % (args.task, osj(args.model, f), args.gpu, args.zero)
         os.system(basecmd)
     exit(0)
 
 savepath = args.model.replace("expr/", "results/")
 
 device = 'cpu'
-step = args.step
-alpha = 1
-lerp = args.lerp
-shape = 4 * 2 ** step
 torch.manual_seed(1314)
 latent = torch.randn(1, 512).to(device)
 latent.requires_grad = True
 noise = []
-for i in range(step + 1):
-    size = 4 * 2 ** i
+for i in range(18):
+    size = 4 * 2 ** (i // 2)
     noise.append(torch.randn(1, 1, size, size, device=device))
 
 cfg = config.config_from_name(args.model)
@@ -56,6 +51,16 @@ if 'seg' in args.model:
 else:
     from model.default import StyledGenerator
 generator = StyledGenerator(**cfg).to(device)
+
+if args.zero:
+    print("=> Use zero as noise")
+	noise = [0] * 18
+	for k in range(18):
+		size = 4 * 2 ** (k // 2)
+		noise[k] = torch.zeros(1, 1, size, size).cuda()
+	generator.set_noise(noise)
+
+
 model_files = glob.glob(args.model + "/*.model")
 model_files.sort()
 if len(model_files) == 0:
