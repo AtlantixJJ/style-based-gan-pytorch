@@ -5,6 +5,8 @@ os.environ["MKL_NUM_THREADS"]       = "8"
 os.environ["NUMEXPR_NUM_THREADS"]   = "8"
 os.environ["OMP_NUM_THREADS"]       = "8"
 import pickle
+import matplotlib
+matplotlib.use("agg")
 import matplotlib.pyplot as plt
 import torch
 from torchvision import utils as vutils
@@ -15,7 +17,6 @@ import argparse
 import torch.nn.functional as F
 import utils
 import lib
-matplotlib.use("agg")
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
