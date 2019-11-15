@@ -31,18 +31,20 @@ if args.model == "expr":
     files = os.listdir(args.model)
     files.sort()
     for f in files:
-        basecmd = "python test.py --model %s"
-        basecmd = basecmd % osj(args.model, f)
+        basecmd = "python test.py --model %s --zero %d"
+        basecmd = basecmd % osj(args.model, f, args.zero)
         os.system(basecmd)
     exit(0)
 
 out_prefix = args.model.replace("expr/", "results/")
 
+# Init model
 cfg = config.config_from_name(args.model)
 print(cfg)
 generator = StyledGenerator(**cfg)
 generator = generator.cuda()
 
+# Load model
 model_files = glob.glob(args.model + "/*.model")
 model_files.sort()
 if len(model_files) == 0:
@@ -54,12 +56,13 @@ missed = generator.load_state_dict(torch.load(
 print(missed)
 generator.eval()
 
-state_dict = torch.load("checkpoint/faceparse_unet.pth", map_location='cpu')
-faceparser = unet.unet()
-faceparser.load_state_dict(state_dict)
-faceparser = faceparser.cuda()
-faceparser.eval()
-del state_dict
+if args.zero:
+    print("=> Use zero as noise")
+	noise = [0] * 18
+	for k in range(18):
+		size = 4 * 2 ** (k // 2)
+		noise[k] = torch.zeros(1, 1, size, size).cuda()
+	generator.set_noise(noise)
 
 evaluator = utils.MaskCelebAEval(map_id=True)
 
