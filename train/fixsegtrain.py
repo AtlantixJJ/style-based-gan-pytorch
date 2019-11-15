@@ -122,7 +122,7 @@ for i in tqdm(range(cfg.n_iter + 1)):
 						for i in range(label.shape[0])]
 		tarlabels = [l.float().unsqueeze(0) for l in tarlabels]
 		tarviz = torch.cat([F.interpolate(m, 256).cpu() for m in tarlabels])
-		genlabels = [utils.tensor2label(s[0].argmax(0), s.shape[1]))
+		genlabels = [utils.tensor2label(s[0].argmax(0), s.shape[1])
 					for s in segs]
 		genlabels = [l.float().unsqueeze(0) for l in genlabels]
 		genviz = genlabels + [(gen[0:1] + 1) / 2]
