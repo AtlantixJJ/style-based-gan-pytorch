@@ -58,11 +58,11 @@ generator.eval()
 
 if args.zero:
     print("=> Use zero as noise")
-	noise = [0] * 18
-	for k in range(18):
-		size = 4 * 2 ** (k // 2)
-		noise[k] = torch.zeros(1, 1, size, size).cuda()
-	generator.set_noise(noise)
+    noise = [0] * 18
+    for k in range(18):
+        size = 4 * 2 ** (k // 2)
+        noise[k] = torch.zeros(1, 1, size, size).cuda()
+    generator.set_noise(noise)
 
 evaluator = utils.MaskCelebAEval(map_id=True)
 
