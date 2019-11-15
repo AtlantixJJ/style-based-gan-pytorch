@@ -16,7 +16,7 @@ cluster_alg = lib.rcc.RccCluster()
 # data
 feats = np.load(args.load, allow_pickle=True)
 
-feat = feats[6]
+feat = feats[5]
 
 C, H, W = feat[0].shape
 X = feat.reshape(C, H * W).transpose(1, 0)
