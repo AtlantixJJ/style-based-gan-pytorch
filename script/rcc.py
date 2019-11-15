@@ -21,7 +21,7 @@ cluster_alg = lib.rcc.RccCluster()
 feats = np.load(args.load, allow_pickle=True)
 
 C, H, W = feats[0].shape
-X = feat.reshape(C, H * W).transpose(1, 0)
+X = feats.reshape(C, H * W).transpose(1, 0)
 cluster_alg.fit(X)
 labels, n_labels = cluster_alg.compute_assignment(1)
 label_map = labels.reshape(H, W)
