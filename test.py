@@ -81,7 +81,7 @@ for i, (latent_np, image_np, label_np) in enumerate(ds):
     
     if i == 0:
         genlabel = utils.numpy2label(seg, ds.n_class)
-        genlabel = genlabel.float().unsqueeze(0)
+        genlabel = torch.from_numpy(genlabel).float().unsqueeze(0)
         gen = gen.unsqueeze(0)
         res = [image, genlabel, gen]
         vutils.save_image(res, f"{out_prefix}.png")
