@@ -20,7 +20,7 @@ args = parser.parse_args()
 
 # constants setup
 torch.manual_seed(1)
-device = 'cpu'
+device = 'cuda'
 step = 8
 alpha = 1
 LR = 0.1
@@ -45,10 +45,22 @@ generator.eval()
 
 out1 = generator(latent)
 feat_list = generator.g_synthesis.stage
-obj_arr = np.array([0] * len(feat_list), dtype="object")
+feats = np.array([0] * len(feat_list), dtype="object")
 for i in range(len(feat_list)):
-    obj_arr[i] = feat_list[i].detach().numpy()
-np.save("feats.npy", obj_arr)
+    feats[i] = feat_list[i].detach().numpy()
+
+vutils.save_image(out1, "img.png")
+np.save("feats.npy", feats)
+
+feat = feats[5]
+
+C, H, W = feat[0].shape
+X = feat.reshape(C, H * W).transpose(1, 0)
+cluster_alg.fit(X)
+labels, n_labels = cluster_alg.compute_assignment(1)
+label_map = labels.reshape(H, W)
+label_viz = utils.numpy2label(label_map, n_labels)
+utils.imwrite("rcc.png", label_viz)
 
 """
 N = len(feat_list)
