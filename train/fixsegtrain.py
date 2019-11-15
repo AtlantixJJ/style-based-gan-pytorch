@@ -120,7 +120,6 @@ for i in tqdm(range(cfg.n_iter + 1)):
 		genviz = torch.cat([F.interpolate(m, 256).cpu() for m in genviz])
 		vutils.save_image(genviz, cfg.expr_dir + "/genlabel_viz_%05d.png" % i, nrow=3)
 		vutils.save_image(tarviz, cfg.expr_dir + "/tarlabel_viz_%05d.png" % i, nrow=2)
-
 		utils.write_log(cfg.expr_dir, record)
 		utils.plot_dic(record, cfg.expr_dir + "/loss.png")
 

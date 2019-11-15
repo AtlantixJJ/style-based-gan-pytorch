@@ -106,10 +106,7 @@ def tensor2label(label_tensor, n_label, imtype=np.uint8):
     if label_tensor.size()[0] > 1:
         label_tensor = label_tensor.max(0, keepdim=True)[1]
     label_tensor = Colorize(n_label)(label_tensor)
-    label_numpy = label_tensor.numpy()
-    label_numpy = label_numpy / 255.0
-
-    return label_numpy
+    return label_tensor / 255.
 
 
 def numpy2label(label_np, n_label):
