@@ -398,7 +398,7 @@ class StyledGenerator(nn.Module):
             return nn.Sequential(*_m)
 
         # start from 16x16 resolution
-        self.semantic_extractor = nn.ModuleList([
+        semantic_extractor = nn.ModuleList([
             conv_block(512, self.semantic_dim, self.ksize),
             conv_block(512, self.semantic_dim, self.ksize),
             conv_block(256, self.semantic_dim, self.ksize),
@@ -408,17 +408,17 @@ class StyledGenerator(nn.Module):
             conv_block(16 , self.semantic_dim, self.ksize)
         ])
 
-        self.semantic_reviser = nn.ModuleList([
+        semantic_reviser = nn.ModuleList([
             conv_block(self.semantic_dim, self.semantic_dim, 3)
-                for i in range(len(self.semantic_extractor) - 1)
+                for i in range(len(semantic_extractor) - 1)
             ])
 
-        self.semantic_visualizer = MyConv2d(self.semantic_dim, self.n_class, 1)
-            
+        semantic_visualizer = MyConv2d(self.semantic_dim, self.n_class, 1)
+        
         self.semantic_branch = nn.ModuleList([
-            self.semantic_extractor,
-            self.semantic_visualizer,
-            self.semantic_reviser])
+            semantic_extractor, # 0
+            semantic_reviser, # 1
+            semantic_visualizer]) # 2
 
     def build_conv_extractor(self):
         def conv_block(in_dim, out_dim, ksize):
@@ -448,17 +448,18 @@ class StyledGenerator(nn.Module):
         self.semantic_branch = self.semantic_extractor
 
     def extract_segmentation_cascade(self):
+        extractor, reviser, visualizer = self.semantic_branch
         count = 0
         outputs = []
         for seg_input in self.g_synthesis.stage:
             if seg_input.size(2) >= 16:
                 if count == 0:
-                    hidden = self.semantic_extractor[count](seg_input)
+                    hidden = extractor[count](seg_input)
                 else:
                     hidden = F.interpolate(hidden, scale_factor=2) + \
-                                self.semantic_extractor[count](seg_input)
-                    hidden = self.semantic_reviser[count - 1](hidden)
-                outputs.append(self.semantic_visualizer[count](hidden))
+                                extractor[count](seg_input)
+                    hidden = reviser[count - 1](hidden)
+                outputs.append(visualizer[count](hidden))
                 count += 1
         return outputs
     
