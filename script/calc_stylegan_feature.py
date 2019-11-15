@@ -51,13 +51,13 @@ for i in range(32):
         out = generator(latent)
     feat = generator.g_synthesis.stage[6]
     feats.append(utils.torch2numpy(feat))
-feats = np.array(feats)
+feats = np.concatenate(feats)
 np.save("feats.npy", feats)
 
 feat_cases = [feats[0:1].mean(0), feats[0:4].mean(0), feats[0:16].mean(0), feats.mean(0)]
-feat_cases = [utils.torch2numpy(c) for c in feat_cases]
+
 for i, X in enumerate(feat_cases):
-    C, H, W = X.shape
+    C, H, W = X[].shape
     X = X.reshape(C, H * W).transpose(1, 0)
     cluster_alg.fit(X)
     labels, n_labels = cluster_alg.compute_assignment(1)
