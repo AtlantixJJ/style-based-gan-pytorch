@@ -55,10 +55,10 @@ generator = StyledGenerator(**cfg).to(device)
 if args.zero:
     print("=> Use zero as noise")
     noise = [0] * 18
-	for k in range(18):
-		size = 4 * 2 ** (k // 2)
-		noise[k] = torch.zeros(1, 1, size, size).cuda()
-	generator.set_noise(noise)
+    for k in range(18):
+        size = 4 * 2 ** (k // 2)
+        noise[k] = torch.zeros(1, 1, size, size).cuda()
+    generator.set_noise(noise)
 
 
 model_files = glob.glob(args.model + "/*.model")
