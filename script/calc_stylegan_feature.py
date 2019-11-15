@@ -45,12 +45,14 @@ for i in range(18):
         noise[j].append(torch.randn(1, 1, size, size, device=device))
 latent = torch.randn(1, 512).to(device)
 
+print("=> Generate zero noise features")
 generator.set_noise(znoise)
 with torch.no_grad():
     out = generator(latent)
 feat = generator.g_synthesis.stage[6]
 np.save("zerofeats.npy", utils.torch2numpy(feat))
 
+print("=> Generate mean nosie features")
 feats = []
 for i in range(32):
     generator.set_noise(noise[i])
