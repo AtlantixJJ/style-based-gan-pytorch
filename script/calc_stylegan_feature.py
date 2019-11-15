@@ -49,6 +49,8 @@ print("=> Generate zero noise features")
 generator.set_noise(znoise)
 with torch.no_grad():
     out = generator(latent)
+    out = (out.clamp(-1, 1) + 1) / 2
+vutils.save_image(out, "zero_noise.png")
 feat = generator.g_synthesis.stage[6]
 np.save("zerofeats.npy", utils.torch2numpy(feat))
 
@@ -58,6 +60,8 @@ for i in range(32):
     generator.set_noise(noise[i])
     with torch.no_grad():
         out = generator(latent)
+        out = (out.clamp(-1, 1) + 1) / 2
+    vutils.save_image(out, "random_noise_%d.png" % i)
     feat = generator.g_synthesis.stage[6]
     feats.append(utils.torch2numpy(feat))
 feats = np.concatenate(feats)
