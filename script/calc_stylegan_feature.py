@@ -57,7 +57,7 @@ np.save("feats.npy", feats)
 feat_cases = [feats[0:1].mean(0), feats[0:4].mean(0), feats[0:16].mean(0), feats.mean(0)]
 
 for i, X in enumerate(feat_cases):
-    C, H, W = X[].shape
+    C, H, W = X.shape
     X = X.reshape(C, H * W).transpose(1, 0)
     cluster_alg.fit(X)
     labels, n_labels = cluster_alg.compute_assignment(1)
