@@ -38,7 +38,7 @@ generator.eval()
 # set up input
 noise = []
 znoise = []
-for i in range(len(18)):
+for i in range(18):
     size = 4 * 2 ** (i // 2)
     znoise.append(torch.zeros(1, 1, size, size, device=device))
     noise.append(torch.randn(32, 1, size, size, device=device))
