@@ -36,6 +36,11 @@ class MultiGPUTensor(object):
             self.val[i].copy_(self.root)
 
 
+######
+## Colorization
+######
+
+
 class Colorize(object):
     def __init__(self, n=19):
         self.cmap = labelcolormap(n)
@@ -58,9 +63,11 @@ class Colorize(object):
 
         return color_image
 
+
 def uint82bin(n, count=8):
     """returns the binary of integer n, count refers to amount of bits"""
     return ''.join([str((n >> y) & 1) for y in range(count-1, -1, -1)])
+
 
 def labelcolormap(N):
     """
@@ -110,12 +117,10 @@ def numpy2label(label_np, n_label):
     return img_t.numpy().transpose(1, 2, 0)
 
 
-def plot_dic(dic, file):
-    for k, v in dic.items():
-        plt.plot(v)
-    plt.legend(list(dic.keys()))
-    plt.savefig(file)
-    plt.close()
+######
+## Image processing (PIL & Numpy based)
+######
+
 
 def imread(fpath):
     with open(os.path.join(fpath), "rb") as f:
@@ -141,56 +146,6 @@ def pil_read(fpath):
     return img
     
 
-def permute_masks(masks):
-    def permute_(t):
-        tmp = t[0]
-        t[:-1] = t[1:]
-        t[-1] = tmp
-        return t
-
-    for m in masks:
-        if m is None:
-            continue
-        for i in range(len(m[0])):
-            m[0][i] = permute_(m[0][i])
-            m[1][i] = permute_(m[1][i])
-
-
-def get_masks(blocks, step=6):
-    masks = []
-    for i, blk in enumerate(blocks):
-        if blk.att > 0 and hasattr(blk.attention1, "mask"):
-            masks.append([blk.attention1.mask, blk.attention2.mask])
-        else:
-            masks.append(None)
-    return masks
-
-
-def get_segmentation(blocks, step=-1, detach=True):
-    seg = []
-    for i, blk in enumerate(blocks):
-        if step > 0 and step != i:
-            continue
-        if blk.n_class > 0:
-            input = blk.seg_input
-            if detach:
-                input = input.detach()
-            net_device = next(blk.extractor.parameters()).device
-            if input.device != net_device:
-                input = input.cpu().to(net_device)
-            seg.append(blk.extractor(input))
-    return seg
-
-def visualize_masks(masks):
-    masks_ = []
-    for m in masks:
-        if m is not None:
-            masks_.extend(m[0])
-            masks_.extend(m[1])
-    masks_ = torch.cat([F.interpolate(m, 128) for m in masks_], 0)
-    return masks_
-
-
 def normalize_image(img):
     img[img < -1] = -1
     img[img > 1] = 1
@@ -200,17 +155,6 @@ def normalize_image(img):
 def set_lerp_val(progression, lerp_val):
     for p in progression:
         p.lerp = lerp_val
-
-
-def get_generator_lr(g, lr1, lr2):
-    dic = []
-    for i, blk in enumerate(g.progression):
-        dic.append({"params": blk.conv1.parameters(), "lr": lr1})
-        dic.append({"params": blk.conv2.parameters(), "lr": lr1})
-        if blk.att > 0:
-            dic.append({"params": blk.attention1.parameters(), "lr": lr2})
-            dic.append({"params": blk.attention2.parameters(), "lr": lr2})
-    return dic
 
 
 def get_generator_blockconv_lr(g, lr):
@@ -231,13 +175,9 @@ def get_generator_extractor_lr(g, lr):
     return dic
 
 
-def get_mask(styledblocks):
-    masks = []
-    for blk in styledblocks:
-        if blk.att > 0:
-            masks.extend(blk.attention1.mask)
-            masks.extend(blk.attention2.mask)
-    return masks
+######
+## Others
+######
 
 
 def set_seed(seed):
@@ -373,6 +313,14 @@ class MaskCelebAEval(object):
 #########
 
 
+def plot_dic(dic, file):
+    for k, v in dic.items():
+        plt.plot(v)
+    plt.legend(list(dic.keys()))
+    plt.savefig(file)
+    plt.close()
+
+
 def parse_log(logfile):
     with open(logfile) as f:
         head = f.readline().strip().split(" ")
@@ -402,3 +350,59 @@ def write_log(expr_dir, record):
                 except:
                     print("!> No enough data at %s[%d]" % (key, i))
             f.write("\n")
+
+
+
+
+
+
+""" Deprecated
+def permute_masks(masks):
+    def permute_(t):
+        tmp = t[0]
+        t[:-1] = t[1:]
+        t[-1] = tmp
+        return t
+
+    for m in masks:
+        if m is None:
+            continue
+        for i in range(len(m[0])):
+            m[0][i] = permute_(m[0][i])
+            m[1][i] = permute_(m[1][i])
+
+
+def get_masks(blocks, step=6):
+    masks = []
+    for i, blk in enumerate(blocks):
+        if blk.att > 0 and hasattr(blk.attention1, "mask"):
+            masks.append([blk.attention1.mask, blk.attention2.mask])
+        else:
+            masks.append(None)
+    return masks
+
+
+def get_segmentation(blocks, step=-1, detach=True):
+    seg = []
+    for i, blk in enumerate(blocks):
+        if step > 0 and step != i:
+            continue
+        if blk.n_class > 0:
+            input = blk.seg_input
+            if detach:
+                input = input.detach()
+            net_device = next(blk.extractor.parameters()).device
+            if input.device != net_device:
+                input = input.cpu().to(net_device)
+            seg.append(blk.extractor(input))
+    return seg
+
+def visualize_masks(masks):
+    masks_ = []
+    for m in masks:
+        if m is not None:
+            masks_.extend(m[0])
+            masks_.extend(m[1])
+    masks_ = torch.cat([F.interpolate(m, 128) for m in masks_], 0)
+    return masks_
+"""

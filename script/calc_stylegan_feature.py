@@ -13,7 +13,7 @@ from PIL import Image
 from model.tfseg import StyledGenerator
 import argparse
 import torch.nn.functional as F
-from utils import *
+import utils
 import lib
 matplotlib.use("agg")
 
@@ -25,16 +25,6 @@ args = parser.parse_args()
 # constants setup
 torch.manual_seed(1)
 device = 'cuda'
-step = 8
-alpha = 1
-LR = 0.1
-shape = 4 * 2 ** step
-# set up noise
-noise = []
-for i in range(step + 1):
-    size = 4 * 2 ** i
-    noise.append(torch.randn(1, 1, size, size, device=device))
-latent = torch.randn(1, 512).to(device)
 
 # cluster
 cluster_alg = lib.rcc.RccCluster()
@@ -44,28 +34,36 @@ generator = StyledGenerator().to(device)
 state_dict = torch.load(args.model, map_location='cpu')
 missing_dict = generator.load_state_dict(state_dict, strict=False)
 generator.eval()
-# mean style for truncation
-# mean_style = generator.mean_style(torch.randn(1024, 512).to(device)).detach()
 
-out1 = generator(latent)
-out1 = (out1.clamp(-1, 1) + 1) / 2
-feat_list = generator.g_synthesis.stage
-feats = np.array([0] * len(feat_list), dtype="object")
-for i in range(len(feat_list)):
-    feats[i] = feat_list[i].detach().cpu().numpy()
+# set up input
+noise = []
+znoise = []
+for i in range(len(18)):
+    size = 4 * 2 ** (i // 2)
+    znoise.append(torch.zeros(1, 1, size, size, device=device))
+    noise.append(torch.randn(32, 1, size, size, device=device))
+latent = torch.randn(1, 512).to(device)
 
-vutils.save_image(out1, "img.png")
+feats = []
+for i in range(32):
+    generator.set_noise([n[i:i+1] for n in noise])
+    with torch.no_grad():
+        out = generator(latent)
+    feat = generator.g_synthesis.stage[6]
+    feats.append(utils.torch2numpy(feat))
+feats = np.array(feats)
 np.save("feats.npy", feats)
 
-feat = feats[5]
-
-C, H, W = feat[0].shape
-X = feat.reshape(C, H * W).transpose(1, 0)
-cluster_alg.fit(X)
-labels, n_labels = cluster_alg.compute_assignment(1)
-label_map = labels.reshape(H, W)
-label_viz = utils.numpy2label(label_map, n_labels)
-utils.imwrite("rcc.png", label_viz)
+feat_cases = [feats[0:1].mean(0), feats[0:4].mean(0), feats[0:16].mean(0), feats.mean(0)]
+feat_cases = [utils.torch2numpy(c) for c in feat_cases]
+for i, X in enumerate(feat_cases):
+    C, H, W = X.shape
+    X = X.reshape(C, H * W).transpose(1, 0)
+    cluster_alg.fit(X)
+    labels, n_labels = cluster_alg.compute_assignment(1)
+    label_map = labels.reshape(H, W)
+    label_viz = utils.numpy2label(label_map, n_labels)
+    utils.imwrite("rcc_%d.png" % i, label_viz)
 
 """
 N = len(feat_list)
