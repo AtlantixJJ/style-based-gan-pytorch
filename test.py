@@ -20,7 +20,7 @@ ds = dataset.LatentSegmentationDataset(
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--model", default="")
-parser.add_argument("--step", type=int, default=8)
+parser.add_argument("--zero", type=int, default=0, help="Use zero as noise")
 parser.add_argument("--gpu", default="0")
 args = parser.parse_args()
 
