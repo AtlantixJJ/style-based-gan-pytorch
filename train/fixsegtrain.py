@@ -5,11 +5,10 @@ import sys
 sys.path.insert(0, ".")
 import os
 import torch
+import torch.nn.functional as F
 from tqdm import tqdm
-from PIL import Image
 import numpy as np
 from torchvision import utils as vutils
-from lib.face_parsing.utils import tensor2label
 from lib.face_parsing import unet
 import config
 import utils
@@ -100,8 +99,8 @@ for i in tqdm(range(cfg.n_iter + 1)):
 	g_optim.step()
 	g_optim.zero_grad()
 
-	record['loss'].append(torch2numpy(loss))
-	record['segloss'].append(torch2numpy(segloss))
+	record['loss'].append(utils.torch2numpy(loss))
+	record['segloss'].append(utils.torch2numpy(segloss))
 
 	if cfg.debug:
 		print(record.keys())
