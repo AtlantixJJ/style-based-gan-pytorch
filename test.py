@@ -72,6 +72,8 @@ for i, (latent_np, image_np, label_np) in enumerate(ds):
     image = (image.permute(2, 0, 1) - 127.5) / 127.5
     with torch.no_grad():
         gen, seg = generator.predict(latent)
+        gen = (gen.clamp(-1, 1) + 1) / 2
+        gen = gen.detach().cpu()
     if evaluator.map_id:
         label = evaluator.idmap(label_np)
     gen = gen[0]
