@@ -113,18 +113,16 @@ for i in tqdm(range(cfg.n_iter + 1)):
 
 		tarlabels = [utils.tensor2label(label[i:i+1], label.shape[1])
 						for i in range(label.shape[0])]
-		tarlabels = [l.float().unsqueeze(0) for l in tarlabels]
 		tarviz = torch.cat([F.interpolate(m, 256).cpu() for m in tarlabels])
 		genlabels = [utils.tensor2label(s[0].argmax(0), s.shape[1])
 					for s in segs]
-		genlabels = [l.float().unsqueeze(0) for l in genlabels]
 		genviz = genlabels + [(gen[0:1] + 1) / 2]
 		genviz = torch.cat([F.interpolate(m, 256).cpu() for m in genviz])
 		vutils.save_image(genviz, cfg.expr_dir + "/genlabel_viz_%05d.png" % i, nrow=3)
 		vutils.save_image(tarviz, cfg.expr_dir + "/tarlabel_viz_%05d.png" % i, nrow=2)
 
-		write_log(cfg.expr_dir, record)
-		plot_dic(record, cfg.expr_dir + "/loss.png")
+		utils.write_log(cfg.expr_dir, record)
+		utils.plot_dic(record, cfg.expr_dir + "/loss.png")
 
 #os.system(f"python script/monitor.py --task log,seg --model {cfg.expr_dir} --step 8 --gpu {cfg.gpu}")
 #os.system(f"python test.py --model {cfg.expr_dir} --gpu {cfg.gpu}")
