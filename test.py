@@ -89,7 +89,7 @@ for i, (latent_np, image_np, label_np) in enumerate(ds):
         res = [F.interpolate(item, (256, 256), mode="bilinear") for item in res]
         for r in res:
             print(r.shape)
-        vutils.save_image(res, f"{out_prefix}.png")
+        vutils.save_image(res, f"{out_prefix}.png", nrow=2)
 
 evaluator.aggregate()
 evaluator.summarize()
