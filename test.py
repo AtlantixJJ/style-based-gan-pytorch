@@ -31,7 +31,7 @@ if args.model == "expr":
     files = os.listdir(args.model)
     files.sort()
     for f in files:
-        basecmd = "python test.py --model %s --zero %d"
+        basecmd = "python test.py --model %s/%s --zero %d"
         basecmd = basecmd % osj(args.model, f, args.zero)
         os.system(basecmd)
     exit(0)
