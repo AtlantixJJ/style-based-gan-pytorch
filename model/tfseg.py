@@ -378,37 +378,10 @@ class StyledGenerator(nn.Module):
 
         if "conv" in self.segcfg:
             self.build_conv_extractor()
-        elif "res" in self.segcfg:
-            self.build_residue_extractor()
+        elif "cas" in self.segcfg:
+            self.build_cascade_extractor()
 
-    def build_conv_extractor(self):
-        def conv_block(in_dim, out_dim):
-            midim = (in_dim + out_dim) // 2
-            if self.n_layer == 1:
-                _m = [MyConv2d(in_dim, out_dim, self.ksize)]
-            else:
-                _m = []
-                _m.append(MyConv2d(in_dim, midim, self.ksize))
-                for i in range(self.n_layer - 2):
-                    _m.append(nn.ReLU(inplace=True))
-                    _m.append(MyConv2d(midim, midim, self.ksize))
-                _m.append(MyConv2d(midim, out_dim, self.ksize))
-            return nn.Sequential(*_m)
-
-        # start from 16x16 resolution
-        self.semantic_extractor = nn.ModuleList([
-            conv_block(512, self.n_class),
-            conv_block(512, self.n_class),
-            conv_block(256, self.n_class),
-            conv_block(128, self.n_class),
-            conv_block(64 , self.n_class),
-            conv_block(32 , self.n_class),
-            conv_block(16 , self.n_class)
-        ])
-
-        self.semantic_branch = self.semantic_extractor
-
-    def build_residue_extractor(self):
+    def build_cascade_extractor(self):
         def conv_block(in_dim, out_dim):
             midim = (in_dim + out_dim) // 2
             if self.n_layer == 1:
@@ -424,34 +397,57 @@ class StyledGenerator(nn.Module):
                 _m.append(nn.ReLU(inplace=True))
             return nn.Sequential(*_m)
 
-        def residue(dim):
-            return nn.Sequential(
-                MyConv2d(dim, dim // 2, self.ksize),
-                nn.ReLU(inplace=True),
-                MyConv2d(dim // 2, dim, self.ksize),
-            )
+        # start from 16x16 resolution
+        self.semantic_extractor = nn.ModuleList([
+            conv_block(512, self.n_class),
+            conv_block(512, self.n_class),
+            conv_block(256, self.n_class),
+            conv_block(128, self.n_class),
+            conv_block(64 , self.n_class),
+            conv_block(32 , self.n_class),
+            conv_block(16 , self.n_class)
+        ])
+
+    def build_conv_extractor(self):
+        def conv_block(in_dim, out_dim, ksize):
+            midim = (in_dim + out_dim) // 2
+            if self.n_layer == 1:
+                _m = [MyConv2d(in_dim, out_dim, ksize)]
+            else:
+                _m = []
+                _m.append(MyConv2d(in_dim, midim, ksize))
+                for i in range(self.n_layer - 2):
+                    _m.append(nn.ReLU(inplace=True))
+                    _m.append(MyConv2d(midim, midim, ksize))
+                _m.append(MyConv2d(midim, out_dim, ksize))
+            return nn.Sequential(*_m)
 
         # start from 16x16 resolution
         self.semantic_extractor = nn.ModuleList([
-            conv_block(512, self.semantic_dim),
-            conv_block(512, self.semantic_dim),
-            conv_block(256, self.semantic_dim),
-            conv_block(128, self.semantic_dim),
-            conv_block(64 , self.semantic_dim),
-            conv_block(32 , self.semantic_dim),
-            conv_block(16 , self.semantic_dim)
+            conv_block(512, self.semantic_dim, self.ksize),
+            conv_block(512, self.semantic_dim, self.ksize),
+            conv_block(256, self.semantic_dim, self.ksize),
+            conv_block(128, self.semantic_dim, self.ksize),
+            conv_block(64 , self.semantic_dim, self.ksize),
+            conv_block(32 , self.semantic_dim, self.ksize),
+            conv_block(16 , self.semantic_dim, self.ksize)
         ])
-        self.residue = nn.ModuleList([
-            residue(self.semantic_dim) for i in range(len(self.semantic_extractor))
+
+        self.semantic_reviser = nn.ModuleList([
+            conv_block(self.semantic_dim, self.semantic_dim, 3)
+                for i in range(len(self.semantic_extractor))
             ])
+
         self.semantic_visualizer = MyConv2d(self.semantic_dim, self.n_class, 1)
 
         self.semantic_branch = nn.ModuleList([
             self.semantic_extractor,
             self.semantic_visualizer,
-            self.residue if "res" in self.segcfg else None])
-    
-    def extract_segmentation_residue(self):
+            self.semantic_reviser])
+
+        self.semantic_branch = self.semantic_extractor
+
+    def extract_segmentation_cascade(self):
         count = 0
         outputs = []
         for seg_input in self.g_synthesis.stage:
@@ -461,7 +457,7 @@ class StyledGenerator(nn.Module):
                 else:
                     hidden = F.interpolate(hidden, scale_factor=2) + \
                                 self.semantic_extractor[count](seg_input)
-                    hidden = hidden + self.residue[count](hidden)
+                    hidden = self.semantic_reviser[count](hidden)
                 outputs.append(self.semantic_visualizer(hidden))
                 count += 1
         return outputs
@@ -496,8 +492,8 @@ class StyledGenerator(nn.Module):
     def extract_segmentation(self):
         if "conv" in self.segcfg:
             return self.extract_segmentation_conv()
-        elif "res" in self.segcfg:
-            return self.extract_segmentation_residue()
+        elif "cas" in self.segcfg:
+            return self.extract_segmentation_cascade()
     
     def predict(self, latent):
         # start from w+

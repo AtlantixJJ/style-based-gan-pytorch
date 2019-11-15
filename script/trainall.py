@@ -3,8 +3,8 @@ import os
 class FixSeg(object):
     def __init__(self):
         self.seg_cfgs = [
-            "3conv1-64-16",
-            "3conv2-64-16",
+            "1cas1-64-16",
+            "1cas2-64-16",
             ]
 
         self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --arch tfseg --gpu %s --batch_size 1 --iter-num 1000 --zero 1 &"
