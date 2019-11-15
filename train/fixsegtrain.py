@@ -15,9 +15,6 @@ import utils
 from loss import *
 import model
 
-STEP = 8
-ALPHA = 1
-
 cfg = config.FixSegConfig()
 cfg.parse()
 cfg.print_info()
