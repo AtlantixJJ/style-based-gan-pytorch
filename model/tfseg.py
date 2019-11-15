@@ -410,11 +410,14 @@ class StyledGenerator(nn.Module):
 
         self.semantic_reviser = nn.ModuleList([
             conv_block(self.semantic_dim, self.semantic_dim, 3)
-                for i in range(len(self.semantic_extractor))
+                for i in range(len(self.semantic_extractor) - 1)
             ])
 
-        self.semantic_visualizer = MyConv2d(self.semantic_dim, self.n_class, 1)
-
+        self.semantic_visualizer = nn.ModuleList([
+            MyConv2d(self.semantic_dim, self.n_class, 1)
+                for i in range(len(self.semantic_extractor))
+            ])
+            
         self.semantic_branch = nn.ModuleList([
             self.semantic_extractor,
             self.semantic_visualizer,
@@ -457,8 +460,8 @@ class StyledGenerator(nn.Module):
                 else:
                     hidden = F.interpolate(hidden, scale_factor=2) + \
                                 self.semantic_extractor[count](seg_input)
-                    hidden = self.semantic_reviser[count](hidden)
-                outputs.append(self.semantic_visualizer(hidden))
+                    hidden = self.semantic_reviser[count - 1](hidden)
+                outputs.append(self.semantic_visualizer[count](hidden))
                 count += 1
         return outputs
     
