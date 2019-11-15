@@ -44,23 +44,20 @@ logsoftmax = torch.nn.CrossEntropyLoss()
 logsoftmax = logsoftmax.cuda()
 
 latent = torch.randn(cfg.batch_size, 512).cuda()
-noise = [0] * (STEP + 1)
-for k in range(STEP + 1):
-    size = 4 * 2 ** k
-    noise[k] = torch.randn(cfg.batch_size, 1, size, size).cuda()
 
 if cfg.zero_noise:
-	for k in range(STEP + 1):
-		noise[k].zero_()
+	noise = [0] * (STEP + 1)
+	for k in range(18):
+		size = 4 * 2 ** (k // 2)
+		noise[k] = torch.zeros(cfg.batch_size, 1, size, size).cuda()
+	sg.set_noise(noise)
+	
 record = cfg.record
 avgmseloss = 0
 count = 0
 
 for i in tqdm(range(cfg.n_iter + 1)):
 	latent.normal_()
-	if not cfg.zero_noise:
-		for k in range(STEP + 1):
-			noise[k].normal_()
 
 	with torch.no_grad():
 		gen = sg(latent)
