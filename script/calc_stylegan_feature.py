@@ -51,7 +51,7 @@ out1 = generator(latent)
 feat_list = generator.g_synthesis.stage
 feats = np.array([0] * len(feat_list), dtype="object")
 for i in range(len(feat_list)):
-    feats[i] = feat_list[i].detach().numpy()
+    feats[i] = feat_list[i].detach().cpu().numpy()
 
 vutils.save_image(out1, "img.png")
 np.save("feats.npy", feats)
