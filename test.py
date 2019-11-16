@@ -5,6 +5,7 @@ import torch.nn.functional as F
 import torchvision.utils as vutils
 import argparse
 import glob
+from tqdm import tqdm
 import numpy as np
 import utils
 import dataset
@@ -66,7 +67,7 @@ if args.zero:
 
 evaluator = utils.MaskCelebAEval(map_id=True)
 
-for i, (latent_np, image_np, label_np) in enumerate(ds):
+for i, (latent_np, image_np, label_np) in tqdm(enumerate(ds)):
     latent = torch.from_numpy(latent_np).unsqueeze(0).float().cuda()
     with torch.no_grad():
         gen, seg = generator.predict(latent)
@@ -89,7 +90,8 @@ for i, (latent_np, image_np, label_np) in enumerate(ds):
         res = torch.cat([F.interpolate(item, (256, 256), mode="bilinear") for item in res])
         for r in res:
             print(r.shape)
-        vutils.save_image(res, f"{out_prefix}.png", nrow=2)
+        vutils.save_image(res, f"{out_prefix}.png",
+            nrow=2, normalize=True, scale_each=True)
 
 evaluator.aggregate()
 evaluator.summarize()
