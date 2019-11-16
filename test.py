@@ -67,7 +67,7 @@ if args.zero:
 
 evaluator = utils.MaskCelebAEval(map_id=True)
 
-for i, (latent_np, image_np, label_np) in tqdm(enumerate(ds)):
+for i, (latent_np, image_np, label_np) in enumerate(tqdm(ds)):
     latent = torch.from_numpy(latent_np).unsqueeze(0).float().cuda()
     with torch.no_grad():
         gen, seg = generator.predict(latent)
