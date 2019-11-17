@@ -64,6 +64,8 @@ if args.zero:
         size = 4 * 2 ** (k // 2)
         noise[k] = torch.zeros(1, 1, size, size).cuda()
     generator.set_noise(noise)
+else:
+    generator.set_noise(None)
 
 evaluator = utils.MaskCelebAEval(map_id=True)
 
@@ -95,4 +97,4 @@ for i, (latent_np, image_np, label_np) in enumerate(tqdm(ds)):
 
 evaluator.aggregate()
 evaluator.summarize()
-evaluator.save(f"{out_prefix}_record.npy")
+evaluator.save(f"{out_prefix}_{args.zero}_record.npy")
