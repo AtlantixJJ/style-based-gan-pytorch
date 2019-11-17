@@ -88,7 +88,7 @@ for i, (latent_np, image_np, label_np) in enumerate(tqdm(ds)):
             torch.from_numpy(label).unsqueeze(0),
             ds.n_class).unsqueeze(0)
         gen = gen.unsqueeze(0)
-        res = [image, genlabel, gen, tarlabel]
+        res = [image, tarlabel, gen, genlabel]
         res = torch.cat([F.interpolate(item, (256, 256), mode="bilinear") for item in res])
         vutils.save_image(res, f"{out_prefix}_{i}.png",
             nrow=2, normalize=True, range=(0, 1), scale_each=True)
