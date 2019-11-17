@@ -80,7 +80,7 @@ for i, (latent_np, image_np, label_np) in enumerate(tqdm(ds)):
     score = evaluator.compute_score(seg, label)
     evaluator.accumulate(score)
     
-    if i == 0:
+    if i < 4:
         image = torch.from_numpy(image_np).float()
         image = image.permute(2, 0, 1).unsqueeze(0) / 255.
         genlabel = utils.numpy2label(seg, ds.n_class).transpose(2, 0, 1)
@@ -88,10 +88,8 @@ for i, (latent_np, image_np, label_np) in enumerate(tqdm(ds)):
         gen = gen.unsqueeze(0)
         res = [image, genlabel, gen]
         res = torch.cat([F.interpolate(item, (256, 256), mode="bilinear") for item in res])
-        for r in res:
-            print(r.shape)
-        vutils.save_image(res, f"{out_prefix}.png",
-            nrow=2, normalize=True, scale_each=True)
+        vutils.save_image(res, f"{out_prefix}_{i}.png",
+            nrow=2, normalize=True, range=[0, 1], scale_each=True)
 
 evaluator.aggregate()
 evaluator.summarize()
