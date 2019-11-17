@@ -76,15 +76,15 @@ for i, (latent_np, image_np, label_np) in enumerate(tqdm(ds)):
     if evaluator.map_id:
         label = evaluator.idmap(label_np)
     gen = gen[0]
-    seg = seg[0].detach().cpu().numpy()
-    score = evaluator.compute_score(seg, label)
+    seg_np = seg[0].detach().cpu().numpy()
+    score = evaluator.compute_score(seg_np, label)
     evaluator.accumulate(score)
     
     if i < 4:
         image = torch.from_numpy(image_np).float()
         image = image.permute(2, 0, 1).unsqueeze(0) / 255.
         genlabel = utils.tensor2label(torch.from_numpy(seg), ds.n_class)
-        tarlabel = utils.tensor2label(torch.from_numpy(label), ds.n_class)
+        tarlabel = utils.tensor2label(torch.from_numpy(label).unsqueeze(0), ds.n_class)
         gen = gen.unsqueeze(0)
         res = [image, genlabel, gen, tarlabel]
         res = torch.cat([F.interpolate(item, (256, 256), mode="bilinear") for item in res])
