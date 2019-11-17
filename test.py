@@ -83,10 +83,10 @@ for i, (latent_np, image_np, label_np) in enumerate(tqdm(ds)):
     if i < 4:
         image = torch.from_numpy(image_np).float()
         image = image.permute(2, 0, 1).unsqueeze(0) / 255.
-        genlabel = utils.numpy2label(seg, ds.n_class).transpose(2, 0, 1)
-        genlabel = torch.from_numpy(genlabel).float().unsqueeze(0)
+        genlabel = utils.tensor2label(torch.frum_numpy(seg), ds.n_class)
+        tarlabel = utils.tensor2label(torch.frum_numpy(label), ds.n_class)
         gen = gen.unsqueeze(0)
-        res = [image, genlabel, gen]
+        res = [image, genlabel, gen, tarlabel]
         res = torch.cat([F.interpolate(item, (256, 256), mode="bilinear") for item in res])
         vutils.save_image(res, f"{out_prefix}_{i}.png",
             nrow=2, normalize=True, range=(0, 1), scale_each=True)
