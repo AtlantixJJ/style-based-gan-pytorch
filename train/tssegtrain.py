@@ -11,6 +11,7 @@ import numpy as np
 from torchvision import utils as vutils
 import config
 import utils
+from lib.face_parsing import unet
 from loss import *
 import model
 
