@@ -9,15 +9,10 @@ from tqdm import tqdm
 from PIL import Image
 import numpy as np
 from torchvision import utils as vutils
-from lib.face_parsing.utils import tensor2label
-from lib.face_parsing import unet
 import config
-from utils import *
+import utils
 from loss import *
 import model
-
-STEP = 8
-ALPHA = 1
 
 cfg = config.TSSegConfig()
 cfg.parse()
@@ -58,9 +53,9 @@ mse = mse.cuda(cfg.device1)
 
 latent1 = torch.randn(cfg.batch_size, 512).to(cfg.device1)
 latent2 = latent1.clone().to(cfg.device2)
-noise1 = [0] * (STEP + 1)
+noise1 = [0] * 18
 noise2 = []
-for k in range(STEP + 1):
+for k in range(18):
     size = 4 * 2 ** k
     noise1[k] = torch.randn(cfg.batch_size, 1, size, size).to(cfg.device1)
 for k in range(STEP + 1):
@@ -76,9 +71,11 @@ for i in tqdm(range(cfg.n_iter + 1)):
 
 	latent1.normal_()
 	latent2.copy_(latent1, True) # asynchronous
-	for k in range(STEP + 1):
+	for k in range(18):
 		noise1[k].normal_()
 		noise2[k].copy_(noise2[k], True) # asynchronous
+	sg.set_noise(noise1)
+	tg.set_noise(noise2)
 
 	gen = sg(latent1)
 	with torch.no_grad():
@@ -104,9 +101,9 @@ for i in tqdm(range(cfg.n_iter + 1)):
 	g_optim.step()
 	g_optim.zero_grad()
 
-	record['loss'].append(torch2numpy(loss))
-	record['mseloss'].append(torch2numpy(mseloss))
-	record['segloss'].append(torch2numpy(segloss))
+	record['loss'].append(utils.torch2numpy(loss))
+	record['mseloss'].append(utils.torch2numpy(mseloss))
+	record['segloss'].append(utils.torch2numpy(segloss))
 
 	if cfg.debug:
 		print(record.keys())
@@ -125,22 +122,18 @@ for i in tqdm(range(cfg.n_iter + 1)):
 		vutils.save_image(image[:4], cfg.expr_dir + '/target_%06d.png' % i,
 							nrow=2, normalize=True, range=(-1, 1))
 
-		tarlabels = [torch.from_numpy(tensor2label(
-						label[i:i+1],
-						label.shape[1]))
+		tarlabels = [utils.tensor2label(label[i:i+1], label.shape[1]).unsqueeze(0)
 						for i in range(label.shape[0])]
-		tarlabels = [l.float().unsqueeze(0) for l in tarlabels]
 		tarviz = torch.cat([F.interpolate(m, 256).cpu() for m in tarlabels])
-		genlabels = [torch.from_numpy(tensor2label(s[0].argmax(0), s.shape[1]))
+		genlabels = [utils.tensor2label(s[0], s.shape[1]).unsqueeze(0)
 					for s in segs]
-		genlabels = [l.float().unsqueeze(0) for l in genlabels]
-		genviz = genlabels + [(gen[0:1] + 1) / 2]
+		gen_img = (gen[0:1].clamp(-1, 1) + 1) / 2
+		genviz = genlabels + [gen_img]
 		genviz = torch.cat([F.interpolate(m, 256).cpu() for m in genviz])
 		vutils.save_image(genviz, cfg.expr_dir + "/genlabel_viz_%05d.png" % i, nrow=3)
 		vutils.save_image(tarviz, cfg.expr_dir + "/tarlabel_viz_%05d.png" % i, nrow=2)
-
-		write_log(cfg.expr_dir, record)
-		plot_dic(record, cfg.expr_dir + "/loss.png")
+		utils.write_log(cfg.expr_dir, record)
+		utils.plot_dic(record, cfg.expr_dir + "/loss.png")
 
 #os.system(f"python script/monitor.py --task log,seg --model {cfg.expr_dir} --step 8 --gpu {cfg.gpu}")
 #os.system(f"python test.py --model {cfg.expr_dir} --gpu {cfg.gpu}")
