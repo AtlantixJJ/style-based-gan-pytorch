@@ -5,6 +5,7 @@ import sys
 sys.path.insert(0, ".")
 import os
 import torch
+import torch.nn.functional as F
 from tqdm import tqdm
 from PIL import Image
 import numpy as np
