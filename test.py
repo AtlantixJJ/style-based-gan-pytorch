@@ -46,6 +46,7 @@ cfg = config.config_from_name(args.model)
 print(cfg)
 generator = StyledGenerator(**cfg)
 generator = generator.cuda()
+generator.eval()
 
 # Load model
 model_files = glob.glob(args.model + "/*.model")
@@ -53,11 +54,6 @@ model_files.sort()
 if len(model_files) == 0:
     print("!> No model found, exit")
     exit(0)
-print("=> Load from %s" % model_files[-1])
-missed = generator.load_state_dict(torch.load(
-    model_files[-1], map_location='cuda:0'), strict=True)
-print(missed)
-generator.eval()
 
 if args.zero:
     print("=> Use zero as noise")
@@ -69,34 +65,47 @@ if args.zero:
 else:
     generator.set_noise(None)
 
-evaluator = utils.MaskCelebAEval(map_id=True)
-
-for i, (latent_np, image_np, label_np) in enumerate(tqdm(ds)):
-    latent = torch.from_numpy(latent_np).unsqueeze(0).float().cuda()
+def func(latent):
     with torch.no_grad():
         gen, seg = generator.predict(latent)
         gen = (gen.clamp(-1, 1) + 1) / 2
         gen = gen.detach().cpu()
-    if evaluator.map_id:
-        label = evaluator.idmap(label_np)
-    gen = gen[0]
-    seg_np = seg[0].detach().cpu().numpy()
-    score = evaluator.compute_score(seg_np, label)
-    evaluator.accumulate(score)
-    
-    if i < 4:
-        image = torch.from_numpy(image_np).float()
-        image = image.permute(2, 0, 1).unsqueeze(0) / 255.
-        genlabel = utils.tensor2label(seg, ds.n_class).unsqueeze(0)
-        tarlabel = utils.tensor2label(
-            torch.from_numpy(label).unsqueeze(0),
-            ds.n_class).unsqueeze(0)
-        gen = gen.unsqueeze(0)
-        res = [image, tarlabel, gen, genlabel]
-        res = torch.cat([F.interpolate(item, (256, 256), mode="bilinear") for item in res])
-        vutils.save_image(res, f"{out_prefix}_{i}.png",
-            nrow=2, normalize=True, range=(0, 1), scale_each=True)
+    return gen, seg
 
-evaluator.aggregate()
-evaluator.summarize()
-evaluator.save(f"{out_prefix}_{args.zero}_record.npy")
+def evaluate_on_dataset(predict_func, ds, save_path="record.npy"):
+    evaluator = utils.MaskCelebAEval(map_id=True)
+
+    for i, (latent_np, image_np, label_np) in enumerate(tqdm(ds)):
+        latent = torch.from_numpy(latent_np).unsqueeze(0).float().cuda()
+        gen, seg = predict_func(latent)
+        if evaluator.map_id:
+            label = evaluator.idmap(label_np)
+        gen = gen[0]
+        seg_np = seg[0].detach().cpu().numpy()
+        score = evaluator.compute_score(seg_np, label)
+        evaluator.accumulate(score)
+        
+        if i < 4:
+            image = torch.from_numpy(image_np).float()
+            image = image.permute(2, 0, 1).unsqueeze(0) / 255.
+            genlabel = utils.tensor2label(seg, ds.n_class).unsqueeze(0)
+            tarlabel = utils.tensor2label(
+                torch.from_numpy(label).unsqueeze(0),
+                ds.n_class).unsqueeze(0)
+            gen = gen.unsqueeze(0)
+            res = [image, tarlabel, gen, genlabel]
+            res = torch.cat([F.interpolate(item, (256, 256), mode="bilinear") for item in res])
+            vutils.save_image(res, f"{out_prefix}_{i}.png",
+                nrow=2, normalize=True, range=(0, 1), scale_each=True)
+
+    evaluator.aggregate()
+    evaluator.summarize()
+    evaluator.save(save_path)
+
+for model in model_files:
+    print("=> Load from %s" % model_files[-1])
+    state_dict = torch.load(model, map_location='cuda:0')
+    missed = generator.load_state_dict(state_dict, strict=True)
+    print(missed)
+    iteration = model.replace("iter_", "").replace(".model", "")
+    evaluate_on_dataset(func, ds, f"{out_prefix}_{iteration}_record.npy")
