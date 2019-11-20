@@ -133,7 +133,7 @@ class TSSegConfig(BaseConfig):
 
         self.name = self.task + "_" + str(self.seg_coef) + "_" + self.semantic_config
         self.expr_dir = osj("expr", self.name)
-        os.system("rm -r %s" % self.expr_dir)
+        #os.system("rm -r %s" % self.expr_dir)
         os.system("mkdir %s" % self.expr_dir)
 
     def print_info(self):
@@ -169,7 +169,7 @@ class FixSegConfig(BaseConfig):
         self.name = "{}_{}_{}_{}".format(
             self.task, self.seg_coef, self.semantic_config, self.zero_noise)
         self.expr_dir = osj("expr", self.name)
-        os.system("rm -r %s" % self.expr_dir)
+        #os.system("rm -r %s" % self.expr_dir)
         os.system("mkdir %s" % self.expr_dir)
     
     def idmap(self, x):
