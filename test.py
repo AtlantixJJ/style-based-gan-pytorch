@@ -109,4 +109,4 @@ for model in model_files:
     print(missed)
     ind = model.rfind("/")
     iteration = model[ind+1:].replace("iter_", "").replace(".model", "")
-    evaluate_on_dataset(func, ds, f"{out_prefix}_{iteration}_record.npy")
+    evaluate_on_dataset(func, ds, f"{out_prefix}_{args.zero}_{iteration}_record.npy")
