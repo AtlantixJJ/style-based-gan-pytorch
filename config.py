@@ -115,6 +115,7 @@ class TSSegConfig(BaseConfig):
     def __init__(self):
         super(TSSegConfig, self).__init__()
     
+        self.parser.add_argument("--seg-net", default="checkpoint/faceparse_unet.pth", help="The load path of semantic segmentation network")
         self.parser.add_argument("--dataset", default="datasets/stylegan", help="The path to segmentation dataset")
         self.parser.add_argument("--seg", default=1., type=float, help="Coefficient of segmentation loss")
         self.parser.add_argument("--mse", default=1., type=float, help="Coefficient of MSE loss")
@@ -130,11 +131,24 @@ class TSSegConfig(BaseConfig):
         self.semantic_config = self.args.seg_cfg
         self.imsize = self.args.imsize
         self.record = {'loss': [], 'mseloss': [], 'segloss': []}
+        self.seg_net_path = self.args.seg_net
+        if "faceparse_unet" in self.seg_net_path:
+            self.map_id = True
+            self.id2cid = {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 4, 6: 5, 7: 5, 8: 6, 9: 6, 10: 7, 11: 8, 12: 9, 13: 10, 14: 11, 15: 12, 16: 13, 17: 14, 18: 15}
+        else:
+            self.map_id = False
 
         self.name = self.task + "_" + str(self.seg_coef) + "_" + self.semantic_config
         self.expr_dir = osj("expr", self.name)
         #os.system("rm -r %s" % self.expr_dir)
         os.system("mkdir %s" % self.expr_dir)
+
+    def idmap(self, x):
+        for fr,to in self.id2cid.items():
+            if fr == to:
+                continue
+            x[x == fr] = to
+        return x
 
     def print_info(self):
         super(TSSegConfig, self).print_info()

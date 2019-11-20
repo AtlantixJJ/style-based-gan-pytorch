@@ -4,24 +4,23 @@ Teacher student training of SRGAN.
 import sys
 sys.path.insert(0, ".")
 import os
+import numpy as np
 import torch
 import torch.nn.functional as F
-from tqdm import tqdm
-from PIL import Image
-import numpy as np
 from torchvision import utils as vutils
+from tqdm import tqdm
+from lib.face_parsing import unet
 import config
 import utils
-from lib.face_parsing import unet
-from loss import *
 import model
+from loss import *
 
 cfg = config.TSSegConfig()
 cfg.parse()
 cfg.print_info()
 cfg.setup()
 
-state_dict = torch.load("checkpoint/faceparse_unet.pth", map_location='cpu')
+state_dict = torch.load(cfg.seg_net_path, map_location='cpu')
 faceparser = unet.unet()
 faceparser.load_state_dict(state_dict)
 faceparser = faceparser.to(cfg.device2)
@@ -84,8 +83,10 @@ for i in tqdm(range(cfg.n_iter + 1)):
 		image = tg(latent2)
 		image = F.interpolate(image, cfg.imsize, mode="bilinear")
 		label = faceparser(image).argmax(1)
-		image = image.detach().cpu().to(cfg.device1)
-		label = label.detach().cpu().to(cfg.device1)
+	if cfg.map_id:
+		label = cfg.idmap(label.detach())
+	image = image.detach().cpu().to(cfg.device1)
+	label = label.detach().cpu().to(cfg.device1)
 
 	mseloss = cfg.mse_coef * mse(F.interpolate(gen, cfg.imsize, mode="bilinear"), image)
 	segs = sg.extract_segmentation()
