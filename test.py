@@ -108,5 +108,5 @@ for model in model_files:
     missed = generator.load_state_dict(state_dict, strict=True)
     print(missed)
     ind = model.rfind("/")
-    iteration = model[ind:].replace("iter_", "").replace(".model", "")
+    iteration = model[ind+1:].replace("iter_", "").replace(".model", "")
     evaluate_on_dataset(func, ds, f"{out_prefix}_{iteration}_record.npy")
