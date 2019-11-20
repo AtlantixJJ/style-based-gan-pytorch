@@ -64,6 +64,7 @@ for i in range(32):
     feats.append(utils.torch2numpy(feat))
 feats = np.concatenate(feats)
 np.save("feats.npy", feats)
+del generator # release GPU memory
 
 feat_cases = [feats[0:1].mean(0), feats[0:4].mean(0), feats[0:16].mean(0), feats.mean(0)]
 
