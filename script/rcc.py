@@ -19,8 +19,7 @@ feats = np.load(args.load, allow_pickle=True)
 
 C, H, W = feats[0].shape
 X = feats.reshape(C, H * W).transpose(1, 0)
-cluster_alg.fit(X)
-labels, n_labels = cluster_alg.compute_assignment(1)
+labels = cluster_alg.fit(X)
 label_map = labels.reshape(H, W)
-label_viz = utils.numpy2label(label_map, n_labels)
+label_viz = utils.numpy2label(label_map, labels.max() + 1)
 utils.imwrite("rcc.png", label_viz)
