@@ -107,5 +107,6 @@ for model in model_files:
     state_dict = torch.load(model, map_location='cuda:0')
     missed = generator.load_state_dict(state_dict, strict=True)
     print(missed)
-    iteration = model.replace("iter_", "").replace(".model", "")
+    ind = model.rfind("/")
+    iteration = model[ind:].replace("iter_", "").replace(".model", "")
     evaluate_on_dataset(func, ds, f"{out_prefix}_{iteration}_record.npy")
