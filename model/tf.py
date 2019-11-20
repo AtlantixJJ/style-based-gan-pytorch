@@ -366,6 +366,17 @@ class StyledGenerator(nn.Module):
     def forward(self, x):
         return self.g_synthesis(self.g_mapping(x))
 
+    def set_noise(self, noises):
+        if not hasattr(self, "noise_layers"):
+            self.noise_layers = [l for n,l in self.named_modules() if "noise" in n]
+        
+        if noises is None:
+            for i in range(len(self.noise_layers)):
+                self.noise_layers[i].noise = None
+            return
+
+        for i in range(len(noises)):
+            self.noise_layers[i].noise = noises[i]
 """
 g_all = nn.Sequential(OrderedDict([
     ('g_mapping', G_mapping()),
