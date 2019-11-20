@@ -71,8 +71,8 @@ for i, X in enumerate(feat_cases):
     C, H, W = X.shape
     X = X.reshape(C, H * W).transpose(1, 0)
     cluster_alg = lib.rcc.RccCluster()
-    cluster_alg.fit(X)
-    labels, n_labels = cluster_alg.compute_assignment(1)
+    labels = cluster_alg.fit(X)
+    n_labels = labels.max() + 1
     label_map = labels.reshape(H, W)
     label_viz = utils.numpy2label(label_map, n_labels)
     utils.imwrite("rcc_%d.png" % i, label_viz)
