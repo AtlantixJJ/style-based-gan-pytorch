@@ -54,15 +54,13 @@ mse = mse.cuda(cfg.device2)
 
 latent1 = torch.randn(cfg.batch_size, 512).to(cfg.device1)
 latent2 = latent1.clone().to(cfg.device2)
-
-if cfg.zero_noise:
-	noise1 = [0] * 18
-	for k in range(18):
-		size = 4 * 2 ** (k // 2)
-		noise1[k] = torch.zeros(cfg.batch_size, 1, size, size).cuda()
-	noise2.append(noise1[k].clone().to(cfg.device2))
-	tg.set_noise(noise1)
-	sg.set_noise(noise2)
+noise1 = [0] * 18
+noise2 = []
+for k in range(18):
+    size = 4 * 2 ** (k // 2)
+    noise1[k] = torch.randn(cfg.batch_size, 1, size, size).to(cfg.device1)
+for k in range(18):
+    noise2.append(noise1[k].clone().to(cfg.device2))
 
 record = cfg.record
 avgmseloss = 0
@@ -74,6 +72,11 @@ for i in tqdm(range(cfg.n_iter + 1)):
 
 	latent1.normal_()
 	latent2.copy_(latent1, True) # asynchronous
+	for k in range(18):
+		noise1[k].normal_()
+		noise2[k].copy_(noise2[k], True) # asynchronous
+	sg.set_noise(noise2)
+	tg.set_noise(noise1)
 
 	gen = sg(latent2)
 	with torch.no_grad():

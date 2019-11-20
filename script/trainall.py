@@ -3,10 +3,10 @@ import os
 class FixSeg(object):
     def __init__(self):
         self.seg_cfgs = [
-            "1conv1-64-16",
-            "1conv2-64-16",
-            "1cas2-64-16",
-            "1cas1-64-16",
+            "1conv1-32-16",
+            "1conv2-32-16",
+            "1cas2-32-16",
+            "1cas1-32-16",
             ]
 
         self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --arch tfseg --gpu %s --batch_size 1 --iter-num 1000 --zero 1 &"
@@ -29,10 +29,10 @@ class FixSeg(object):
 class TSSeg(FixSeg):
     def __init__(self):
         self.seg_cfgs = [
-            "1conv1-64-16",
-            "1conv2-64-16",
-            "1cas1-64-16",
-            "1cas2-64-16",
+            "1conv1-32-16",
+            "1conv2-32-16",
+            "1cas1-32-16",
+            "1cas2-32-16",
         ]
         self.basecmd = "python train/tssegtrain.py --task fixseg --seg-cfg %s --arch tfseg --gpu %s --batch_size 1 --iter-num 2000 &"
 
