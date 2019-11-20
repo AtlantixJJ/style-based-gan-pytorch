@@ -23,7 +23,7 @@ cfg.setup()
 state_dict = torch.load(cfg.seg_net_path, map_location='cpu')
 faceparser = unet.unet()
 faceparser.load_state_dict(state_dict)
-faceparser = faceparser.to(cfg.device2)
+faceparser = faceparser.to(cfg.device1)
 faceparser.eval()
 del state_dict
 
@@ -31,11 +31,11 @@ state_dicts = torch.load(cfg.load_path, map_location='cpu')
 tg = model.tf.StyledGenerator()
 tg.load_state_dict(state_dicts)
 tg.eval()
-tg = tg.to(cfg.device2)
+tg = tg.to(cfg.device1)
 sg = getattr(model, cfg.arch).StyledGenerator(semantic=cfg.semantic_config)
 sg.load_state_dict(state_dicts, strict=False)
 sg.train()
-sg = sg.to(cfg.device1)
+sg = sg.to(cfg.device2)
 sg.freeze_g_mapping() # do not change style branch
 sg.freeze_g_synthesis()
 del state_dicts
@@ -49,8 +49,8 @@ g_optim.add_param_group({
     'lr': cfg.lr * 0.1})
 logsoftmax = torch.nn.CrossEntropyLoss()
 mse = torch.nn.MSELoss()
-logsoftmax = logsoftmax.to(cfg.device1)
-mse = mse.cuda(cfg.device1)
+logsoftmax = logsoftmax.to(cfg.device2)
+mse = mse.cuda(cfg.device2)
 
 latent1 = torch.randn(cfg.batch_size, 512).to(cfg.device1)
 latent2 = latent1.clone().to(cfg.device2)
@@ -75,18 +75,18 @@ for i in tqdm(range(cfg.n_iter + 1)):
 	for k in range(18):
 		noise1[k].normal_()
 		noise2[k].copy_(noise2[k], True) # asynchronous
-	sg.set_noise(noise1)
-	tg.set_noise(noise2)
+	sg.set_noise(noise2)
+	tg.set_noise(noise1)
 
-	gen = sg(latent1)
+	gen = sg(latent2)
 	with torch.no_grad():
-		image = tg(latent2)
+		image = tg(latent1)
 		image = F.interpolate(image, cfg.imsize, mode="bilinear")
 		label = faceparser(image).argmax(1)
 	if cfg.map_id:
 		label = cfg.idmap(label.detach())
-	image = image.detach().cpu().to(cfg.device1)
-	label = label.detach().cpu().to(cfg.device1)
+	image = image.detach().cpu().to(cfg.device2)
+	label = label.detach().cpu().to(cfg.device2)
 
 	mseloss = cfg.mse_coef * mse(F.interpolate(gen, cfg.imsize, mode="bilinear"), image)
 	segs = sg.extract_segmentation()
