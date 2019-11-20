@@ -57,7 +57,7 @@ latent2 = latent1.clone().to(cfg.device2)
 noise1 = [0] * 18
 noise2 = []
 for k in range(18):
-    size = 4 * 2 ** k
+    size = 4 * 2 ** (k // 2)
     noise1[k] = torch.randn(cfg.batch_size, 1, size, size).to(cfg.device1)
 for k in range(STEP + 1):
     noise2.append(noise1[k].clone().to(cfg.device2))

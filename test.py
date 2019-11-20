@@ -31,9 +31,11 @@ if args.model == "expr":
     # This is root, run for all the expr directory
     files = os.listdir(args.model)
     files.sort()
-    for f in files:
-        basecmd = "python test.py --model %s --zero %d"
-        basecmd = basecmd % (osj(args.model, f), args.zero)
+    # for all gpu
+    gpu = gpu.split(",")
+    for i, f in enumerate(files):
+        basecmd = "python test.py --model %s --zero %d --gpu %s &"
+        basecmd = basecmd % (osj(args.model, f), args.zero, gpu[i % len(gpu)])
         os.system(basecmd)
     exit(0)
 
