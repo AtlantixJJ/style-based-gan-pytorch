@@ -60,7 +60,7 @@ if cfg.zero_noise:
 	for k in range(18):
 		size = 4 * 2 ** (k // 2)
 		noise1[k] = torch.zeros(cfg.batch_size, 1, size, size).cuda()
-    noise2.append(noise1[k].clone().to(cfg.device2))
+	noise2.append(noise1[k].clone().to(cfg.device2))
 	tg.set_noise(noise1)
 	sg.set_noise(noise2)
 
