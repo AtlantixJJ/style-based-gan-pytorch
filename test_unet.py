@@ -14,6 +14,7 @@ from lib.face_parsing import unet
 rootdir = "datasets/CelebAMask-HQ/"
 ds = dataset.LatentSegmentationDataset(
     latent_dir=rootdir+"dlatent",
+    noise_dir=rootdir+"noise",
     image_dir=rootdir+"CelebA-HQ-img",
     seg_dir=rootdir+"CelebAMask-HQ-mask")
 
