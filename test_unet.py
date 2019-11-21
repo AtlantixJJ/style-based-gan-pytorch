@@ -34,11 +34,13 @@ del state_dict
 
 evaluator = utils.MaskCelebAEval(map_id=True)
 tar_record = {i:[] for i in range(0, evaluator.n_class)}
-for i, (latent, image, label) in enumerate(ds):
+for i, (latent, noise, image, label) in enumerate(ds):
     #image = torch.from_numpy(image).float().cuda()
     #image = (image.permute(2, 0, 1) - 127.5) / 127.5
+    break
     latent = torch.from_numpy(latent_np).unsqueeze(0).float().cuda()
     with torch.no_grad():
+        generator.set_noise(noise)
         image = generator(latent).clamp(-1, 1)
         image_ = F.interpolate(image.unsqueeze(0), (512, 512))
         tar_seg = faceparser(image_)[0]
