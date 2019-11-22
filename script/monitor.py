@@ -11,8 +11,8 @@ import os
 from os.path import join as osj
 import glob
 from torchvision import utils as vutils
+import utils
 import config
-from lib.face_parsing.utils import tensor2label
 from lib.face_parsing import unet
 
 parser = argparse.ArgumentParser()
@@ -74,7 +74,7 @@ if "log" in args.task:
     utils.plot_dic(dic, savepath + "_loss.png")
 
 if "seg" in args.task:
-    colorizer = utils.Colorize() #label to rgb
+    colorizer = utils.Colorize(16) #label to rgb
 
     state_dict = torch.load("checkpoint/faceparse_unet.pth", map_location='cpu')
     faceparser = unet.unet()
