@@ -32,6 +32,6 @@ rootdir = "datasets/CelebAMask-HQ/"
 dlatent = np.load(osj(rootdir, "dlatent", "1.npy"))
 noise = np.load(osj(rootdir, "noise", "1.npy"), allow_pickle=True)
 
-generator.set_noise(noise1)
+generator.set_noise(noise)
 img1 = generator(dlatent).clamp(-1, 1)
 vutils.save_image(img1, "temp.png")
