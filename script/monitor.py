@@ -27,7 +27,7 @@ if args.model == "expr":
     files = os.listdir(args.model)
     files.sort()
     for f in files:
-        basecmd = "python script/monitor.py --task %s --model %s --gpu %s --zero %d"
+        basecmd = "python script/monitor.py --task %s --model %s --gpu %s --zero %d &"
         basecmd = basecmd % (args.task, osj(args.model, f), args.gpu, args.zero)
         os.system(basecmd)
     exit(0)
