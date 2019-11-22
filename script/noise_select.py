@@ -31,6 +31,7 @@ generator.eval()
 rootdir = "datasets/CelebAMask-HQ/"
 dlatent = np.load(osj(rootdir, "dlatent", "1.npy"))
 noise = np.load(osj(rootdir, "noise", "1.npy"), allow_pickle=True)
+noise = [torch.from_numpy(n).float().cuda() for n in noise]
 
 generator.set_noise(noise)
 img1 = generator(dlatent).clamp(-1, 1)
