@@ -38,7 +38,6 @@ tar_record = {i:[] for i in range(0, evaluator.n_class)}
 for i, (latent, noise, image, label) in enumerate(ds):
     #image = torch.from_numpy(image).float().cuda()
     #image = (image.permute(2, 0, 1) - 127.5) / 127.5
-    break
     latent = torch.from_numpy(latent_np).unsqueeze(0).float().cuda()
     with torch.no_grad():
         generator.set_noise(noise)
