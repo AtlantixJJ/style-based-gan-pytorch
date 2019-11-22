@@ -80,7 +80,7 @@ def evaluate_on_dataset(predict_func, ds, save_path="record.npy"):
     evaluator = utils.MaskCelebAEval(map_id=True)
 
     noise = None
-    for i, (latent_np, noise_np, image_np, label_np) in enumerate(tqdm(ds)):
+    for ind, (latent_np, noise_np, image_np, label_np) in enumerate(tqdm(ds)):
         latent = torch.from_numpy(latent_np).float().cuda()
         if noise is None:
             noise = [torch.from_numpy(noise).float().cuda() for noise in noise_np]
@@ -95,7 +95,7 @@ def evaluate_on_dataset(predict_func, ds, save_path="record.npy"):
         score = evaluator.compute_score(seg_np, label)
         evaluator.accumulate(score)
         
-        if i < 4:
+        if ind < 4:
             image = torch.from_numpy(image_np).float()
             image = image.permute(2, 0, 1).unsqueeze(0) / 255.
             genlabel = utils.tensor2label(seg, ds.n_class).unsqueeze(0)
@@ -105,7 +105,7 @@ def evaluate_on_dataset(predict_func, ds, save_path="record.npy"):
             gen = gen.unsqueeze(0)
             res = [image, tarlabel, gen, genlabel]
             res = torch.cat([F.interpolate(item, (256, 256), mode="bilinear") for item in res])
-            vutils.save_image(res, save_path.replace("record.npy", f"{i}.png"),
+            vutils.save_image(res, save_path.replace("record.npy", f"{ind}.png"),
                 nrow=2, normalize=True, range=(0, 1), scale_each=True)
 
     evaluator.aggregate()
