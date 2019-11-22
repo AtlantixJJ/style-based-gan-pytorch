@@ -232,6 +232,14 @@ def compute_iou(a, b):
     return (a & b).astype("float32").sum() / (a | b).astype("float32").sum()
 
 
+def idmap(x):
+    id2cid = {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 4, 6: 5, 7: 5, 8: 6, 9: 6, 10: 7, 11: 8, 12: 9, 13: 10, 14: 11, 15: 12, 16: 13, 17: 14, 18: 15}
+    for fr,to in id2cid.items():
+        if fr == to:
+            continue
+        x[x == fr] = to
+    return x
+
 class MaskCelebAEval(object):
     def __init__(self, resdic=None, map_id=True):
         self.dic = {}

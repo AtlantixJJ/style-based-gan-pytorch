@@ -8,7 +8,6 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import os, glob
-from utils import *
 from torchvision import utils as vutils
 import config
 from lib.face_parsing.utils import tensor2label
@@ -95,6 +94,7 @@ if "seg" in args.task:
         with torch.no_grad():
             gen = F.interpolate(gen, 512, mode="bilinear")
             label = faceparser(gen)[0].argmax(0)
+            label = utils.idmap(label)
         
         segs += [label]
 
