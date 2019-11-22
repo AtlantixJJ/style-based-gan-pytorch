@@ -86,7 +86,7 @@ def evaluate_on_dataset(predict_func, ds, save_path="record.npy"):
             noise = [torch.from_numpy(noise).float().cuda() for noise in noise_np]
         else:
             for i in range(len(noise)):
-                noise[i] = torch.from_numpy(noise).float().cuda()
+                noise[i] = torch.from_numpy(noise[i]).float().cuda()
         gen, seg = predict_func(latent, noise)
         if evaluator.map_id:
             label = evaluator.idmap(label_np)
