@@ -68,8 +68,9 @@ if args.zero:
 else:
     generator.set_noise(None)
 
-def func(latent):
+def func(latent, noise):
     with torch.no_grad():
+        generator.set_noise(noise)
         gen, seg = generator.predict(latent)
         gen = (gen.clamp(-1, 1) + 1) / 2
         gen = gen.detach().cpu()
@@ -78,9 +79,13 @@ def func(latent):
 def evaluate_on_dataset(predict_func, ds, save_path="record.npy"):
     evaluator = utils.MaskCelebAEval(map_id=True)
 
-    for i, (latent_np, image_np, label_np) in enumerate(tqdm(ds)):
-        latent = torch.from_numpy(latent_np).unsqueeze(0).float().cuda()
-        gen, seg = predict_func(latent)
+    for i, (latent_np, noise_np, image_np, label_np) in enumerate(tqdm(ds)):
+        latent = torch.from_numpy(latent_np).float().cuda()
+        noise = [torch.from_numpy(noise).float().cuda() for noise in noise_np]
+        print(latent.shape)
+        print(noise[3].shape)
+        break
+        gen, seg = predict_func(latent, noise)
         if evaluator.map_id:
             label = evaluator.idmap(label_np)
         gen = gen[0]
