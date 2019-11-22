@@ -82,9 +82,6 @@ def evaluate_on_dataset(predict_func, ds, save_path="record.npy"):
     for i, (latent_np, noise_np, image_np, label_np) in enumerate(tqdm(ds)):
         latent = torch.from_numpy(latent_np).float().cuda()
         noise = [torch.from_numpy(noise).float().cuda() for noise in noise_np]
-        print(latent.shape)
-        print(noise[3].shape)
-        break
         gen, seg = predict_func(latent, noise)
         if evaluator.map_id:
             label = evaluator.idmap(label_np)
