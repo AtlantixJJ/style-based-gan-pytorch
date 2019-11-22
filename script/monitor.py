@@ -7,7 +7,9 @@ import argparse
 import numpy as np
 import torch
 import torch.nn.functional as F
-import os, glob
+import os
+from os.path import join as osj
+import glob
 from torchvision import utils as vutils
 import config
 from lib.face_parsing.utils import tensor2label
