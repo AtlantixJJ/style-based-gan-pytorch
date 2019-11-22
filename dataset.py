@@ -91,7 +91,7 @@ class LatentSegmentationDataset(torch.utils.data.Dataset):
         image_path = osj(self.image_dir, name.replace(".npy", ".jpg"))
         seg_path = osj(self.seg_dir, name.replace(".npy", ".png"))
         latent = np.load(latent_path)
-        noise = np.load(noise_path)
+        noise = np.load(noise_path, allow_pickle=True)
         image = utils.imread(image_path).copy()
         label = utils.imread(seg_path).copy()
         return latent, noise, image, label
