@@ -35,7 +35,7 @@ if args.model == "expr":
 
 savepath = args.model.replace("expr/", "results/")
 
-device = 'cuda'
+device = 'cpu'
 torch.manual_seed(1314)
 latent = torch.randn(1, 512).to(device)
 latent.requires_grad = True
@@ -57,7 +57,7 @@ if args.zero:
     noise = [0] * 18
     for k in range(18):
         size = 4 * 2 ** (k // 2)
-        noise[k] = torch.zeros(1, 1, size, size).cuda()
+        noise[k] = torch.zeros(1, 1, size, size).to(device)
     generator.set_noise(noise)
 
 
@@ -84,7 +84,7 @@ if "seg" in args.task:
 
     for i, model_file in enumerate(model_files):
         print("=> Load from %s" % model_file)
-        generator.load_state_dict(torch.load(model_file, map_location='cuda:0'))
+        generator.load_state_dict(torch.load(model_file, map_location='cpu'))
         generator.eval()
 
         gen = generator(latent)
@@ -105,76 +105,3 @@ if "seg" in args.task:
         fpath = savepath + '{}_segmentation.png'.format(i)
         print("=> Write image to %s" % fpath)
         vutils.save_image(res, fpath, nrow=4)
-
-if "latest" in args.task:
-    print("=> Load from %s" % model_files[-1])
-    generator.load_state_dict(torch.load(
-        model_files[-1], map_location='cuda:0'))
-    generator.eval()
-    mean_style = generator.mean_style(torch.randn(1024, 512).to(device))
-
-    set_lerp_val(generator.generator.progression, lerp)
-    original_generation = generator(latent,
-                                    noise=noise,
-                                    step=step,
-                                    alpha=alpha,
-                                    mean_style=mean_style,
-                                    style_weight=0.7)
-    original_generation = normalize_image(original_generation)
-
-    masks = get_mask(generator.generator.progression)
-    masks = [torch.cat([m, m, m], 1) for m in masks]
-    res = masks + [original_generation]
-    res = [F.interpolate(m, 256) for m in res]
-    print("=> Write image to %s" % (savepath + '_latest.png'))
-    vutils.save_image(res, savepath + '_latest.png', nrow=cfg['att'])
-
-if "lerp" in args.task:
-    generator.load_state_dict(torch.load(
-        model_files[-1], map_location='cuda:0'))
-    generator.eval()
-    mean_style = generator.mean_style(torch.randn(1024, 512).to(device))
-    N = 10
-    for i in range(N):
-        lerp = float(i) / N
-        set_lerp_val(generator.generator.progression, lerp)
-        original_generation = generator(latent,
-                                        noise=noise,
-                                        step=step,
-                                        alpha=alpha,
-                                        mean_style=mean_style,
-                                        style_weight=0.7)
-        original_generation = normalize_image(original_generation)
-
-        masks = get_mask(generator.generator.progression)
-        masks = [torch.cat([m, m, m], 1) for m in masks]
-        res = masks + [original_generation]
-        res = [F.interpolate(m, 256) for m in res]
-        res = torch.cat(res, 0)
-        vutils.save_image(res, savepath + '_lerp_%02d.png' %
-                          i, nrow=cfg['att'])
-    os.system("/usr/bin/ffmpeg -r 2 -f image2 -i {}_lerp_%02d.png -vcodec libx264 -crf 25 -pix_fmt yuv420p -b:v 16000k -vf \"scale=trunc(iw/2)*2:trunc(ih/2)*2\" -y {}_lerp.mp4".format(savepath, savepath))
-
-if "evol" in args.task:
-    for i in range(1, 11):
-        generator.eval()
-        generator.load_state_dict(torch.load(
-            args.model + "/iter_%06d.model" % (i * 1000), map_location='cuda:0'))
-        mean_style = generator.mean_style(torch.randn(1024, 512).to(device))
-        set_lerp_val(generator.generator.progression, lerp)
-        original_generation = generator(latent,
-                                        noise=noise,
-                                        step=step,
-                                        alpha=alpha,
-                                        mean_style=mean_style,
-                                        style_weight=0.7)
-        original_generation = normalize_image(original_generation)
-
-        masks = get_mask(generator.generator.progression)
-        masks = [torch.cat([m, m, m], 1) for m in masks]
-        res = masks + [original_generation]
-        res = [F.interpolate(m, 256) for m in res]
-        res = torch.cat(res, 0)
-        vutils.save_image(res, savepath + '_evol_%02d.png' %
-                          i, nrow=cfg['att'])
-    os.system("/usr/bin/ffmpeg -r 2 -f image2 -i {}_evol_%02d.png -vcodec libx264 -crf 25 -pix_fmt yuv420p -b:v 16000k -vf \"scale=trunc(iw/2)*2:trunc(ih/2)*2\" -y {}_evol.mp4".format(savepath, savepath))
