@@ -70,11 +70,11 @@ if len(model_files) == 0:
 
 if "log" in args.task:
     logfile = args.model + "/log.txt"
-    dic = parse_log(logfile)
-    plot_dic(dic, savepath + "_loss.png")
+    dic = utils.parse_log(logfile)
+    utils.plot_dic(dic, savepath + "_loss.png")
 
 if "seg" in args.task:
-    colorizer = Colorize() #label to rgb
+    colorizer = utils.Colorize() #label to rgb
 
     state_dict = torch.load("checkpoint/faceparse_unet.pth", map_location='cpu')
     faceparser = unet.unet()
