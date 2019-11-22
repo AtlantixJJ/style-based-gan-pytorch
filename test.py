@@ -79,9 +79,14 @@ def func(latent, noise):
 def evaluate_on_dataset(predict_func, ds, save_path="record.npy"):
     evaluator = utils.MaskCelebAEval(map_id=True)
 
+    noise = None
     for i, (latent_np, noise_np, image_np, label_np) in enumerate(tqdm(ds)):
         latent = torch.from_numpy(latent_np).float().cuda()
-        noise = [torch.from_numpy(noise).float().cuda() for noise in noise_np]
+        if noise is None:
+            noise = [torch.from_numpy(noise).float().cuda() for noise in noise_np]
+        else:
+            for i in range(len(noise)):
+                noise[i] = torch.from_numpy(noise).float().cuda()
         gen, seg = predict_func(latent, noise)
         if evaluator.map_id:
             label = evaluator.idmap(label_np)
