@@ -16,6 +16,7 @@ import lib
 parser = argparse.ArgumentParser()
 parser.add_argument(
     "--model", default="checkpoint/karras2019stylegan-ffhq-1024x1024.for_g_all.pt")
+parser.add_argument("--name", type=str, default="27103")
 args = parser.parse_args()
 
 # constants setup
@@ -29,11 +30,12 @@ missing_dict = generator.load_state_dict(state_dict, strict=False)
 generator.eval()
 
 rootdir = "datasets/CelebAMask-HQ/"
-dlatent = np.load(osj(rootdir, "dlatent", "21232.npy"))
+dlatent = np.load(osj(rootdir, "dlatent", args.name + ".npy"))
 dlatent = torch.from_numpy(dlatent).float().to(device)
-noise = np.load(osj(rootdir, "noise", "21232.npy"), allow_pickle=True)
+noise = np.load(osj(rootdir, "noise", args.name + ".npy"), allow_pickle=True)
 noise = [torch.from_numpy(n).float().to(device) for n in noise]
 
 generator.set_noise(noise)
 img = generator.g_synthesis(dlatent).clamp(-1, 1)
+img = (img + 1) / 2
 vutils.save_image(img, "temp.png")
