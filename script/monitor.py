@@ -61,7 +61,6 @@ if args.zero:
         noise[k] = torch.zeros(1, 1, size, size).to(device)
     generator.set_noise(noise)
 
-
 model_files = glob.glob(args.model + "/*.model")
 model_files.sort()
 if len(model_files) == 0:

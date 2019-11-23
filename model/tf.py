@@ -327,7 +327,7 @@ class G_synthesis(nn.Module):
                      'lrelu': (nn.LeakyReLU(negative_slope=0.2), np.sqrt(2))}[nonlinearity]
         num_layers = resolution_log2 * 2 - 2
         num_styles = num_layers if use_styles else 1
-        torgbs = []
+        self.torgbs = []
         blocks = []
         for res in range(2, resolution_log2 + 1):
             channels = nf(res-1)
@@ -341,7 +341,8 @@ class G_synthesis(nn.Module):
                 blocks.append((name,
                                GSynthesisBlock(last_channels, channels, blur_filter, dlatent_size, gain, use_wscale, use_noise, use_pixel_norm, use_instance_norm, use_styles, act)))
             last_channels = channels
-        self.torgb = MyConv2d(channels, num_channels, 1, gain=1, use_wscale=use_wscale)
+            self.torgbs.append(MyConv2d(channels, num_channels, 1, gain=1, use_wscale=use_wscale))
+        self.torgb = torgbs[-1]
         self.blocks = nn.ModuleDict(OrderedDict(blocks))
         
     def forward(self, dlatents_in):
@@ -355,6 +356,17 @@ class G_synthesis(nn.Module):
                 x = m(x, dlatents_in[:, 2*i:2*i+2])
         rgb = self.torgb(x)
         return rgb
+    
+    def all_layer_forward(self, dlatents_in):
+        outputs = []
+        batch_size = dlatents_in.size(0)       
+        for i, m in enumerate(self.blocks.values()):
+            if i == 0:
+                x = m(dlatents_in[:, 2*i:2*i+2])
+            else:
+                x = m(x, dlatents_in[:, 2*i:2*i+2])
+            outputs.append(self.torgbs[i](x))
+        return outputs
 
 
 class StyledGenerator(nn.Module):
@@ -365,6 +377,9 @@ class StyledGenerator(nn.Module):
 
     def forward(self, x):
         return self.g_synthesis(self.g_mapping(x))
+
+    def all_layer_forward(self, x):
+        return self.g_synthesis.all_layer_forward(self.g_mapping(x))
 
     def set_noise(self, noises):
         if not hasattr(self, "noise_layers"):

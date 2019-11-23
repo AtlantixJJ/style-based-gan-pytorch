@@ -21,7 +21,7 @@ cfg.setup()
 
 state_dicts = torch.load(cfg.load_path, map_location='cpu')
 
-sg = StyledGenerator(512)
+sg = StyledGenerator()
 sg.load_state_dict(state_dicts['generator'])
 sg.train()
 sg = sg.cuda()
@@ -32,26 +32,20 @@ mse = torch.nn.MSELoss()
 mse = mse.cuda()
 
 latent = torch.randn(cfg.batch_size, 512).cuda()
-noise = [0] * (STEP + 1)
-for k in range(STEP + 1):
-    size = 4 * 2 ** k
-    noise[k] = torch.randn(cfg.batch_size, 1, size, size).cuda()
 
 count = 0
 record = {'loss': []}
 for i in tqdm(range(cfg.n_iter)):
     latent.normal_()
-    for k in range(STEP + 1):
-        noise[k].normal_()
 
-    images = sg.all_level_forward(latent, step=STEP, alpha=ALPHA, noise=noise)
+    images = sg.all_level_forward(latent)
     target = images[-1].detach()
     images = images[:-1]
     mselosses = []
     for img in images:
         mselosses.append(mse(
-            F.interpolate(img, target.shape[2:], mode="bilinear"),
-            target))
+            img,
+            F.interpolate(target, target.shape[2:], mode="bicubic")))
     mseloss = sum(mselosses) / len(mselosses)
 
     loss = mseloss
