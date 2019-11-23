@@ -20,7 +20,7 @@ args = parser.parse_args()
 
 # constants setup
 torch.manual_seed(1)
-device = 'cuda'
+device = 'cpu'
 
 # build model
 generator = StyledGenerator().to(device)
