@@ -1,20 +1,19 @@
+"""
+Semantic enhanced discriminator training.
+"""
+import sys
+sys.path.insert(0, ".")
 import os
 import torch
 import torch.nn.functional as F
-import config
-from utils import *
-from loss import *
-from model import StyledGenerator, Discriminator
 from tqdm import tqdm
-from PIL import Image
 import numpy as np
 from torchvision import utils as vutils
-import matplotlib.pyplot as plt
-import matplotlib
-matplotlib.use("agg")
-
-STEP = 6
-ALPHA = 1
+from lib.face_parsing import unet
+import config
+import utils
+from loss import *
+import model
 
 cfg = config.TSConfig()
 cfg.parse()
@@ -26,13 +25,14 @@ lrschedule.add(cfg.stage2_step, 1)
 
 state_dicts = torch.load(cfg.load_path, map_location='cpu')
 
-disc = Discriminator(from_rgb_activate=True)
+# A little weird because this is not paired with generator
+disc = model.default.Discriminator(from_rgb_activate=True)
 disc.load_state_dict(state_dicts['discriminator'])
 disc.eval()
-tg = StyledGenerator(512)
+tg = model.tfseg.StyledGenerator()
 tg.load_state_dict(state_dicts['generator'])
 tg.eval()
-sg = StyledGenerator(512, att=cfg.att, att_mtd=cfg.att_mtd)
+sg = model.tfseg.StyledGenerator(att=cfg.att, att_mtd=cfg.att_mtd)
 sg.load_state_dict(state_dicts['generator'])
 sg.train()
 

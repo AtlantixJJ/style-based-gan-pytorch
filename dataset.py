@@ -71,7 +71,7 @@ class ImageSegmentationDataset(torch.utils.data.Dataset):
 
 
 class LatentSegmentationDataset(torch.utils.data.Dataset):
-    def __init__(self, latent_dir, noise_dir, image_dir, seg_dir, n_class=19):
+    def __init__(self, latent_dir=None, noise_dir=None, image_dir=None, seg_dir=None, n_class=19):
         super(LatentSegmentationDataset, self).__init__()
         self.n_class = n_class
         self.latent_dir = latent_dir
@@ -87,11 +87,21 @@ class LatentSegmentationDataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
         name = self.latent_files[index]
         latent_path = osj(self.latent_dir, name)
-        noise_path = osj(self.noise_dir, name)
-        image_path = osj(self.image_dir, name.replace(".npy", ".jpg"))
-        seg_path = osj(self.seg_dir, name.replace(".npy", ".png"))
         latent = np.load(latent_path)
-        noise = np.load(noise_path, allow_pickle=True)
-        image = utils.imread(image_path).copy()
+        seg_path = osj(self.seg_dir, name.replace(".npy", ".png"))
         label = utils.imread(seg_path).copy()
+        if self.noise_dir is not None:
+            noise_path = osj(self.noise_dir, name)
+            noise = np.load(noise_path, allow_pickle=True)
+        else:
+            noise = 0
+        if self.image_dir is not None:
+            image_path = osj(self.image_dir, name.replace(".npy", ".jpg"))
+            image = utils.imread(image_path).copy()
+        else:
+            image = 0
         return latent, noise, image, label
+    
+    def __repr__(self):
+        print("=> Latent segmentation dataset")
+        print(f"=> Number of samples: {len(self)}")

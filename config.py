@@ -116,7 +116,6 @@ class TSSegConfig(BaseConfig):
         super(TSSegConfig, self).__init__()
     
         self.parser.add_argument("--seg-net", default="checkpoint/faceparse_unet.pth", help="The load path of semantic segmentation network")
-        self.parser.add_argument("--dataset", default="datasets/stylegan", help="The path to segmentation dataset")
         self.parser.add_argument("--seg", default=1., type=float, help="Coefficient of segmentation loss")
         self.parser.add_argument("--mse", default=1., type=float, help="Coefficient of MSE loss")
         self.parser.add_argument("--seg-cfg", default="conv1-64-19", help="Configure of segmantic segmentation extractor")
@@ -157,6 +156,40 @@ class TSSegConfig(BaseConfig):
         print("=> MSE loss coefficient: %.4f" % self.mse_coef)
         print("=> Segmentation dataset %s" % self.dataset_path)
 
+
+class SegConfig(BaseConfig):
+    def __init__(self):
+        super(SegConfig, self).__init__()
+
+        self.parser.add_argument("--dataset", default="datasets/CelebAMask-HQ", help="Path of latent segmentation dataset")
+        self.parser.add_argument("--idmap", default=1, type=int, help="Map the 19 class id of CelebA Mask to 16 classes")
+        self.parser.add_argument("--seg", default=1., type=float, help="Coefficient of segmentation loss")
+        self.parser.add_argument("--seg-cfg", default="3conv1-64-16", help="Configure of segmantic segmentation extractor")
+
+    def parse(self):
+        super(SegConfig, self).parse()
+        self.task = "seg"
+        self.dataset = self.args.dataset
+        self.seg_coef = self.args.seg
+        self.semantic_config = self.args.seg_cfg
+        self.map_id = True
+        self.id2cid = {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 4, 6: 5, 7: 5, 8: 6, 9: 6, 10: 7, 11: 8, 12: 9, 13: 10, 14: 11, 15: 12, 16: 13, 17: 14, 18: 15}
+
+        self.ds = dataset.LatentSegmentationDataset(
+            latent_dir=osj(self.dataset, "dlatent_train"),
+            noise_dir=osj(self.dataset, "noise_train"),
+            seg_dir=osj(self.dataset, "CelebAMask-HQ-mask")
+            )
+
+        self.name = f"{self.task}_{self.seg_coef}_{self.semantic_config}"
+        self.expr_dir = osj("expr", self.name)
+        #os.system("rm -r %s" % self.expr_dir)
+        os.system("mkdir %s" % self.expr_dir)
+
+    def print_info(self):
+        super(SegConfig, self).print_info()
+        print(self.ds)
+        
 
 class FixSegConfig(BaseConfig):
     def __init__(self):

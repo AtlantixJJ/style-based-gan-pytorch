@@ -11,9 +11,6 @@ import config
 from utils import *
 from loss import *
 
-STEP = 8
-ALPHA = 1
-
 cfg = config.BaseConfig()
 cfg.parse()
 cfg.print_info()
