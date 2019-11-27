@@ -42,13 +42,24 @@ record = cfg.record
 avgmseloss = 0
 count = 0
 noise = None
-for ind, (latent_np, noise_np, image_np, label_np) in enumerate(tqdm(cfg.ds)):
-    latent = torch.from_numpy(latent_np).float().cuda()
+
+def infinite_dataloader(dl, total):
+	i = 0
+	while True:
+		for sample in dl:
+			i += 1
+			if i == total:
+				return
+			yield sample
+
+for ind, sample in enumerate(tqdm(infinite_dataloader(cfg.ds, cfg.n_iter + 1))):
+	break
+    latent = sample[0].cuda()
     if noise is None:
-        noise = [torch.from_numpy(noise).float().cuda() for noise in noise_np]
+        noise = [torch.from_numpy(noise).float().cuda() for noise in sample[1]]
     else:
         for i in range(len(noise)):
-            noise[i] = torch.from_numpy(noise_np[i]).float().cuda()
+            noise[i] = sample[1][i].float().cuda()
 
     with torch.no_grad():
         sg.set_noise(noise)

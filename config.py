@@ -180,6 +180,7 @@ class SegConfig(BaseConfig):
             noise_dir=osj(self.dataset, "noise_train"),
             seg_dir=osj(self.dataset, "CelebAMask-HQ-mask")
             )
+        self.dl = DataLoader(self.ds, shuffle=True, batch_size=1)
 
         self.name = f"{self.task}_{self.seg_coef}_{self.semantic_config}"
         self.expr_dir = osj("expr", self.name)
