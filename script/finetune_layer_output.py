@@ -6,7 +6,7 @@ from torchvision import utils as vutils
 from tqdm import tqdm
 from PIL import Image
 import numpy as np
-from model.seg import StyledGenerator
+import model
 import config
 from utils import *
 from loss import *
@@ -18,13 +18,18 @@ cfg.setup()
 
 state_dicts = torch.load(cfg.load_path, map_location='cpu')
 
-sg = StyledGenerator()
-sg.load_state_dict(state_dicts['generator'])
+sg = model.tf.StyledGenerator()
+missed = sg.load_state_dict(state_dicts, strict=False)
+#sg.g_synthesis.torgb.weight.data.copy_(state_dicts['g_synthesis.torgb.weight'])
+#sg.g_synthesis.torgb.bias.data.copy_(state_dicts['g_synthesis.torgb.bias'])
+#sg.g_synthesis.torgbs[-1].weight.data.copy_(state_dicts['g_synthesis.torgb.weight'])
+#sg.g_synthesis.torgbs[-1].bias.data.copy_(state_dicts['g_synthesis.torgb.bias'])
+print(missed)
 sg.train()
 sg = sg.cuda()
 
 # new parameter adaption stage
-g_optim = torch.optim.Adam(sg.generator.to_rgb.parameters(), lr=cfg.lr, betas=(0.9, 0.9))
+g_optim = torch.optim.Adam(sg.g_synthesis.torgbs.parameters(), lr=1e-3)
 mse = torch.nn.MSELoss()
 mse = mse.cuda()
 
@@ -32,17 +37,17 @@ latent = torch.randn(cfg.batch_size, 512).cuda()
 
 count = 0
 record = {'loss': []}
-for i in tqdm(range(cfg.n_iter)):
+for i in tqdm(range(10001)):
     latent.normal_()
 
-    images = sg.all_level_forward(latent)
+    images = sg.all_layer_forward(latent)
     target = images[-1].detach()
     images = images[:-1]
     mselosses = []
     for img in images:
         mselosses.append(mse(
-            img,
-            F.interpolate(target, target.shape[2:], mode="bicubic")))
+            F.interpolate(img, target.shape[2:], mode="bilinear"),
+            target))
     mseloss = sum(mselosses) / len(mselosses)
 
     loss = mseloss
@@ -52,6 +57,14 @@ for i in tqdm(range(cfg.n_iter)):
     g_optim.zero_grad()
 
     record['loss'].append(torch2numpy(loss))
-    write_log(cfg.expr_dir, record)
+    if i % 20 == 0:
+        write_log(cfg.expr_dir, record)
+        plot_dic(record, f"{cfg.expr_dir}/loss.png")
+
+    if i % 1000 == 0:
+        images = images + [target]
+        image_list = [F.interpolate(img[0:1], (256, 256), mode="bilinear") for img in images]
+        image_list = (torch.cat(image_list).clamp(-1, 1) + 1) / 2
+        vutils.save_image(image_list, f"{cfg.expr_dir}/img_{i // 200}.png", nrow=4)
 
 torch.save(sg.state_dict(), cfg.expr_dir + "/iter_%06d.model" % i)

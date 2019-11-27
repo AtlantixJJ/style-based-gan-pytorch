@@ -329,7 +329,7 @@ class G_synthesis(nn.Module):
                      'lrelu': (nn.LeakyReLU(negative_slope=0.2), np.sqrt(2))}[nonlinearity]
         num_layers = resolution_log2 * 2 - 2
         num_styles = num_layers if use_styles else 1
-        torgbs = []
+        self.torgbs = nn.ModuleList()
         blocks = []
         self.stage = []
         for res in range(2, resolution_log2 + 1):
@@ -345,10 +345,13 @@ class G_synthesis(nn.Module):
                 blocks.append((name,
                                GSynthesisBlock(last_channels, channels, blur_filter, dlatent_size, gain, use_wscale, use_noise, use_pixel_norm, use_instance_norm, use_styles, act)))
             last_channels = channels
+            if res != resolution_log2:
+                self.torgbs.append(MyConv2d(channels, num_channels, 1, gain=1, use_wscale=use_wscale))
         self.torgb = MyConv2d(channels, num_channels, 1, gain=1, use_wscale=use_wscale)
+        self.torgbs.append(self.torgb)
         self.blocks = nn.ModuleDict(OrderedDict(blocks))
         
-    def forward(self, dlatents_in):
+    def forward(self, dlatents_in, step):
         # Input: Disentangled latents (W) [minibatch, num_layers, dlatent_size].
         # lod_in = tf.cast(tf.get_variable('lod', initializer=np.float32(0), trainable=False), dtype)
         batch_size = dlatents_in.size(0)       
@@ -358,7 +361,9 @@ class G_synthesis(nn.Module):
             else:
                 x = m(x, dlatents_in[:, 2*i:2*i+2])
             self.stage[i] = x
-        rgb = self.torgb(x)
+            if i == step:
+                rgb = self.torgbs[i](x)
+                break
         return rgb
 
 
@@ -454,7 +459,7 @@ class StyledGenerator(nn.Module):
         extractor, reviser, visualizer = self.semantic_branch
         count = 0
         outputs = []
-        for seg_input in self.g_synthesis.stage:
+        for i, seg_input in enumerate(self.g_synthesis.stage):
             if seg_input.size(2) >= 16:
                 if count == 0:
                     hidden = extractor[count](seg_input)
@@ -464,15 +469,19 @@ class StyledGenerator(nn.Module):
                     hidden = reviser[count - 1](hidden)
                 outputs.append(visualizer[count](hidden))
                 count += 1
+            if i == step:
+                break
         return outputs
     
-    def extract_segmentation_conv(self):
+    def extract_segmentation_conv(self, step=8):
         count = 0
         outputs = []
-        for seg_input in self.g_synthesis.stage:
+        for i, seg_input in enumerate(self.g_synthesis.stage):
             if seg_input.size(2) >= 16:
                 outputs.append(self.semantic_extractor[count](seg_input))
                 count += 1
+            if i == step:
+                break
         return outputs
 
     def freeze_g_mapping(self, train=False):
@@ -495,8 +504,8 @@ class StyledGenerator(nn.Module):
         for i in range(len(noises)):
             self.noise_layers[i].noise = noises[i]
 
-    def forward(self, x):
-        return self.g_synthesis(self.g_mapping(x))
+    def forward(self, x, step=8):
+        return self.g_synthesis(self.g_mapping(x), step)
     
     def extract_segmentation(self):
         if "conv" in self.segcfg:

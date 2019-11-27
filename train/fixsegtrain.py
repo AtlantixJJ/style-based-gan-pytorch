@@ -60,7 +60,7 @@ for i in tqdm(range(cfg.n_iter + 1)):
 	latent.normal_()
 
 	with torch.no_grad():
-		gen = sg(latent)
+		gen = sg(latent).clamp(-1, 1)
 		gen = F.interpolate(gen, 512, mode="bilinear")
 		label = faceparser(gen).argmax(1)
 		if cfg.map_id:
@@ -119,7 +119,7 @@ for i in tqdm(range(cfg.n_iter + 1)):
 		gen_img = (gen[0:1].clamp(-1, 1) + 1) / 2
 		genviz = genlabels + [gen_img]
 		genviz = torch.cat([F.interpolate(m, 256).cpu() for m in genviz])
-		vutils.save_image(genviz, cfg.expr_dir + "/genlabel_viz_%05d.png" % i, nrow=3)
+		vutils.save_image(genviz, cfg.expr_dir + "/genlabel_viz_%05d.png" % i, nrow=2)
 		vutils.save_image(tarviz, cfg.expr_dir + "/tarlabel_viz_%05d.png" % i, nrow=2)
 		utils.write_log(cfg.expr_dir, record)
 		utils.plot_dic(record, cfg.expr_dir + "/loss.png")
