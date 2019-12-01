@@ -380,11 +380,49 @@ class StyledGenerator(nn.Module):
         self.n_layer = int(self.segcfg[-1])
 
         if "conv" in self.segcfg:
+            # final layer not good, but good classification on early layers
             self.build_conv_extractor()
         elif "cas" in self.segcfg:
+            # good in general, but some details are still lost
             self.build_cascade_extractor()
         elif "gen" in self.segcfg:
+            # generally the same with cas, a little worse, some details are lost
             self.build_gen_extractor()
+        elif "cat" in self.segcfg:
+            self.build_cat_extractor()
+    
+    def build_cat_extractor(self):
+        def conv_block(in_dim, out_dim):
+            midim = (in_dim + out_dim) // 2
+            if self.n_layer == 1:
+                _m = [MyConv2d(in_dim, out_dim, self.ksize), nn.ReLU(inplace=True)]
+            else:
+                _m = []
+                _m.append(MyConv2d(in_dim, midim, self.ksize))
+                _m.append(nn.ReLU(inplace=True))
+                for i in range(self.n_layer - 2):
+                    _m.append(MyConv2d(midim, midim, self.ksize))
+                    _m.append(nn.ReLU(inplace=True))
+                _m.append(MyConv2d(midim, out_dim, self.ksize))
+                _m.append(nn.ReLU(inplace=True))
+            return nn.Sequential(*_m)
+        
+        # start from 16x16 resolution
+        semantic_extractor = nn.ModuleList([
+            conv_block(512, 256), # (128,512, 512)
+            conv_block(512, 256), # (128,512, 512)
+            conv_block(256, 256), # (128,512, 512)
+            conv_block(128, 128), # (128,512, 512)
+            conv_block(64 , 64 ), # (64, 512, 512)
+            conv_block(32 , 64 ), # (32, 512, 512)
+            #conv_block(16 , 16 )
+        ])
+
+        semantic_visualizer = MyConv2d(1024, self.n_class, self.ksize)
+
+        self.semantic_branch = nn.ModuleList([
+            semantic_extractor,
+            semantic_visualizer])
 
     def build_gen_extractor(self):
         def conv_block(in_dim, out_dim):
@@ -524,6 +562,24 @@ class StyledGenerator(nn.Module):
                 count += 1
         return outputs
 
+    def extract_segmentation_cat(self):
+        count = 0
+        outputs = []
+        hiddens = []
+        extractor, visualizer = self.semantic_branch
+        # note the the 1024 resolution layer's output is not collected
+        for i, seg_input in enumerate(self.g_synthesis.stage):
+            if seg_input.size(2) >= 16:
+                hiddens.append(extractor[count](seg_input))
+                count += 1
+        # concat
+        base_size = hiddens[-1].size(2)
+        feat = torch.cat(
+            [F.interpolate(h, base_size, mode="bilinear") for h in hiddens],
+            1)
+        outputs[0] = visualizer(feat)
+        return outputs
+
     def freeze_g_mapping(self, train=False):
         for param in self.g_mapping.parameters():
             param.requires_grad = train
@@ -554,6 +610,8 @@ class StyledGenerator(nn.Module):
             return self.extract_segmentation_cascade()
         elif "gen" in self.segcfg:
             return self.extract_segmentation_cascade()
+        elif "cat" in self.segcfg:
+            return self.extract_segmentation_cat()
     
     def predict(self, latent):
         # start from w+

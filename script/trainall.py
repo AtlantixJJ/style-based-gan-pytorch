@@ -9,7 +9,7 @@ class FixSeg(object):
             "1gen1-64-16"
             ]
 
-        self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --arch tfseg --gpu %s --batch_size 1 --iter-num 2000 --zero 0 &"
+        self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --arch tfseg --gpu %s --batch_size 1 --iter-num 5000 --zero 0 &"
     
     def args_gen(self, gpus):
         l = []

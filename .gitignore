@@ -1,4 +1,6 @@
 # temp files
+*.npy
+*.pkl
 datasets
 results
 expr
