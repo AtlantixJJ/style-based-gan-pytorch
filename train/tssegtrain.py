@@ -36,7 +36,7 @@ sg = getattr(model, cfg.arch).StyledGenerator(semantic=cfg.semantic_config)
 sg.load_state_dict(state_dicts, strict=False)
 sg.train()
 sg = sg.to(cfg.device2)
-sg.freeze_g_mapping() # do not change style branch
+sg.freeze_g_mapping()  # do not change style branch
 sg.freeze_g_synthesis()
 del state_dicts
 

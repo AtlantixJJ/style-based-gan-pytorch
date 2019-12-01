@@ -118,13 +118,13 @@ class TSSegConfig(BaseConfig):
         self.parser.add_argument("--seg-net", default="checkpoint/faceparse_unet.pth", help="The load path of semantic segmentation network")
         self.parser.add_argument("--seg", default=1., type=float, help="Coefficient of segmentation loss")
         self.parser.add_argument("--mse", default=1., type=float, help="Coefficient of MSE loss")
-        self.parser.add_argument("--seg-cfg", default="conv1-64-19", help="Configure of segmantic segmentation extractor")
+        self.parser.add_argument("--seg-cfg", default="1conv1-64-19", help="Configure of segmantic segmentation extractor")
         self.parser.add_argument("--imsize", default=512, type=int, help="Train image size")
 
     def parse(self):
         super(TSSegConfig, self).parse()
         self.task = "tsseg"
-        self.dataset_path = self.args.dataset
+        self.arch = "tfseg"
         self.mse_coef = self.args.mse
         self.seg_coef = self.args.seg
         self.semantic_config = self.args.seg_cfg
@@ -154,7 +154,6 @@ class TSSegConfig(BaseConfig):
         print("=> Segmentation configure: %s" % self.semantic_config)
         print("=> Segmentation loss coefficient: %.4f" % self.seg_coef)
         print("=> MSE loss coefficient: %.4f" % self.mse_coef)
-        print("=> Segmentation dataset %s" % self.dataset_path)
 
 
 class SegConfig(BaseConfig):
@@ -168,12 +167,12 @@ class SegConfig(BaseConfig):
 
     def parse(self):
         super(SegConfig, self).parse()
+        self.n_iter = 5000
         self.task = "seg"
         self.dataset = self.args.dataset
         self.seg_coef = self.args.seg
         self.semantic_config = self.args.seg_cfg
         self.map_id = True
-        self.id2cid = {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 4, 6: 5, 7: 5, 8: 6, 9: 6, 10: 7, 11: 8, 12: 9, 13: 10, 14: 11, 15: 12, 16: 13, 17: 14, 18: 15}
 
         self.ds = dataset.LatentSegmentationDataset(
             latent_dir=osj(self.dataset, "dlatent_train"),
@@ -181,6 +180,8 @@ class SegConfig(BaseConfig):
             seg_dir=osj(self.dataset, "CelebAMask-HQ-mask")
             )
         self.dl = DataLoader(self.ds, shuffle=True, batch_size=1)
+
+        self.record = {'loss': [], 'segloss': []}
 
         self.name = f"{self.task}_{self.seg_coef}_{self.semantic_config}"
         self.expr_dir = osj("expr", self.name)
@@ -231,6 +232,7 @@ class FixSegConfig(BaseConfig):
         super(FixSegConfig, self).print_info()
         print("=> Segmentation configure: %s" % self.semantic_config)
         print("=> Segmentation loss coefficient: %.4f" % self.seg_coef)
+
 
 class TSConfig(BaseConfig):
     def __init__(self):

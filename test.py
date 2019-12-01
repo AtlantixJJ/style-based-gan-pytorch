@@ -15,8 +15,8 @@ from lib.face_parsing import unet
 
 rootdir = "datasets/CelebAMask-HQ/"
 ds = dataset.LatentSegmentationDataset(
-    latent_dir=rootdir+"dlatent",
-    noise_dir=rootdir+"noise",
+    latent_dir=rootdir+"dlatent_test",
+    noise_dir=rootdir+"noise_test",
     image_dir=rootdir+"CelebA-HQ-img",
     seg_dir=rootdir+"CelebAMask-HQ-mask")
 
@@ -113,9 +113,9 @@ def evaluate_on_dataset(predict_func, ds, save_path="record.npy"):
     evaluator.save(save_path)
 
 for model in model_files:
-    print("=> Load from %s" % model_files[-1])
+    print("=> Load from %s" % model)
     state_dict = torch.load(model, map_location='cuda:0')
-    missed = generator.load_state_dict(state_dict, strict=True)
+    missed = generator.load_state_dict(state_dict, strict=False)
     print(missed)
     ind = model.rfind("/")
     iteration = model[ind+1:].replace("iter_", "").replace(".model", "")

@@ -81,10 +81,18 @@ class LatentSegmentationDataset(torch.utils.data.Dataset):
         self.latent_files = os.listdir(self.latent_dir)
         self.latent_files.sort()
 
+        self.rng = np.random.RandomState(1116)
+        self.indice = np.arange(0, len(self.latent_files))
+        self.reset()
+
+    def reset(self):
+        self.rng.shuffle(self.indice)
+
     def __len__(self):
         return len(self.latent_files)
 
     def __getitem__(self, index):
+        index = self.indice[index]
         name = self.latent_files[index]
         latent_path = osj(self.latent_dir, name)
         latent = np.load(latent_path)
@@ -102,6 +110,7 @@ class LatentSegmentationDataset(torch.utils.data.Dataset):
             image = 0
         return latent, noise, image, label
     
-    def __repr__(self):
-        print("=> Latent segmentation dataset")
-        print(f"=> Number of samples: {len(self)}")
+    def __str__(self):
+        strs =  "=> Latent segmentation dataset\n"
+        strs += f"=> Number of samples: {len(self)}\n"
+        return strs

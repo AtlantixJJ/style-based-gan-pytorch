@@ -37,7 +37,7 @@ if args.model == "expr":
 savepath = args.model.replace("expr/", "results/")
 
 device = 'cpu'
-torch.manual_seed(1314)
+torch.manual_seed(1116)
 latent = torch.randn(1, 512).to(device)
 latent.requires_grad = True
 noise = []
@@ -84,7 +84,7 @@ if "seg" in args.task:
 
     for i, model_file in enumerate(model_files):
         print("=> Load from %s" % model_file)
-        generator.load_state_dict(torch.load(model_file, map_location='cpu'))
+        generator.load_state_dict(torch.load(model_file, map_location='cpu'), strict=False)
         generator.eval()
 
         gen = generator(latent)

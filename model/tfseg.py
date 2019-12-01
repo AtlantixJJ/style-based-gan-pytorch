@@ -329,7 +329,7 @@ class G_synthesis(nn.Module):
                      'lrelu': (nn.LeakyReLU(negative_slope=0.2), np.sqrt(2))}[nonlinearity]
         num_layers = resolution_log2 * 2 - 2
         num_styles = num_layers if use_styles else 1
-        self.torgbs = nn.ModuleList()
+        #self.torgbs = nn.ModuleList()
         blocks = []
         self.stage = []
         for res in range(2, resolution_log2 + 1):
@@ -345,13 +345,13 @@ class G_synthesis(nn.Module):
                 blocks.append((name,
                                GSynthesisBlock(last_channels, channels, blur_filter, dlatent_size, gain, use_wscale, use_noise, use_pixel_norm, use_instance_norm, use_styles, act)))
             last_channels = channels
-            if res != resolution_log2:
-                self.torgbs.append(MyConv2d(channels, num_channels, 1, gain=1, use_wscale=use_wscale))
+            #if res != resolution_log2:
+            #    self.torgbs.append(MyConv2d(channels, num_channels, 1, gain=1, use_wscale=use_wscale))
         self.torgb = MyConv2d(channels, num_channels, 1, gain=1, use_wscale=use_wscale)
-        self.torgbs.append(self.torgb)
+        #self.torgbs.append(self.torgb)
         self.blocks = nn.ModuleDict(OrderedDict(blocks))
         
-    def forward(self, dlatents_in, step):
+    def forward(self, dlatents_in):
         # Input: Disentangled latents (W) [minibatch, num_layers, dlatent_size].
         # lod_in = tf.cast(tf.get_variable('lod', initializer=np.float32(0), trainable=False), dtype)
         batch_size = dlatents_in.size(0)       
@@ -361,9 +361,7 @@ class G_synthesis(nn.Module):
             else:
                 x = m(x, dlatents_in[:, 2*i:2*i+2])
             self.stage[i] = x
-            if i == step:
-                rgb = self.torgbs[i](x)
-                break
+        rgb = self.torgb(x)
         return rgb
 
 
@@ -385,6 +383,55 @@ class StyledGenerator(nn.Module):
             self.build_conv_extractor()
         elif "cas" in self.segcfg:
             self.build_cascade_extractor()
+        elif "gen" in self.segcfg:
+            self.build_gen_extractor()
+
+    def build_gen_extractor(self):
+        def conv_block(in_dim, out_dim):
+            midim = (in_dim + out_dim) // 2
+            if self.n_layer == 1:
+                _m = [MyConv2d(in_dim, out_dim, self.ksize), nn.ReLU(inplace=True)]
+            else:
+                _m = []
+                _m.append(MyConv2d(in_dim, midim, self.ksize))
+                _m.append(nn.ReLU(inplace=True))
+                for i in range(self.n_layer - 2):
+                    _m.append(MyConv2d(midim, midim, self.ksize))
+                    _m.append(nn.ReLU(inplace=True))
+                _m.append(MyConv2d(midim, out_dim, self.ksize))
+                _m.append(nn.ReLU(inplace=True))
+            return nn.Sequential(*_m)
+
+        # start from 16x16 resolution
+        semantic_extractor = nn.ModuleList([
+            conv_block(512, 512),
+            conv_block(512, 512),
+            conv_block(256, 256),
+            conv_block(128, 128),
+            conv_block(64 , 64 ),
+            conv_block(32 , 32 ),
+            conv_block(16 , 16 )
+        ])
+        semantic_visualizer = nn.ModuleList([
+            MyConv2d(512, self.n_class, 1),
+            MyConv2d(512, self.n_class, 1),
+            MyConv2d(256, self.n_class, 1),
+            MyConv2d(128, self.n_class, 1),
+            MyConv2d(64 , self.n_class, 1),
+            MyConv2d(32 , self.n_class, 1),
+            MyConv2d(16 , self.n_class, 1)])
+        semantic_reviser = nn.ModuleList([
+            conv_block(512, 512),
+            conv_block(512, 256),
+            conv_block(256, 128),
+            conv_block(128, 64 ),
+            conv_block(64 , 32 ),
+            conv_block(32 , 16 )])
+
+        self.semantic_branch = nn.ModuleList([
+            semantic_extractor, # 0
+            semantic_reviser, # 1
+            semantic_visualizer]) # 2
 
     def build_cascade_extractor(self):
         def conv_block(in_dim, out_dim, ksize):
@@ -412,12 +459,10 @@ class StyledGenerator(nn.Module):
             conv_block(32 , self.semantic_dim, self.ksize),
             conv_block(16 , self.semantic_dim, self.ksize)
         ])
-
         semantic_reviser = nn.ModuleList([
             conv_block(self.semantic_dim, self.semantic_dim, 3)
                 for i in range(len(semantic_extractor) - 1)
             ])
-
         semantic_visualizer = nn.ModuleList([
             MyConv2d(self.semantic_dim, self.n_class, 1)
                 for i in range(len(semantic_extractor))
@@ -464,24 +509,19 @@ class StyledGenerator(nn.Module):
                 if count == 0:
                     hidden = extractor[count](seg_input)
                 else:
-                    hidden = F.interpolate(hidden, scale_factor=2) + \
-                                extractor[count](seg_input)
-                    hidden = reviser[count - 1](hidden)
+                    hidden = reviser[count - 1](F.interpolate(hidden, scale_factor=2))
+                    hidden = hidden + extractor[count](seg_input)
                 outputs.append(visualizer[count](hidden))
                 count += 1
-            if i == step:
-                break
         return outputs
     
-    def extract_segmentation_conv(self, step=8):
+    def extract_segmentation_conv(self):
         count = 0
         outputs = []
         for i, seg_input in enumerate(self.g_synthesis.stage):
             if seg_input.size(2) >= 16:
                 outputs.append(self.semantic_extractor[count](seg_input))
                 count += 1
-            if i == step:
-                break
         return outputs
 
     def freeze_g_mapping(self, train=False):
@@ -504,13 +544,15 @@ class StyledGenerator(nn.Module):
         for i in range(len(noises)):
             self.noise_layers[i].noise = noises[i]
 
-    def forward(self, x, step=8):
-        return self.g_synthesis(self.g_mapping(x), step)
+    def forward(self, x):
+        return self.g_synthesis(self.g_mapping(x))
     
     def extract_segmentation(self):
         if "conv" in self.segcfg:
             return self.extract_segmentation_conv()
         elif "cas" in self.segcfg:
+            return self.extract_segmentation_cascade()
+        elif "gen" in self.segcfg:
             return self.extract_segmentation_cascade()
     
     def predict(self, latent):
