@@ -59,8 +59,8 @@ for ind, sample in enumerate(pbar):
     eps.uniform_()
 
     with torch.no_grad():
-        fake_image = sg(latent)
-        fake_label_logit = sg.extract_segmentation()[-1]
+        fake_image, fake_label_logit = sg(latent)
+        #fake_label_logit = sg.extract_segmentation()[-1]
         #fake_label = utils.onehot_logit(fake_label_logit, cfg.n_class)
         fake_label = F.softmax(fake_label_logit, 1)
         fake_label = F.interpolate(fake_label, fake_image.size(2), mode="bicubic")
@@ -96,8 +96,7 @@ for ind, sample in enumerate(pbar):
     sg.zero_grad()
     utils.requires_grad(disc, False)
     latent.normal_()
-    gen = sg(latent)
-    gen_label_logit = sg.extract_segmentation()[-1]
+    gen, gen_label_logit = sg(latent)
     #this is not differentiable
     #gen_label = utils.onehot_logit(gen_label_logit, cfg.n_class)
     gen_label = F.softmax(gen_label_logit, 1)

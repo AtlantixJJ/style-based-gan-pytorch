@@ -602,8 +602,12 @@ class StyledGenerator(nn.Module):
         for i in range(len(noises)):
             self.noise_layers[i].noise = noises[i]
 
+    #def forward(self, x):
+    #    return self.g_synthesis(self.g_mapping(x))
     def forward(self, x):
-        return self.g_synthesis(self.g_mapping(x))
+        image = self.g_synthesis(self.g_mapping(x))
+        seg = self.extract_segmentation()[-1]
+        return image, seg
     
     def extract_segmentation(self):
         if "conv" in self.segcfg:
