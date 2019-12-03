@@ -1,5 +1,5 @@
 import torch
-
+from IPython.core.debugger import set_trace
 from torch import nn
 from torch.nn import init
 from torch.nn import functional as F
@@ -549,15 +549,19 @@ class Discriminator(nn.Module):
         self.linear = EqualLinear(512, 1)
 
     def set_semantic_config(self, cfg):
-        self.segcfg = cfg
+        self.segcfg, self.n_class = cfg.split("-")
+        self.n_class = int(self.n_class)
+
         if self.segcfg == "lowcat":
-            org_conv = self.from_rgb[0][0]
-            new_conv = EqualConv2d(
-                16 + org_conv.in_channels,
-                org_conv.out_channels,
-                org_conv.kernel_size)
-            new_conv.weight.data[:org_conv.in_channels] = org_conv.weight.data.clone()
-            new_conv.bias.data = org_conv.bias.data.clone()
+            org_conv = self.from_rgb[0][0].conv
+            in_dim, out_dim = org_conv.in_channels, org_conv.out_channels
+            ks = org_conv.kernel_size[0]
+            new_conv = EqualConv2d(self.n_class + in_dim, out_dim, ks)
+            # need to do this, otherwise weight is not present, only weight_orig
+            new_conv(torch.rand(1, self.n_class + in_dim, ks, ks))
+            org_conv(torch.rand(1, in_dim, ks, ks))
+            new_conv.conv.weight.data[:, :in_dim] = org_conv.weight.data.clone()
+            new_conv.conv.bias.data = org_conv.bias.data.clone()
             self.from_rgb[0][0] = new_conv
 
     def forward(self, input, step=0, alpha=-1):

@@ -176,6 +176,18 @@ def get_generator_extractor_lr(g, lr):
 ## Others
 ######
 
+
+def onehot(x, n):
+    z = torch.zeros(x.shape[0], n, x.shape[2], x.shape[3])
+    return z.scatter_(1, x, 1)
+
+
+def onehot_logit(x, n):
+    x = x.argmax(1, keepdim=True)
+    z = torch.zeros(x.shape[0], n, x.shape[2], x.shape[3])
+    return z.scatter_(1, x, 1)
+
+
 def requires_grad(model, flag=True):
     for p in model.parameters():
         p.requires_grad = flag

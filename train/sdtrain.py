@@ -4,6 +4,7 @@ Semantic enhanced discriminator training.
 import sys
 sys.path.insert(0, ".")
 import os
+from IPython.core.debugger import set_trace
 import torch
 import torch.nn.functional as F
 from tqdm import tqdm
@@ -27,14 +28,14 @@ state_dict = torch.load(cfg.disc_load_path, map_location='cpu')
 disc = model.disc.Discriminator(from_rgb_activate=True)
 disc.load_state_dict(state_dict)
 disc.set_semantic_config(cfg.disc_semantic_config)
-disc = nn.DataParallel(disc)
+#disc = torch.nn.DataParallel(disc)
 disc = disc.to(cfg.device)
 disc.train()
 
 state_dict = torch.load(cfg.load_path, map_location='cpu')
 sg = model.tfseg.StyledGenerator(semantic=cfg.semantic_config)
-sg.load_state_dict(state_dict)
-sg = nn.DataParallel(sg)
+sg.load_state_dict(state_dict, strict=False)
+#sg = torch.nn.DataParallel(sg)
 sg = sg.to(cfg.device)
 sg.train()
 del state_dict
@@ -45,41 +46,45 @@ d_optim = torch.optim.Adam(disc.parameters(), lr=cfg.lr * 2, betas=(0.0, 0.99))
 latent = torch.randn(cfg.batch_size, 512).cuda()
 eps = torch.rand(cfg.batch_size, 1, 1, 1).cuda()
 
+record = cfg.record
+
 pbar = tqdm(utils.infinite_dataloader(cfg.dl, cfg.n_iter + 1), total=cfg.n_iter)
 for ind, sample in enumerate(pbar):
     ind += 1
     real_image, real_label_compat = sample
     real_image = real_image.cuda()
-    size = real_label_compat.size(1)
-    real_label = torch.zeros(cfg.batch_size, cfg.n_class, size, size)
-    real_label.scatter_(1, real_label_compat, 1)
+    real_label = utils.onehot(real_label_compat, cfg.n_class).cuda()
+    real_label = F.interpolate(real_label, real_image.size(2), mode="bicubic")
     latent.normal_()
     eps.uniform_()
 
     disc_real_in = torch.cat([real_image, real_label], 1)
-    with torch.zero_grad():
+    with torch.no_grad():
         fake_image = sg(latent)
         fake_label_logit = sg.extract_segmentation()[-1]
-        fake_label_compat = fake_label_logit.argmax(1, keepdim)
-        fake_label = torch.zeros(cfg.batch_size, cfg.n_class, size, size)
-        fake_label.scatter_(1, real_label_compat, 1)
+        #fake_label = utils.onehot_logit(fake_label_logit, cfg.n_class)
+        fake_label = F.softmax(fake_label_logit, 1)
+        fake_label = F.interpolate(fake_label, fake_image.size(2), mode="bicubic")
     disc_fake_in = torch.cat([fake_image, fake_label], 1)
 
     # Train disc
     disc.zero_grad()
     disc_real = disc(disc_real_in, step=step, alpha=alpha)
-    disc_fake = disc(fake_image, step=step, alpha=alpha)
+    disc_fake = disc(disc_fake_in, step=step, alpha=alpha)
     disc_loss = disc_fake.mean() - disc_real.mean()
     
+    # not sure the segmenation mask can be interpolated
     x_hat = eps * real_image.data + (1 - eps) * fake_image.data
-    x_hat.requires_grad = True
-    disc_x_hat = disc(x_hat, step=step, alpha=alpha)
-    grad_x_hat = torch.autograd.grad(
-        outputs=disc_x_hat.sum(), 
-        inputs=x_hat,
+    y_hat = eps * real_label.data + (1 - eps) * fake_label.data
+    in_hat = torch.cat([x_hat, y_hat], 1)
+    in_hat.requires_grad = True
+    disc_hat = disc(in_hat, step=step, alpha=alpha)
+    grad_in_hat = torch.autograd.grad(
+        outputs=disc_hat.sum(), 
+        inputs=in_hat,
         create_graph=True)[0]
-    grad_x_hat_norm = grad_x_hat.view(grad_x_hat.size(0), -1).norm(2, dim=1)
-    grad_penalty = 10 * ((grad_x_hat_norm - 1) ** 2).mean()
+    grad_in_hat_norm = grad_in_hat.view(grad_in_hat.size(0), -1).norm(2, dim=1)
+    grad_penalty = 10 * ((grad_in_hat_norm - 1) ** 2).mean()
     (disc_loss + grad_penalty).backward()
     d_optim.step()
 
@@ -88,7 +93,11 @@ for ind, sample in enumerate(pbar):
     utils.requires_grad(disc, False)
     latent.normal_()
     gen = sg(latent)
-    gen_label = sg.extract_segmentation()
+    gen_label_logit = sg.extract_segmentation()[-1]
+    #this is not differentiable
+    #gen_label = utils.onehot_logit(gen_label_logit, cfg.n_class)
+    gen_label = F.softmax(gen_label_logit, 1)
+    gen_label = F.interpolate(gen_label, gen.size(2), mode="bicubic")
     disc_gen_in = torch.cat([gen, gen_label], 1)
     disc_gen = disc(disc_gen_in, step=step, alpha=alpha)
     gen_loss = -disc_gen.mean()
@@ -110,127 +119,29 @@ for ind, sample in enumerate(pbar):
         l.append(record[k][-1])
     print(l)
 
-    if ind % cfg.save_iter == 0 or i == cfg.n_iter:
-        print("=> Snapshot model %d" % ind)
+    if ind % cfg.save_iter == 0 or ind == cfg.n_iter:
+        print(f"=> Snapshot model {ind}")
         torch.save(sg.state_dict(), cfg.expr_dir + "/gen_iter_%06d.model" % ind)
         torch.save(disc.state_dict(), cfg.expr_dir + "/disc_iter_%06d.model" % ind)
 
     if ind % cfg.disp_iter == 0 or ind == cfg.n_iter or cfg.debug:
         vutils.save_image(gen[:4], cfg.expr_dir + '/gen_%06d.png' % ind,
                             nrow=2, normalize=True, range=(-1, 1))
-        tarlabels = []
+
+        real_label_viz = []
         for i in range(real_label.shape[0]):
-            label_viz = utils.tensor2label(real_label[i:i+1], cfg.n_class)
-            tarlabels.append(.unsqueeze(0))
-        tarviz = torch.cat([F.interpolate(m.float(), 256).cpu() for m in tarlabels])
-        genlabels = [utils.tensor2label(s[0], s.shape[1]).unsqueeze(0)
-                    for s in segs]
-        gen_img = (gen[0:1].clamp(-1, 1) + 1) / 2
-        genviz = genlabels + [gen_img]
-        genviz = torch.cat([F.interpolate(m.float(), 256).cpu() for m in genviz])
-        vutils.save_image(genviz, cfg.expr_dir + "/genlabel_viz_%05d.png" % i, nrow=2)
-        vutils.save_image(tarviz, cfg.expr_dir + "/tarlabel_viz_%05d.png" % i, nrow=2)
+            viz = utils.tensor2label(real_label_compat[i:i+1], cfg.n_class)
+            real_label_viz.append(F.interpolate(viz.unsqueeze(0), 256))
+        real_label_viz = torch.cat(real_label_viz)
+
+        gen_label_viz = []
+        gen_label_compat = gen_label.argmax(1, keepdim=True)
+        for i in range(gen_label.shape[0]):
+            viz = utils.tensor2label(gen_label_compat[i:i+1], cfg.n_class)
+            gen_label_viz.append(F.interpolate(viz.unsqueeze(0), 256))
+        gen_label_viz = torch.cat(gen_label_viz)
+
+        vutils.save_image(gen_label_viz, cfg.expr_dir + "/gen_label_viz_%05d.png" % ind, nrow=2)
+        vutils.save_image(real_label_viz, cfg.expr_dir + "/real_label_viz_%05d.png" % ind, nrow=2)
         utils.write_log(cfg.expr_dir, record)
         utils.plot_dic(record, cfg.expr_dir + "/loss.png")
-
-record = cfg.record
-noise = [0] * (STEP + 1)
-avgmseloss = 0
-count = 0
-for i in tqdm(range(cfg.n_iter + 1)):
-    latent = torch.randn(cfg.batch_size, 512)
-    for k in range(STEP + 1):
-        size = 4 * 2 ** k
-        noise[k] = torch.randn(cfg.batch_size, 1, size, size)
-
-    with torch.no_grad():
-        target_image = tg(latent.to(cfg.device1), noise=[n.to(
-            cfg.device1) for n in noise], step=STEP, alpha=ALPHA)
-        target_image = target_image.detach().to(cfg.device2)
-
-    if i <= cfg.stage2_step:
-        lerp_val = lrschedule(i)
-        g_optim = g_optim1
-    else:
-        lerp_val = 1
-        g_optim = g_optim2
-    set_lerp_val(sg.generator.progression, lerp_val)
-
-    latent2 = latent.to(cfg.device2)
-    noise2 = [n.to(cfg.device2) for n in noise]
-
-    gen = sg(latent2, noise=noise2, step=STEP, alpha=ALPHA)
-    masks = get_masks(sg.generator.progression)
-
-    if cfg.debug:
-        vutils.save_image(visualize_masks(masks), cfg.expr_dir + '/debug1_original_mask.png',
-                          nrow=4, normalize=True, range=(0, 1))
-
-    permute_masks(masks)
-
-    if cfg.debug:
-        vutils.save_image(visualize_masks(masks), cfg.expr_dir + '/debug2_permuted_mask.png',
-                          nrow=4, normalize=True, range=(0, 1))
-
-    gen_sw = sg(latent2, noise=noise2, masks=masks,
-                step=STEP, alpha=ALPHA)
-
-    masks = get_masks(sg.generator.progression)
-
-    if cfg.debug:
-        vutils.save_image(visualize_masks(masks), cfg.expr_dir + '/debug3_new_mask.png',
-                          nrow=4, normalize=True, range=(0, 1))
-
-    mseloss = crit(gen, target_image)
-    disc_loss = disc(gen, step=STEP, alpha=ALPHA)
-
-    if cfg.ma > 0:
-        mask_avgarea = maskarealoss(
-            sg.generator.progression, target=1.0/cfg.att, coef=cfg.ma)
-    else:
-        mask_avgarea = 0
-
-    if cfg.md > 0:
-        mask_divergence = maskdivloss(sg.generator.progression, coef=cfg.md)
-    else:
-        mask_divergence = 0
-
-    if cfg.mv > 0:
-        mask_value = maskvalueloss(
-            sg.generator.progression, coef=cfg.mv)
-    else:
-        mask_value = 0
-
-    loss = mseloss + mask_avgarea + mask_divergence + mask_value + disc_loss.mean()
-    with torch.autograd.detect_anomaly():
-        loss.backward()
-    g_optim.step()
-    g_optim.zero_grad()
-
-    mse_data = torch2numpy(mseloss)
-    avgmseloss = avgmseloss * 0.9 + mse_data * 0.1
-    record['loss'].append(torch2numpy(loss))
-    record['lerp_val'].append(lerp_val)
-    record['mseloss'].append(mse_data)
-    if mask_avgarea > 0:
-        record['mask_area'].append(torch2numpy(mask_avgarea))
-    if mask_divergence > 0:
-        record['mask_div'].append(torch2numpy(mask_divergence))
-    if mask_value > 0:
-        record['mask_value'].append(torch2numpy(mask_value))
-
-    if cfg.debug:
-        print(record.keys())
-        l = []
-        for k in record.keys():
-            l.append(record[k][-1])
-        print(l)
-
-    if i % 1000 == 0 and i > 0:
-        print("=> Snapshot model %d" % i)
-        torch.save(sg.state_dict(), cfg.expr_dir + "/iter_%06d.model" % i)
-        vutils.save_image(gen[:4], cfg.expr_dir + '/gen_%06d.png' % i,
-                          nrow=2, normalize=True, range=(-1, 1))
-        vutils.save_image(target_image[:4], cfg.expr_dir + '/target_%06d.png' % i,
-                          nrow=2, normalize=True, range=(-1, 1))
-        write_log(cfg.expr_dir, record)

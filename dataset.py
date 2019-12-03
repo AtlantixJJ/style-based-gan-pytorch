@@ -57,7 +57,7 @@ class ImageSegmentationDataset(torch.utils.data.Dataset):
         self.labelfiles.sort()
 
         self.rng = np.random.RandomState(1116)
-        self.indice = np.arange(0, len(self.latent_files))
+        self.indice = np.arange(0, len(self.imagefiles))
         self.reset()
 
     def reset(self):
@@ -65,19 +65,20 @@ class ImageSegmentationDataset(torch.utils.data.Dataset):
 
     def transform(self, image, label):
         image_t = self.normal_transform(image)
-        label = np.asarray(label.resize(self.size))[:, :, 0]
+        label = np.asarray(label).copy() #.resize(self.size)).copy()
+        if self.idmap is not None:
+            label = self.idmap(label)
         label_t = torch.from_numpy(label).long().unsqueeze(0)
         if torch.rand(1).numpy()[0] > 0.5:
-            image_t = torch.flip(image_t, 2)
-            label_t = torch.flip(label_t, 2)
+            image_t = torch.flip(image_t, (2,))
+            label_t = torch.flip(label_t, (2,))
         return image_t, label_t
 
     def __getitem__(self, idx):
         image = utils.pil_read(self.image_dir + "/" + self.imagefiles[idx])
         label = utils.pil_read(self.label_dir + "/" + self.labelfiles[idx])
         image_t, label_t = self.transform(image, label)
-        if self.map_id is not None:
-            label_t = self.idmap(label_t)
+        
         return image_t, label_t
     
     def __len__(self):

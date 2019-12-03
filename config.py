@@ -57,12 +57,12 @@ class BaseConfig(object):
 
     def parse(self):
         self.args = self.parser.parse_args()
+        self.n_iter = self.args.iter_num
         self.disp_iter = min(100, self.n_iter // 100)
         self.save_iter = min(1000, self.n_iter // 10)
         self.debug = self.args.debug
         self.task = self.args.task
         self.arch = self.args.arch
-        self.n_iter = self.args.iter_num
         self.lr = self.args.lr
         self.name = self.args.name
         self.load = self.args.load
@@ -199,7 +199,7 @@ class SDConfig(BaseConfig):
         self.parser.add_argument("--seg", default=1., type=float, help="Coefficient of segmentation loss")
         self.parser.add_argument("--seg-cfg", default="3conv1-64-16", help="Configure of segmantic segmentation extractor")
         self.parser.add_argument("--n-class", type=int, default=16, help="Class num")
-        self.parser.add_argument("--dseg-cfg", default="lowcat", help="Configure of how discriminator use segmantic segmentation")
+        self.parser.add_argument("--dseg-cfg", default="lowcat-16", help="Configure of how discriminator use segmantic segmentation")
 
     def parse(self):
         super(SDConfig, self).parse()
@@ -220,7 +220,7 @@ class SDConfig(BaseConfig):
             idmap=utils.idmap)
         self.dl = DataLoader(self.ds, shuffle=True)
 
-        self.record = {'loss': []}
+        self.record = {'disc_loss': [], 'grad_penalty': [], 'gen_loss': []}
 
         self.name = f"{self.task}_{self.semantic_config}"
         self.expr_dir = osj("expr", self.name)
