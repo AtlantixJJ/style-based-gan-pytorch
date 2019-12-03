@@ -72,6 +72,7 @@ for ind, sample in enumerate(pbar):
     disc_real = disc(disc_real_in, step=step, alpha=alpha)
     disc_fake = disc(disc_fake_in, step=step, alpha=alpha)
     disc_loss = disc_fake.mean() - disc_real.mean()
+    disc_loss.backward()
     
     # not sure the segmenation mask can be interpolated
     x_hat = eps * real_image.data + (1 - eps) * fake_image.data
@@ -85,7 +86,7 @@ for ind, sample in enumerate(pbar):
         create_graph=True)[0]
     grad_in_hat_norm = grad_in_hat.view(grad_in_hat.size(0), -1).norm(2, dim=1)
     grad_penalty = 10 * ((grad_in_hat_norm - 1) ** 2).mean()
-    (disc_loss + grad_penalty).backward()
+    grad_penalty.backward()
     d_optim.step()
 
     # Train gen
