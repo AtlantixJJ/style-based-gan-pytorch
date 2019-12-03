@@ -103,8 +103,6 @@ def labelcolormap(N):
 
 def tensor2label(label_tensor, n_label, imtype=np.uint8):
     label_tensor = label_tensor.cpu().float()
-    if label_tensor.size()[0] > 1:
-        label_tensor = label_tensor.max(0, keepdim=True)[1]
     label_tensor = Colorize(n_label)(label_tensor)
     return label_tensor.float() / 255.
 

@@ -130,6 +130,7 @@ for ind, sample in enumerate(pbar):
 
         real_label_viz = []
         for i in range(real_label.shape[0]):
+            print(real_label_compat.shape)
             viz = utils.tensor2label(real_label_compat[i:i+1], cfg.n_class)
             real_label_viz.append(F.interpolate(viz.unsqueeze(0), 256))
         real_label_viz = torch.cat(real_label_viz)
