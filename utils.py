@@ -370,10 +370,13 @@ Args:
 """
 def write_log(expr_dir, record):
     with open(expr_dir + "/log.txt", "w") as f:
+        anykey = None
         for key in record.keys():
+            if anykey is None:
+                anykey = key
             f.write("%s " % key)
         f.write("\n")
-        for i in range(len(record['loss'])):
+        for i in range(len(record[anykey])):
             for key in record.keys():
                 try:
                     f.write("%f " % record[key][i])
