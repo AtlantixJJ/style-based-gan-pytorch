@@ -407,18 +407,19 @@ class StyledGenerator(nn.Module):
                 _m.append(nn.ReLU(inplace=True))
             return nn.Sequential(*_m)
         
+
         # start from 16x16 resolution
         semantic_extractor = nn.ModuleList([
-            conv_block(512, 256), # (128,512, 512)
-            conv_block(512, 256), # (128,512, 512)
-            conv_block(256, 256), # (128,512, 512)
-            conv_block(128, 128), # (128,512, 512)
-            conv_block(64 , 64 ), # (64, 512, 512)
-            conv_block(32 , 64 ), # (32, 512, 512)
+            conv_block(512, 128),#256), # (128,512, 512)
+            conv_block(512, 128),#256), # (128,512, 512)
+            conv_block(256, 128),#256), # (128,512, 512)
+            conv_block(128, 128),#128), # (128,512, 512)
+            conv_block(64 , 64),#64 ), # (64, 512, 512)
+            conv_block(32 , 64),#64 ), # (32, 512, 512)
             #conv_block(16 , 16 )
         ])
 
-        semantic_visualizer = MyConv2d(1024, self.n_class, self.ksize)
+        semantic_visualizer = MyConv2d(128 * 5, self.n_class, self.ksize)
 
         self.semantic_branch = nn.ModuleList([
             semantic_extractor,
@@ -569,15 +570,16 @@ class StyledGenerator(nn.Module):
         extractor, visualizer = self.semantic_branch
         # note the the 1024 resolution layer's output is not collected
         for i, seg_input in enumerate(self.g_synthesis.stage):
-            if seg_input.size(2) >= 16:
+            #net_device = next(visualizer.parameters()).device
+            if seg_input.size(2) >= 16 and seg_input.size(2) <= 512:
                 hiddens.append(extractor[count](seg_input))
                 count += 1
         # concat
         base_size = hiddens[-1].size(2)
         feat = torch.cat(
-            [F.interpolate(h, base_size, mode="bilinear") for h in hiddens],
+            [F.interpolate(h.float(), base_size, mode="bilinear") for h in hiddens],
             1)
-        outputs[0] = visualizer(feat)
+        outputs.append(visualizer(feat))
         return outputs
 
     def freeze_g_mapping(self, train=False):

@@ -43,17 +43,7 @@ avgmseloss = 0
 count = 0
 noise = None
 
-def infinite_dataloader(dl, total):
-	i = 0
-	while True:
-		for sample in dl:
-			i += 1
-			if i == total:
-				return
-			yield sample
-		dl.reset()
-
-pbar = tqdm(infinite_dataloader(cfg.ds, cfg.n_iter + 1), total=cfg.n_iter + 1)
+pbar = tqdm(utils.infinite_dataloader(cfg.dl, cfg.n_iter + 1), total=cfg.n_iter + 1)
 for ind, sample in enumerate(pbar):
 	latent = torch.from_numpy(sample[0]).float().cuda()
 	label = torch.from_numpy(sample[3]).long().cuda().unsqueeze(0)

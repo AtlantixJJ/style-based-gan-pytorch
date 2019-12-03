@@ -3,10 +3,10 @@ import os
 class FixSeg(object):
     def __init__(self):
         self.seg_cfgs = [
-            "1conv1-64-16",
-            "1conv2-64-16",
+            "1cat1-64-16",
+            "3cat1-64-16",
             "1cas1-64-16",
-            "1gen1-64-16"
+            "1gen1-64-16",
             ]
 
         self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --arch tfseg --gpu %s --batch_size 1 --iter-num 5000 --zero 0 &"
@@ -29,10 +29,10 @@ class FixSeg(object):
 class TSSeg(FixSeg):
     def __init__(self):
         self.seg_cfgs = [
-            "1conv1-64-16",
-            "1conv2-64-16",
-            "1cas1-64-16",
-            "1gen1-64-16"
+            "1cat1-64-16",
+            "3cat1-64-16",
+            #"1cas1-64-16",
+            #"1gen1-64-16"
         ]
         self.basecmd = "python train/tssegtrain.py --task fixseg --seg-cfg %s --arch tfseg --gpu %s --batch_size 1 --iter-num 10000 &"
 
@@ -45,5 +45,5 @@ def assign_run(command_generator, gpus, false_exec=False):
         if not false_exec:
             os.system(s[:-2])
 
-gpus = ["6", "7"]; assign_run(FixSeg().command, gpus)
-gpus = ["0,2", "0,3", "1,4", "1,5"]; assign_run(TSSeg().command, gpus)
+gpus = ["4", "5", "6", "7"]; assign_run(FixSeg().command, gpus)
+gpus = ["0,2", "0,3"]; assign_run(TSSeg().command, gpus)

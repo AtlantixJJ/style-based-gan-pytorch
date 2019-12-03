@@ -36,14 +36,15 @@ class ImageSegmentationDataset(torch.utils.data.Dataset):
     """
     Currently label is not available
     """
-    def __init__(self, data_path, size):
+    def __init__(self, root, size=(1024, 1024), image_dir="train", label_dir="label", idmap=None):
         if type(size) is int:
             self.size = (size, size)
         elif type(size) is tuple or type(size) is list:
             self.size = size
-        self.root_dir = data_path
-        self.image_dir = data_path + "/train"
-        self.label_dir = data_path + "/label"
+        self.root = root
+        self.image_dir = osj(root, image_dir)
+        self.label_dir = osj(root, label_dir)
+        self.idmap = idmap
 
         self.normal_transform = transforms.Compose([
             transforms.Resize(self.size),
@@ -55,19 +56,40 @@ class ImageSegmentationDataset(torch.utils.data.Dataset):
         self.labelfiles = sum([[file for file in files if ".png" in file] for path, dirs, files in os.walk(self.label_dir) if files], [])
         self.labelfiles.sort()
 
+        self.rng = np.random.RandomState(1116)
+        self.indice = np.arange(0, len(self.latent_files))
+        self.reset()
+
+    def reset(self):
+        self.rng.shuffle(self.indice)
+
     def transform(self, image, label):
         image_t = self.normal_transform(image)
         label = np.asarray(label.resize(self.size))[:, :, 0]
-        label_t = torch.from_numpy(label).long()
+        label_t = torch.from_numpy(label).long().unsqueeze(0)
+        if torch.rand(1).numpy()[0] > 0.5:
+            image_t = torch.flip(image_t, 2)
+            label_t = torch.flip(label_t, 2)
         return image_t, label_t
 
     def __getitem__(self, idx):
         image = utils.pil_read(self.image_dir + "/" + self.imagefiles[idx])
         label = utils.pil_read(self.label_dir + "/" + self.labelfiles[idx])
-        return self.transform(image, label)
+        image_t, label_t = self.transform(image, label)
+        if self.map_id is not None:
+            label_t = self.idmap(label_t)
+        return image_t, label_t
     
     def __len__(self):
         return len(self.imagefiles)
+    
+    def __repr__(self):
+        strs = "\n"
+        strs += f"=> Root {self.root}\n"
+        strs += f"=> Image dir {self.image_dir}\n"
+        strs += f"=> Label dir {self.label_dir}\n"
+        strs += f"=> Number samples {len(self)}\n"
+        return strs
 
 
 class LatentSegmentationDataset(torch.utils.data.Dataset):

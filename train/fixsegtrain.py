@@ -23,7 +23,7 @@ cfg.setup()
 state_dict = torch.load(cfg.seg_net_path, map_location='cpu')
 faceparser = unet.unet()
 faceparser.load_state_dict(state_dict)
-faceparser = faceparser.cuda()
+faceparser = faceparser.to(cfg.device2)
 faceparser.eval()
 del state_dict
 
@@ -31,7 +31,8 @@ state_dicts = torch.load(cfg.load_path, map_location='cpu')
 sg = getattr(model, cfg.arch).StyledGenerator(semantic=cfg.semantic_config)
 sg.load_state_dict(state_dicts, strict=False)
 sg.train()
-sg = sg.cuda()
+sg = sg.to(cfg.device1)
+sg.semantic_branch = sg.semantic_branch.to(cfg.device2)
 sg.freeze_g_mapping() # fix main trunk
 sg.freeze_g_synthesis() # fix main trunk
 del state_dicts
@@ -113,12 +114,12 @@ for i in tqdm(range(cfg.n_iter + 1)):
 
 		tarlabels = [utils.tensor2label(label[i:i+1], label.shape[1]).unsqueeze(0)
 						for i in range(label.shape[0])]
-		tarviz = torch.cat([F.interpolate(m, 256).cpu() for m in tarlabels])
+		tarviz = torch.cat([F.interpolate(m.float(), 256).cpu() for m in tarlabels])
 		genlabels = [utils.tensor2label(s[0], s.shape[1]).unsqueeze(0)
 					for s in segs]
 		gen_img = (gen[0:1].clamp(-1, 1) + 1) / 2
 		genviz = genlabels + [gen_img]
-		genviz = torch.cat([F.interpolate(m, 256).cpu() for m in genviz])
+		genviz = torch.cat([F.interpolate(m.float(), 256).cpu() for m in genviz])
 		vutils.save_image(genviz, cfg.expr_dir + "/genlabel_viz_%05d.png" % i, nrow=2)
 		vutils.save_image(tarviz, cfg.expr_dir + "/tarlabel_viz_%05d.png" % i, nrow=2)
 		utils.write_log(cfg.expr_dir, record)

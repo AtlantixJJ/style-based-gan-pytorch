@@ -176,6 +176,21 @@ def get_generator_extractor_lr(g, lr):
 ## Others
 ######
 
+def requires_grad(model, flag=True):
+    for p in model.parameters():
+        p.requires_grad = flag
+
+
+def infinite_dataloader(dl, total):
+	i = 0
+	while True:
+		for sample in dl:
+			i += 1
+			if i == total:
+				return
+			yield sample
+		dl.reset()
+
 
 def set_seed(seed):
     random.seed(seed)

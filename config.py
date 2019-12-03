@@ -57,6 +57,8 @@ class BaseConfig(object):
 
     def parse(self):
         self.args = self.parser.parse_args()
+        self.disp_iter = min(100, self.n_iter // 100)
+        self.save_iter = min(1000, self.n_iter // 10)
         self.debug = self.args.debug
         self.task = self.args.task
         self.arch = self.args.arch
@@ -139,8 +141,6 @@ class TSSegConfig(BaseConfig):
 
         self.name = self.task + "_" + str(self.seg_coef) + "_" + self.semantic_config
         self.expr_dir = osj("expr", self.name)
-        #os.system("rm -r %s" % self.expr_dir)
-        os.system("mkdir %s" % self.expr_dir)
 
     def idmap(self, x):
         for fr,to in self.id2cid.items():
@@ -185,13 +185,51 @@ class SegConfig(BaseConfig):
 
         self.name = f"{self.task}_{self.seg_coef}_{self.semantic_config}"
         self.expr_dir = osj("expr", self.name)
-        #os.system("rm -r %s" % self.expr_dir)
-        os.system("mkdir %s" % self.expr_dir)
 
     def print_info(self):
         super(SegConfig, self).print_info()
         print(self.ds)
         
+
+class SDConfig(BaseConfig):
+    def __init__(self):
+        super(SDConfig, self).__init__()
+        self.parser.add_argument("--disc-net", default="checkpoint/stylegan-1024px-new-disc.model")
+        self.parser.add_argument("--dataset", default="datasets/CelebAMask-HQ")
+        self.parser.add_argument("--seg", default=1., type=float, help="Coefficient of segmentation loss")
+        self.parser.add_argument("--seg-cfg", default="3conv1-64-16", help="Configure of segmantic segmentation extractor")
+        self.parser.add_argument("--n-class", type=int, default=16, help="Class num")
+        self.parser.add_argument("--dseg-cfg", default="lowcat", help="Configure of how discriminator use segmantic segmentation")
+
+    def parse(self):
+        super(SDConfig, self).parse()
+        self.task = "sd"
+        self.n_class = self.args.n_class
+        self.disc_semantic_config = self.args.dseg_cfg
+        self.semantic_config = self.args.seg_cfg
+        self.disc_load_path = self.args.disc_net
+        self.dataset = self.args.dataset
+        self.map_id = True
+        self.imsize = 1024
+
+        self.ds = dataset.ImageSegmentationDataset(
+            root=self.dataset,
+            size=self.imsize,
+            image_dir="CelebA-HQ-img",
+            label_dir="CelebAMask-HQ-mask",
+            idmap=utils.idmap)
+        self.dl = DataLoader(self.ds, shuffle=True)
+
+        self.record = {'loss': []}
+
+        self.name = f"{self.task}_{self.semantic_config}"
+        self.expr_dir = osj("expr", self.name)
+
+    def print_info(self):
+        super(SDConfig, self).print_info()
+        print(f"=> Discriminator path: {self.disc_load_path}")
+        print(self.ds)
+
 
 class FixSegConfig(BaseConfig):
     def __init__(self):
@@ -218,8 +256,6 @@ class FixSegConfig(BaseConfig):
         self.name = "{}_{}_{}_{}".format(
             self.task, self.seg_coef, self.semantic_config, self.zero_noise)
         self.expr_dir = osj("expr", self.name)
-        #os.system("rm -r %s" % self.expr_dir)
-        os.system("mkdir %s" % self.expr_dir)
     
     def idmap(self, x):
         for fr,to in self.id2cid.items():
