@@ -28,19 +28,19 @@ state_dict = torch.load(cfg.disc_load_path, map_location='cpu')
 disc = model.disc.Discriminator(from_rgb_activate=True)
 disc.load_state_dict(state_dict)
 disc.set_semantic_config(cfg.disc_semantic_config)
-#disc = torch.nn.DataParallel(disc)
+disc = torch.nn.DataParallel(disc)
 disc = disc.to(cfg.device)
 disc.train()
 
 state_dict = torch.load(cfg.load_path, map_location='cpu')
 sg = model.tfseg.StyledGenerator(semantic=cfg.semantic_config)
 sg.load_state_dict(state_dict, strict=False)
-#sg = torch.nn.DataParallel(sg)
+sg = torch.nn.DataParallel(sg)
 sg = sg.to(cfg.device)
 sg.train()
 del state_dict
 
-g_optim = torch.optim.Adam(sg.g_synthesis.parameters(), lr=cfg.lr, betas=(0.0, 0.99))
+g_optim = torch.optim.Adam(sg.module.g_synthesis.parameters(), lr=cfg.lr, betas=(0.0, 0.99))
 d_optim = torch.optim.Adam(disc.parameters(), lr=cfg.lr * 2, betas=(0.0, 0.99))
 
 latent = torch.randn(cfg.batch_size, 512).cuda()
@@ -69,6 +69,7 @@ for ind, sample in enumerate(pbar):
 
     # Train disc
     disc.zero_grad()
+    #print("=> DS:" + str(disc_real_in.shape))
     disc_real = disc(disc_real_in, step=step, alpha=alpha)
     disc_real_loss = - disc_real.mean()
     disc_real_loss.backward()

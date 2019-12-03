@@ -354,15 +354,16 @@ class G_synthesis(nn.Module):
     def forward(self, dlatents_in):
         # Input: Disentangled latents (W) [minibatch, num_layers, dlatent_size].
         # lod_in = tf.cast(tf.get_variable('lod', initializer=np.float32(0), trainable=False), dtype)
+        stage = []
         batch_size = dlatents_in.size(0)       
         for i, m in enumerate(self.blocks.values()):
             if i == 0:
                 x = m(dlatents_in[:, 2*i:2*i+2])
             else:
                 x = m(x, dlatents_in[:, 2*i:2*i+2])
-            self.stage[i] = x
+            stage.append(x)
         rgb = self.torgb(x)
-        return rgb
+        return rgb, stage
 
 
 class StyledGenerator(nn.Module):
@@ -539,11 +540,11 @@ class StyledGenerator(nn.Module):
 
         self.semantic_branch = self.semantic_extractor
 
-    def extract_segmentation_cascade(self):
+    def extract_segmentation_cascade(self, stage):
         extractor, reviser, visualizer = self.semantic_branch
         count = 0
         outputs = []
-        for i, seg_input in enumerate(self.g_synthesis.stage):
+        for i, seg_input in enumerate(stage):
             if seg_input.size(2) >= 16:
                 if count == 0:
                     hidden = extractor[count](seg_input)
@@ -554,22 +555,22 @@ class StyledGenerator(nn.Module):
                 count += 1
         return outputs
     
-    def extract_segmentation_conv(self):
+    def extract_segmentation_conv(self, stage):
         count = 0
         outputs = []
-        for i, seg_input in enumerate(self.g_synthesis.stage):
+        for i, seg_input in enumerate(stage):
             if seg_input.size(2) >= 16:
                 outputs.append(self.semantic_extractor[count](seg_input))
                 count += 1
         return outputs
 
-    def extract_segmentation_cat(self):
+    def extract_segmentation_cat(self, stage):
         count = 0
         outputs = []
         hiddens = []
         extractor, visualizer = self.semantic_branch
         # note the the 1024 resolution layer's output is not collected
-        for i, seg_input in enumerate(self.g_synthesis.stage):
+        for i, seg_input in enumerate(stage):
             #net_device = next(visualizer.parameters()).device
             if seg_input.size(2) >= 16 and seg_input.size(2) <= 512:
                 hiddens.append(extractor[count](seg_input))
@@ -605,19 +606,19 @@ class StyledGenerator(nn.Module):
     #def forward(self, x):
     #    return self.g_synthesis(self.g_mapping(x))
     def forward(self, x):
-        image = self.g_synthesis(self.g_mapping(x))
-        seg = self.extract_segmentation()[-1]
+        image, stage = self.g_synthesis(self.g_mapping(x))
+        seg = self.extract_segmentation(stage)[-1]
         return image, seg
     
-    def extract_segmentation(self):
+    def extract_segmentation(self, stage):
         if "conv" in self.segcfg:
-            return self.extract_segmentation_conv()
+            return self.extract_segmentation_conv(stage)
         elif "cas" in self.segcfg:
-            return self.extract_segmentation_cascade()
+            return self.extract_segmentation_cascade(stage)
         elif "gen" in self.segcfg:
-            return self.extract_segmentation_cascade()
+            return self.extract_segmentation_cascade(stage)
         elif "cat" in self.segcfg:
-            return self.extract_segmentation_cat()
+            return self.extract_segmentation_cat(stage)
     
     def predict(self, latent):
         # start from w+

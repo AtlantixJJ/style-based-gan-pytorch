@@ -219,7 +219,7 @@ class SDConfig(BaseConfig):
             image_dir="CelebA-HQ-img",
             label_dir="CelebAMask-HQ-mask",
             idmap=utils.idmap)
-        self.dl = DataLoader(self.ds, shuffle=True)
+        self.dl = DataLoader(self.ds, batch_size=self.batch_size, shuffle=True)
 
         self.record = {'disc_loss': [], 'grad_penalty': [], 'gen_loss': []}
 
