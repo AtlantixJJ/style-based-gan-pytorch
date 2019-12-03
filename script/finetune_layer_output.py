@@ -1,3 +1,7 @@
+"""
+Train the RGB output of each resolution (to reduce memory cost of training on 1024x1024).
+Turn out to be not working.
+"""
 import sys
 sys.path.insert(0, ".")
 import os

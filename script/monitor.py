@@ -1,3 +1,6 @@
+"""
+Monitor the training, visualize the trained model output.
+"""
 import sys
 sys.path.insert(0, ".")
 import matplotlib

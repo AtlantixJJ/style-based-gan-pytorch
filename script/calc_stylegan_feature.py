@@ -1,3 +1,6 @@
+"""
+Calculate the feature of StyleGAN and do RCC clustering.
+"""
 import sys
 sys.path.insert(0, ".")
 import os
