@@ -58,7 +58,6 @@ for ind, sample in enumerate(pbar):
     latent.normal_()
     eps.uniform_()
 
-    disc_real_in = torch.cat([real_image, real_label], 1)
     with torch.no_grad():
         fake_image = sg(latent)
         fake_label_logit = sg.extract_segmentation()[-1]
@@ -66,14 +65,18 @@ for ind, sample in enumerate(pbar):
         fake_label = F.softmax(fake_label_logit, 1)
         fake_label = F.interpolate(fake_label, fake_image.size(2), mode="bicubic")
     disc_fake_in = torch.cat([fake_image, fake_label], 1)
+    disc_real_in = torch.cat([real_image, real_label], 1)
 
     # Train disc
     disc.zero_grad()
     disc_real = disc(disc_real_in, step=step, alpha=alpha)
+    disc_real_loss = - disc_real.mean()
+    disc_real_loss.backward()
     disc_fake = disc(disc_fake_in, step=step, alpha=alpha)
-    disc_loss = disc_fake.mean() - disc_real.mean()
-    disc_loss.backward()
-    
+    disc_fake_loss = disc_fake.mean()
+    disc_fake_loss.backward()
+    disc_loss = disc_fake_loss + disc_real_loss
+
     # not sure the segmenation mask can be interpolated
     x_hat = eps * real_image.data + (1 - eps) * fake_image.data
     y_hat = eps * real_label.data + (1 - eps) * fake_label.data
