@@ -114,10 +114,10 @@ for ind, sample in enumerate(pbar):
 
     if cfg.debug:
         print(record.keys())
-    l = []
-    for k in record.keys():
-        l.append(record[k][-1])
-    print(l)
+        l = []
+        for k in record.keys():
+            l.append(record[k][-1])
+        print(l)
 
     if ind % cfg.save_iter == 0 or ind == cfg.n_iter:
         print(f"=> Snapshot model {ind}")
