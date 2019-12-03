@@ -204,6 +204,7 @@ class SDConfig(BaseConfig):
     def parse(self):
         super(SDConfig, self).parse()
         self.task = "sd"
+        self.lr = 1e-4
         self.n_class = self.args.n_class
         self.disc_semantic_config = self.args.dseg_cfg
         self.semantic_config = self.args.seg_cfg
