@@ -199,6 +199,7 @@ class SDConfig(BaseConfig):
         self.parser.add_argument("--seg", default=1., type=float, help="Coefficient of segmentation loss")
         self.parser.add_argument("--seg-cfg", default="3conv1-64-16", help="Configure of segmantic segmentation extractor")
         self.parser.add_argument("--n-class", type=int, default=16, help="Class num")
+        self.parser.add_argument("--n-critic", type=int, default=2, help="Number of discriminator steps")
         self.parser.add_argument("--dseg-cfg", default="lowcat-16", help="Configure of how discriminator use segmantic segmentation")
 
     def parse(self):
@@ -206,6 +207,7 @@ class SDConfig(BaseConfig):
         self.task = "sd"
         self.lr = 1e-4
         self.n_class = self.args.n_class
+        self.n_critic = self.args.n_critic
         self.disc_semantic_config = self.args.dseg_cfg
         self.semantic_config = self.args.seg_cfg
         self.disc_load_path = self.args.disc_net
@@ -222,6 +224,8 @@ class SDConfig(BaseConfig):
         self.dl = DataLoader(self.ds, batch_size=self.batch_size, shuffle=True)
 
         self.record = {'disc_loss': [], 'grad_penalty': [], 'gen_loss': []}
+        if "mix" in self.disc_semantic_config:
+            self.record["disc_low_loss"] = []
 
         self.name = f"{self.task}_{self.semantic_config}"
         self.expr_dir = osj("expr", self.name)
