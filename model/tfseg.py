@@ -605,10 +605,13 @@ class StyledGenerator(nn.Module):
 
     #def forward(self, x):
     #    return self.g_synthesis(self.g_mapping(x))
-    def forward(self, x):
+    def forward(self, x, seg=True):
         image, stage = self.g_synthesis(self.g_mapping(x))
-        seg = self.extract_segmentation(stage)[-1]
-        return image, seg
+        self.stage = stage
+        if seg:
+            seg = self.extract_segmentation(stage)[-1]
+            return image, seg
+        return image
     
     def extract_segmentation(self, stage):
         if "conv" in self.segcfg:

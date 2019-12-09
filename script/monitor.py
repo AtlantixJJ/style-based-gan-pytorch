@@ -50,10 +50,7 @@ for i in range(18):
 
 cfg = config.config_from_name(args.model)
 print(cfg)
-if 'seg' in args.model:
-    from model.tfseg import StyledGenerator
-else:
-    from model.default import StyledGenerator
+from model.tfseg import StyledGenerator
 generator = StyledGenerator(**cfg).to(device)
 
 if args.zero:
@@ -65,6 +62,7 @@ if args.zero:
     generator.set_noise(noise)
 
 model_files = glob.glob(args.model + "/*.model")
+model_files = [m for m in model_files if "disc" not in m]
 model_files.sort()
 if len(model_files) == 0:
     print("!> No model found, exit")
@@ -87,12 +85,14 @@ if "seg" in args.task:
 
     for i, model_file in enumerate(model_files):
         print("=> Load from %s" % model_file)
-        generator.load_state_dict(torch.load(model_file, map_location='cpu'), strict=False)
+        state_dict = torch.load(model_file, map_location='cpu')
+        missed = generator.load_state_dict(state_dict, strict=False)
+        print(missed)
         generator.eval()
 
-        gen = generator(latent)
+        gen = generator(latent, False)
         gen = (gen.clamp(-1, 1) + 1) / 2
-        segs = generator.extract_segmentation()
+        segs = generator.extract_segmentation(generator.stage)
         segs = [s[0].argmax(0) for s in segs]
 
         with torch.no_grad():

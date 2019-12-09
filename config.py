@@ -22,7 +22,7 @@ def config_from_name(name):
             att = int(items[i][-1])
             att_mtd = items[i+1]
             dics.update({"att": att, "att_mtd": att_mtd})
-        if "seg" in items[i]:
+        if "seg" in items[i] or "sd" in items[i]:
             segcfg = items[i+2]
             dics.update({"semantic": segcfg})
     return dics
@@ -196,8 +196,8 @@ class SDConfig(BaseConfig):
         super(SDConfig, self).__init__()
         self.parser.add_argument("--disc-net", default="checkpoint/stylegan-1024px-new-disc.model")
         self.parser.add_argument("--dataset", default="datasets/CelebAMask-HQ")
-        self.parser.add_argument("--seg", default=1., type=float, help="Coefficient of segmentation loss")
-        self.parser.add_argument("--seg-cfg", default="3conv1-64-16", help="Configure of segmantic segmentation extractor")
+        self.parser.add_argument("--seg", default=1., type=float, help="Use segmentation or not")
+        self.parser.add_argument("--seg-cfg", default="3cat1-1-16", help="Configure of segmantic segmentation extractor")
         self.parser.add_argument("--n-class", type=int, default=16, help="Class num")
         self.parser.add_argument("--n-critic", type=int, default=2, help="Number of discriminator steps")
         self.parser.add_argument("--dseg-cfg", default="lowcat-16", help="Configure of how discriminator use segmantic segmentation")
@@ -206,6 +206,7 @@ class SDConfig(BaseConfig):
         super(SDConfig, self).parse()
         self.task = "sd"
         self.lr = 1e-4
+        self.seg = self.args.seg
         self.n_class = self.args.n_class
         self.n_critic = self.args.n_critic
         self.disc_semantic_config = self.args.dseg_cfg
@@ -233,6 +234,10 @@ class SDConfig(BaseConfig):
     def print_info(self):
         super(SDConfig, self).print_info()
         print(f"=> Discriminator path: {self.disc_load_path}")
+        if self.seg > 0:
+            print("=> Use segmentation")
+        else:
+            print("=> Don't use segmentation")
         print(self.ds)
 
 
@@ -244,10 +249,12 @@ class FixSegConfig(BaseConfig):
         self.parser.add_argument("--seg", default=1., type=float, help="Coefficient of segmentation loss")
         self.parser.add_argument("--seg-cfg", default="3conv1-64-16", help="Configure of segmantic segmentation extractor")
         self.parser.add_argument("--zero", default=0, type=int, help="Use zero noise or random noise")
+        self.parser.add_argument("--n-class", type=int, default=16, help="Class num")
 
     def parse(self):
         super(FixSegConfig, self).parse()
         self.task = "fixseg"
+        self.n_class = self.args.n_class
         self.zero_noise = self.args.zero
         self.seg_coef = self.args.seg
         self.seg_net_path = self.args.seg_net

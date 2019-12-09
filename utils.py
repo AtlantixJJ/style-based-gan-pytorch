@@ -44,23 +44,27 @@ class MultiGPUTensor(object):
 class Colorize(object):
     def __init__(self, n=19):
         self.cmap = labelcolormap(n)
-        self.cmap = torch.from_numpy(self.cmap[:n])
 
     def __call__(self, gray_image):
-        size = gray_image.size()
+        size = gray_image.shape
         if len(size) == 2:
             h, w = size
         else:
             h, w = size[1:]
             gray_image = gray_image[0]
-        color_image = torch.ByteTensor(3, h, w).fill_(0)
 
-        for label in range(0, len(self.cmap)):
-            mask = (label == gray_image).cpu()
-            color_image[0][mask] = self.cmap[label][0]
-            color_image[1][mask] = self.cmap[label][1]
-            color_image[2][mask] = self.cmap[label][2]
-
+        try:
+            color_image = torch.ByteTensor(3, h, w).fill_(0)
+            for label in range(0, len(self.cmap)):
+                mask = (label == gray_image).cpu()
+                color_image[0][mask] = int(self.cmap[label, 0])
+                color_image[1][mask] = int(self.cmap[label, 1])
+                color_image[2][mask] = int(self.cmap[label, 2])
+        except:
+            color_image = np.zeros((h, w, 3), dtype="uint8")
+            for label in range(len(self.cmap)):
+                mask = (label == gray_image)
+                color_image[mask] = self.cmap[label]
         return color_image
 
 
