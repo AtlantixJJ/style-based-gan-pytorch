@@ -135,6 +135,8 @@ for ind, sample in enumerate(pbar):
     if ind % cfg.disp_iter == 0 or ind == cfg.n_iter or cfg.debug:
         vutils.save_image(gen[:4], cfg.expr_dir + '/gen_%06d.png' % ind,
                             nrow=2, normalize=True, range=(-1, 1))
+        vutils.save_image(real_image[:4], cfg.expr_dir + '/real_%06d.png' % ind,
+                            nrow=2, normalize=True, range=(-1, 1))
 
         real_label_viz = []
         for i in range(real_label.shape[0]):

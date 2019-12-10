@@ -231,7 +231,7 @@ class SDConfig(BaseConfig):
                 image_dir="CelebA-HQ-img",
                 label_dir="CelebAMask-HQ-mask",
                 idmap=utils.idmap)
-        self.dl = DataLoader(self.ds, batch_size=self.batch_size, shuffle=True)
+        self.dl = DataLoader(self.ds, batch_size=self.batch_size, shuffle=True, drop_last=True)
 
         self.record = {'disc_loss': [], 'grad_penalty': [], 'gen_loss': []}
         if "mix" in self.disc_semantic_config:

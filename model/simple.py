@@ -34,6 +34,7 @@ class Generator(nn.Module):
             conv.relu = nn.ReLU(True)
             self.deconvs.append(conv)
         self.visualize = nn.Conv2d(dims[-1], 3, 3, padding=1)
+        self.tanh = nn.Tanh()
         self.build_cat_extractor()
 
     def build_cat_extractor(self):
@@ -79,7 +80,7 @@ class Generator(nn.Module):
         for layers in self.deconvs:
             x = layers(x)
             self.stage.append(x)
-        x = self.visualize(x)
+        x = self.tanh(self.visualize(x))
 
         if seg:
             seg = self.extract_segmentation(self.stage)[-1]

@@ -203,7 +203,7 @@ def infinite_dataloader(dl, total):
 			if i == total:
 				return
 			yield sample
-		dl.reset()
+		dl.dataset.reset()
 
 
 def set_seed(seed):
