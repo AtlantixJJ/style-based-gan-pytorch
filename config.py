@@ -201,10 +201,11 @@ class SDConfig(BaseConfig):
         self.parser.add_argument("--n-class", type=int, default=16, help="Class num")
         self.parser.add_argument("--n-critic", type=int, default=2, help="Number of discriminator steps")
         self.parser.add_argument("--dseg-cfg", default="lowcat-16", help="Configure of how discriminator use segmantic segmentation")
+        self.parser.add_argument("--imsize", default=1024, type=int, help="Train image size")
+
 
     def parse(self):
         super(SDConfig, self).parse()
-        self.task = "sd"
         self.lr = 1e-4
         self.seg = self.args.seg
         self.n_class = self.args.n_class
@@ -212,23 +213,31 @@ class SDConfig(BaseConfig):
         self.disc_semantic_config = self.args.dseg_cfg
         self.semantic_config = self.args.seg_cfg
         self.disc_load_path = self.args.disc_net
+        self.gen_load_path = self.args.load
         self.dataset = self.args.dataset
         self.map_id = True
-        self.imsize = 1024
-
-        self.ds = dataset.ImageSegmentationDataset(
-            root=self.dataset,
-            size=self.imsize,
-            image_dir="CelebA-HQ-img",
-            label_dir="CelebAMask-HQ-mask",
-            idmap=utils.idmap)
+        self.imsize = self.args.imsize
+        if self.imsize == 64:
+            self.ds = dataset.ImageSegmentationDataset(
+                root=self.dataset,
+                size=self.imsize,
+                image_dir="CelebA-HQ-img-64",
+                label_dir="CelebAMask-HQ-mask-64",
+                idmap=utils.idmap)
+        else:
+            self.ds = dataset.ImageSegmentationDataset(
+                root=self.dataset,
+                size=self.imsize,
+                image_dir="CelebA-HQ-img",
+                label_dir="CelebAMask-HQ-mask",
+                idmap=utils.idmap)
         self.dl = DataLoader(self.ds, batch_size=self.batch_size, shuffle=True)
 
         self.record = {'disc_loss': [], 'grad_penalty': [], 'gen_loss': []}
         if "mix" in self.disc_semantic_config:
             self.record["disc_low_loss"] = []
 
-        self.name = f"{self.task}_{self.semantic_config}"
+        self.name = f"{self.task}_{self.seg}_{self.semantic_config}"
         self.expr_dir = osj("expr", self.name)
 
     def print_info(self):
