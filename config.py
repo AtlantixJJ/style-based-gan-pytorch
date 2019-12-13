@@ -39,6 +39,7 @@ class BaseConfig(object):
         self.parser.add_argument("--arch", default="tfseg", help="Network definition")
         self.parser.add_argument(
             "--name", default="", help="Name of experiment, auto inference name if leave empty")
+        self.parser.add_argument("--imsize", default=512, type=int, help="Train image size")
         # Training environment options
         self.parser.add_argument("--gpu", type=str, default="0")
         self.parser.add_argument("--seed", type=int, default=1314)
@@ -58,10 +59,11 @@ class BaseConfig(object):
     def parse(self):
         self.args = self.parser.parse_args()
         self.n_iter = self.args.iter_num
-        self.disp_iter = min(100, self.n_iter // 100)
-        self.save_iter = min(1000, self.n_iter // 10)
+        self.disp_iter = max(100, self.n_iter // 100)
+        self.save_iter = max(1000, self.n_iter // 10)
         self.debug = self.args.debug
         self.task = self.args.task
+        self.imsize = self.args.imsize
         self.arch = self.args.arch
         self.lr = self.args.lr
         self.name = self.args.name
@@ -121,7 +123,6 @@ class TSSegConfig(BaseConfig):
         self.parser.add_argument("--seg", default=1., type=float, help="Coefficient of segmentation loss")
         self.parser.add_argument("--mse", default=1., type=float, help="Coefficient of MSE loss")
         self.parser.add_argument("--seg-cfg", default="1conv1-64-19", help="Configure of segmantic segmentation extractor")
-        self.parser.add_argument("--imsize", default=512, type=int, help="Train image size")
 
     def parse(self):
         super(TSSegConfig, self).parse()
@@ -130,7 +131,6 @@ class TSSegConfig(BaseConfig):
         self.mse_coef = self.args.mse
         self.seg_coef = self.args.seg
         self.semantic_config = self.args.seg_cfg
-        self.imsize = self.args.imsize
         self.record = {'loss': [], 'mseloss': [], 'segloss': []}
         self.seg_net_path = self.args.seg_net
         if "faceparse_unet" in self.seg_net_path:
@@ -201,8 +201,6 @@ class SDConfig(BaseConfig):
         self.parser.add_argument("--n-class", type=int, default=16, help="Class num")
         self.parser.add_argument("--n-critic", type=int, default=2, help="Number of discriminator steps")
         self.parser.add_argument("--dseg-cfg", default="lowcat-16", help="Configure of how discriminator use segmantic segmentation")
-        self.parser.add_argument("--imsize", default=1024, type=int, help="Train image size")
-
 
     def parse(self):
         super(SDConfig, self).parse()
@@ -257,14 +255,11 @@ class FixSegConfig(BaseConfig):
         self.parser.add_argument("--seg-net", default="checkpoint/faceparse_unet.pth", help="The load path of semantic segmentation network")
         self.parser.add_argument("--seg", default=1., type=float, help="Coefficient of segmentation loss")
         self.parser.add_argument("--seg-cfg", default="3conv1-64-16", help="Configure of segmantic segmentation extractor")
-        self.parser.add_argument("--zero", default=0, type=int, help="Use zero noise or random noise")
         self.parser.add_argument("--n-class", type=int, default=16, help="Class num")
 
     def parse(self):
         super(FixSegConfig, self).parse()
-        self.task = "fixseg"
         self.n_class = self.args.n_class
-        self.zero_noise = self.args.zero
         self.seg_coef = self.args.seg
         self.seg_net_path = self.args.seg_net
         self.semantic_config = self.args.seg_cfg
@@ -274,8 +269,8 @@ class FixSegConfig(BaseConfig):
             self.id2cid = {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 4, 6: 5, 7: 5, 8: 6, 9: 6, 10: 7, 11: 8, 12: 9, 13: 10, 14: 11, 15: 12, 16: 13, 17: 14, 18: 15}
         else:
             self.map_id = False
-        self.name = "{}_{}_{}_{}".format(
-            self.task, self.seg_coef, self.semantic_config, self.zero_noise)
+        self.name = "{}_{}_{}".format(
+            self.task, self.seg_coef, self.semantic_config)
         self.expr_dir = osj("expr", self.name)
     
     def idmap(self, x):

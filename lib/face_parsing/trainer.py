@@ -118,15 +118,15 @@ class Trainer(object):
 	    # scalr info on tensorboardX		
             writer.add_scalar('Loss/Cross_entrophy_loss', c_loss.data, step) 
 
-	    # image infor on tensorboardX
-	    img_combine = imgs[0]
-	    real_combine = label_batch_real[0]
-	    predict_combine = label_batch_predict[0]
-	    for i in range(1, self.batch_size):
-	        img_combine = torch.cat([img_combine, imgs[i]], 2)
-	        real_combine = torch.cat([real_combine, label_batch_real[i]], 2)
-	        predict_combine = torch.cat([predict_combine, label_batch_predict[i]], 2)
-	    writer.add_image('imresult/img', (img_combine.data + 1) / 2.0, step)
+        # image infor on tensorboardX
+        img_combine = imgs[0]
+        real_combine = label_batch_real[0]
+        predict_combine = label_batch_predict[0]
+        for i in range(1, self.batch_size):
+            img_combine = torch.cat([img_combine, imgs[i]], 2)
+            real_combine = torch.cat([real_combine, label_batch_real[i]], 2)
+            predict_combine = torch.cat([predict_combine, label_batch_predict[i]], 2)
+            writer.add_image('imresult/img', (img_combine.data + 1) / 2.0, step)
             writer.add_image('imresult/real', real_combine, step)
             writer.add_image('imresult/predict', predict_combine, step)
 
@@ -136,11 +136,11 @@ class Trainer(object):
                 labels_sample = generate_label(labels_sample)
                 labels_sample = torch.from_numpy(labels_sample)
                 save_image(denorm(labels_sample.data),
-                           os.path.join(self.sample_path, '{}_predict.png'.format(step + 1)))
+                            os.path.join(self.sample_path, '{}_predict.png'.format(step + 1)))
 
             if (step+1) % model_save_step==0:
                 torch.save(self.G.state_dict(),
-                           os.path.join(self.model_save_path, '{}_G.pth'.format(step + 1)))
+                            os.path.join(self.model_save_path, '{}_G.pth'.format(step + 1)))
     
     def build_model(self):
 

@@ -28,13 +28,18 @@ faceparser.eval()
 del state_dict
 
 state_dicts = torch.load(cfg.load_path, map_location='cpu')
-sg = getattr(model, cfg.arch).StyledGenerator(semantic=cfg.semantic_config)
+if cfg.arch == "simple":
+	upsample = int(np.log2(cfg.imsize // 4))
+	sg = model.simple.Generator(upsample=upsample, semantic=cfg.semantic_config)
+	LATENT_SIZE = 128
+else:
+	sg = getattr(model, cfg.arch).StyledGenerator(semantic=cfg.semantic_config)
+	LATENT_SIZE = 512
 sg.load_state_dict(state_dicts, strict=False)
 sg.train()
 sg = sg.to(cfg.device1)
 sg.semantic_branch = sg.semantic_branch.to(cfg.device2)
-sg.freeze_g_mapping() # fix main trunk
-sg.freeze_g_synthesis() # fix main trunk
+sg.freeze() # fix main trunk
 del state_dicts
 
 # new parameter adaption stage
@@ -44,14 +49,7 @@ g_optim = torch.optim.Adam(sg.semantic_branch.parameters(),
 logsoftmax = torch.nn.CrossEntropyLoss()
 logsoftmax = logsoftmax.cuda()
 
-latent = torch.randn(cfg.batch_size, 512).cuda()
-
-if cfg.zero_noise:
-	noise = [0] * 18
-	for k in range(18):
-		size = 4 * 2 ** (k // 2)
-		noise[k] = torch.zeros(cfg.batch_size, 1, size, size).cuda()
-	sg.set_noise(noise)
+latent = torch.randn(cfg.batch_size, LATENT_SIZE).cuda()
 
 record = cfg.record
 avgmseloss = 0
@@ -61,13 +59,13 @@ for i in tqdm(range(cfg.n_iter + 1)):
 	latent.normal_()
 
 	with torch.no_grad():
-		gen = sg(latent).clamp(-1, 1)
+		gen = sg(latent, seg=False).clamp(-1, 1)
 		gen = F.interpolate(gen, 512, mode="bilinear")
 		label = faceparser(gen).argmax(1)
 		if cfg.map_id:
 			label = cfg.idmap(label.detach())
 
-	segs = sg.extract_segmentation()
+	segs = sg.extract_segmentation(sg.stage)
 	coefs = [1. for s in segs]
 	seglosses = []
 	for c, s in zip(coefs, segs):
@@ -115,7 +113,7 @@ for i in tqdm(range(cfg.n_iter + 1)):
 		tarlabels = [utils.tensor2label(label[i:i+1], cfg.n_class).unsqueeze(0)
 						for i in range(label.shape[0])]
 		tarviz = torch.cat([F.interpolate(m.float(), 256).cpu() for m in tarlabels])
-		genlabels = [utils.tensor2label(s[0], s.shape[1]).unsqueeze(0)
+		genlabels = [utils.tensor2label(s[0], cfg.n_class).unsqueeze(0)
 					for s in segs]
 		gen_img = (gen[0:1].clamp(-1, 1) + 1) / 2
 		genviz = genlabels + [gen_img]

@@ -78,7 +78,7 @@ class Tester(object):
         self.model_save_path = os.path.join(config.model_save_path, self.version)
         self.test_label_path = config.test_label_path
         self.test_color_label_path = config.test_color_label_path
-	self.test_image_path = config.test_image_path
+        self.test_image_path = config.test_image_path
 
         # Test size and model
         self.test_size = config.test_size
@@ -106,10 +106,10 @@ class Tester(object):
             imgs = imgs.cuda()
             labels_predict = self.G(imgs)
             labels_predict_plain = generate_label_plain(labels_predict)
-	    labels_predict_color = generate_label(labels_predict)	
+            labels_predict_color = generate_label(labels_predict)	
             for k in range(self.batch_size):
                 cv2.imwrite(os.path.join(self.test_label_path, str(i * self.batch_size + k) +'.png'), labels_predict_plain[k])
-	        save_image(labels_predict_color[k], os.path.join(self.test_color_label_path, str(i * self.batch_size + k) +'.png'))
+            save_image(labels_predict_color[k], os.path.join(self.test_color_label_path, str(i * self.batch_size + k) +'.png'))
 	
     def build_model(self):
         self.G = unet().cuda()

@@ -33,7 +33,7 @@ disc = torch.nn.DataParallel(disc)
 disc = disc.to(cfg.device)
 disc.train()
 
-state_dict = torch.load(cfg.load_path, map_location='cpu')
+state_dict = torch.load(cfg.gen_load_path, map_location='cpu')
 sg = model.tfseg.StyledGenerator(semantic=cfg.semantic_config)
 sg.load_state_dict(state_dict, strict=False)
 sg = torch.nn.DataParallel(sg)
@@ -41,8 +41,8 @@ sg = sg.to(cfg.device)
 sg.train()
 del state_dict
 
-g_optim = torch.optim.Adam(sg.module.g_synthesis.parameters(), lr=cfg.lr, betas=(0.0, 0.99))
-d_optim = torch.optim.Adam(disc.parameters(), lr=cfg.lr * 2, betas=(0.0, 0.99))
+g_optim = torch.optim.Adam(sg.module.g_synthesis.parameters(), lr=cfg.lr, betas=(0.0, 0.9))
+d_optim = torch.optim.Adam(disc.module.parameters(), lr=cfg.lr * 2, betas=(0.0, 0.9))
 
 latent = torch.randn(cfg.batch_size, 512).cuda()
 eps = torch.rand(cfg.batch_size, 1, 1, 1).cuda()
@@ -77,20 +77,25 @@ for ind, sample in enumerate(pbar):
     disc_loss = disc_fake_loss + disc_real_loss
 
     # not sure the segmenation mask can be interpolated
-    #x_hat = eps * real_image.data + (1 - eps) * fake_image.data
-    #y_hat = eps * real_label.data + (1 - eps) * fake_label.data
-    # DRAGAN works better
-    x_hat = 0.1 * eps + real_image.data
-    y_hat = real_label
-    in_hat = torch.cat([x_hat, y_hat], 1) if cfg.seg > 0 else x_hat
+    x_hat = eps * real_image.data + (1 - eps) * fake_image.data
+    y_hat = eps * real_label.data + (1 - eps) * fake_label.data
+    # DRAGAN
+    # std_x = real_image.view(real_image.size(0), -1).std(1).view(-1, 1, 1, 1)
+    # std_y = real_label.view(real_image.size(0), -1).std(1).view(-1, 1, 1, 1)
+    # x_hat = std_x * eps + (1 - eps) * real_image.data
+    # y_hat = std_y * eps + (1 - eps) * real_label.data
     x_hat.requires_grad = True
+    y_hat.requires_grad = True
+    in_hat = torch.cat([x_hat, y_hat], 1) if cfg.seg > 0 else x_hat
     disc_hat = disc(in_hat, step=step, alpha=alpha)
-    grad_x_hat = torch.autograd.grad(
+    grad_in_hat = torch.autograd.grad(
         outputs=disc_hat.sum(), 
-        inputs=x_hat,
-        create_graph=True)[0]
-    grad_x_hat_norm = grad_x_hat.view(grad_x_hat.size(0), -1).norm(2, dim=1)
-    grad_penalty = ((grad_x_hat_norm - 1) ** 2).mean()
+        inputs=in_hat,
+        create_graph=True,
+        retain_graph=True,
+        only_inputs=True)[0]
+    grad_in_hat_norm = grad_in_hat.view(grad_in_hat.size(0), -1).norm(2, dim=1)
+    grad_penalty = ((grad_in_hat_norm - 1) ** 2).mean()
     grad_penalty.backward()
     d_optim.step()
 
@@ -107,8 +112,7 @@ for ind, sample in enumerate(pbar):
     disc_gen = disc(disc_gen_in, step=step, alpha=alpha)
     gen_loss = -disc_gen.mean()
     gen_loss.backward()
-
-    gen_loss_val = gen_loss.item()
+    g_optim.step()
 
     utils.requires_grad(disc, True)
 
@@ -130,23 +134,26 @@ for ind, sample in enumerate(pbar):
         torch.save(disc.module.state_dict(), cfg.expr_dir + "/disc_iter_%06d.model" % ind)
 
     if ind % cfg.disp_iter == 0 or ind == cfg.n_iter or cfg.debug:
+        if cfg.seg > 0:
+            real_label_viz = []
+            num_iter = min(4, real_label.shape[0])
+            for i in range(num_iter):
+                viz = utils.tensor2label(real_label_compat[i], cfg.n_class)
+                real_label_viz.append(F.interpolate(viz.unsqueeze(0), 256))
+            real_label_viz = torch.cat(real_label_viz)
+
+            gen_label_viz = []
+            gen_label_compat = gen_label.argmax(1, keepdim=True)
+            for i in range(num_iter):
+                viz = utils.tensor2label(gen_label_compat[i], cfg.n_class)
+                gen_label_viz.append(F.interpolate(viz.unsqueeze(0), 256))
+            gen_label_viz = torch.cat(gen_label_viz)
+
+            vutils.save_image(gen_label_viz, cfg.expr_dir + "/gen_label_viz_%05d.png" % ind, nrow=2)
+            vutils.save_image(real_label_viz, cfg.expr_dir + "/real_label_viz_%05d.png" % ind, nrow=2)
         vutils.save_image(gen[:4], cfg.expr_dir + '/gen_%06d.png' % ind,
                             nrow=2, normalize=True, range=(-1, 1))
-
-        real_label_viz = []
-        for i in range(real_label.shape[0]):
-            viz = utils.tensor2label(real_label_compat[i], cfg.n_class)
-            real_label_viz.append(F.interpolate(viz.unsqueeze(0), 256))
-        real_label_viz = torch.cat(real_label_viz)
-
-        gen_label_viz = []
-        gen_label_compat = gen_label.argmax(1, keepdim=True)
-        for i in range(gen_label.shape[0]):
-            viz = utils.tensor2label(gen_label_compat[i], cfg.n_class)
-            gen_label_viz.append(F.interpolate(viz.unsqueeze(0), 256))
-        gen_label_viz = torch.cat(gen_label_viz)
-
-        vutils.save_image(gen_label_viz, cfg.expr_dir + "/gen_label_viz_%05d.png" % ind, nrow=2)
-        vutils.save_image(real_label_viz, cfg.expr_dir + "/real_label_viz_%05d.png" % ind, nrow=2)
+        vutils.save_image(real_image[:4], cfg.expr_dir + '/real_%06d.png' % ind,
+                            nrow=2, normalize=True, range=(-1, 1))
         utils.write_log(cfg.expr_dir, record)
         utils.plot_dic(record, cfg.expr_dir + "/loss.png")

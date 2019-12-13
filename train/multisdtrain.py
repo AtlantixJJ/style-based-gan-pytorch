@@ -22,16 +22,13 @@ cfg.print_info()
 cfg.setup()
 upsample = int(np.log2(cfg.imsize // 4))
 
-# A little weird because this is not paired with generator
-disc = model.simple.Discriminator(upsample=upsample)
-if len(cfg.disc_load_path) > 0:
-    state_dict = torch.load(cfg.disc_load_path, map_location='cpu')
-    disc.load_state_dict(state_dict)
-    del state_dict
-if cfg.seg > 0:
-    disc.set_semantic_config(cfg.disc_semantic_config)
-disc = disc.to(cfg.device)
-disc.train()
+image_disc = model.simple.Discriminator(upsample=upsample, in_dim=3)
+image_disc = image_disc.to(cfg.device)
+image_disc.train()
+
+seg_disc = model.simple.Discriminator(upsample=upsample, in_dim=cfg.n_class)
+seg_disc = seg_disc.to(cfg.device)
+seg_disc.train()
 
 sg = model.simple.Generator(upsample=upsample, semantic=cfg.semantic_config)
 if len(cfg.gen_load_path) > 0:
@@ -41,18 +38,50 @@ if len(cfg.gen_load_path) > 0:
 sg = sg.to(cfg.device)
 sg.train()
 
-print("=> Generator")
-print(sg)
-print("=> Discriminator")
-print(disc)
-
 g_optim = torch.optim.Adam(sg.parameters(), lr=cfg.lr, betas=(0.0, 0.9))
-d_optim = torch.optim.Adam(disc.parameters(), lr=cfg.lr * 2, betas=(0.0, 0.9))
+id_optim = torch.optim.Adam(image_disc.parameters(), lr=cfg.lr * 2, betas=(0.0, 0.9))
+sd_optim = torch.optim.Adam(seg_disc.parameters(), lr=cfg.lr * 2, betas=(0.0, 0.9))
 
 latent = torch.randn(cfg.batch_size, 128).cuda()
 eps = torch.rand(cfg.batch_size, 1, 1, 1).cuda()
 
-record = cfg.record
+def wgan_gp(D, x_real, x_fake):
+    eps.uniform_()
+    D.zero_grad()
+    disc_real = D(x_real)
+    disc_real_loss = - disc_real.mean()
+    disc_real_loss.backward()
+    disc_fake = D(x_fake)
+    disc_fake_loss = disc_fake.mean()
+    disc_fake_loss.backward()
+    disc_loss = disc_fake_loss + disc_real_loss
+
+    # not sure the segmenation mask can be interpolated
+    x_hat = eps * x_real.data + (1 - eps) * x_fake.data
+    # DRAGAN
+    # std_x = x_real.view(x_real.size(0), -1).std(1).view(-1, 1, 1, 1)
+    # x_hat = std_x * eps + (1 - eps) * x_real.data
+    x_hat.requires_grad = True
+    disc_hat = D(x_hat)
+    grad_x_hat = torch.autograd.grad(
+        outputs=disc_hat.sum(), 
+        inputs=x_hat,
+        create_graph=True,
+        retain_graph=True,
+        only_inputs=True)[0]
+    grad_x_hat_norm = grad_x_hat.view(grad_x_hat.size(0), -1).norm(2, dim=1)
+    grad_penalty = ((grad_x_hat_norm - 1) ** 2).mean()
+    grad_penalty.backward()
+
+    return disc_loss, grad_penalty
+
+record = {
+    "image_disc_loss": [],
+    "image_disc_gp": [],
+    "seg_disc_loss": [],
+    "seg_disc_gp": [],
+    "image_gen_loss": [],
+    "seg_gen_loss": []}
 
 pbar = tqdm(utils.infinite_dataloader(cfg.dl, cfg.n_iter + 1), total=cfg.n_iter)
 for ind, sample in enumerate(pbar):
@@ -62,69 +91,41 @@ for ind, sample in enumerate(pbar):
     real_label = utils.onehot(real_label_compat, cfg.n_class).cuda()
     real_label = F.interpolate(real_label, real_image.size(2), mode="bicubic")
     latent.normal_()
-    eps.uniform_()
 
     with torch.no_grad():
         fake_image, fake_label_logit = sg(latent)
         fake_label = F.softmax(fake_label_logit, 1)
         fake_label = F.interpolate(fake_label, fake_image.size(2), mode="bicubic")
-    disc_fake_in = torch.cat([fake_image, fake_label], 1) if cfg.seg > 0 else fake_image
-    disc_real_in = torch.cat([real_image, real_label], 1) if cfg.seg > 0 else real_image
 
-    # Train disc
-    disc.zero_grad()
-    disc_real = disc(disc_real_in)
-    disc_real_loss = - disc_real.mean()
-    disc_real_loss.backward()
-    disc_fake = disc(disc_fake_in)
-    disc_fake_loss = disc_fake.mean()
-    disc_fake_loss.backward()
-    disc_loss = disc_fake_loss + disc_real_loss
-
-    # not sure the segmenation mask can be interpolated
-    x_hat = eps * real_image.data + (1 - eps) * fake_image.data
-    y_hat = eps * real_label.data + (1 - eps) * fake_label.data
-    # DRAGAN
-    # std_x = real_image.view(real_image.size(0), -1).std(1).view(-1, 1, 1, 1)
-    # std_y = real_label.view(real_image.size(0), -1).std(1).view(-1, 1, 1, 1)
-    # x_hat = std_x * eps + (1 - eps) * real_image.data
-    # y_hat = std_y * eps + (1 - eps) * real_label.data
-    x_hat.requires_grad = True
-    y_hat.requires_grad = True
-    in_hat = torch.cat([x_hat, y_hat], 1) if cfg.seg > 0 else x_hat
-    disc_hat = disc(in_hat)
-    grad_in_hat = torch.autograd.grad(
-        outputs=disc_hat.sum(), 
-        inputs=in_hat,
-        create_graph=True,
-        retain_graph=True,
-        only_inputs=True)[0]
-    grad_in_hat_norm = grad_in_hat.view(grad_in_hat.size(0), -1).norm(2, dim=1)
-    grad_penalty = ((grad_in_hat_norm - 1) ** 2).mean()
-    grad_penalty.backward()
-    d_optim.step()
+    image_disc_loss, image_disc_gp = wgan_gp(image_disc, real_image, fake_image)
+    id_optim.step()
+    seg_disc_loss, seg_disc_gp = wgan_gp(seg_disc, real_label, fake_label)
+    sd_optim.step()
 
     # Train gen
     sg.zero_grad()
-    utils.requires_grad(disc, False)
+    utils.requires_grad(image_disc, False)
+    utils.requires_grad(seg_disc, False)
     latent.normal_()
     gen, gen_label_logit = sg(latent)
-    #this is not differentiable
-    #gen_label = utils.onehot_logit(gen_label_logit, cfg.n_class)
     gen_label = F.softmax(gen_label_logit, 1)
-    print(gen_label.shape, gen_label[0, :, 0, 0].sum())
     gen_label = F.interpolate(gen_label, gen.size(2), mode="bicubic")
-    disc_gen_in = torch.cat([gen, gen_label], 1) if cfg.seg > 0 else gen
-    disc_gen = disc(disc_gen_in)
-    gen_loss = -disc_gen.mean()
-    gen_loss.backward()
+    image_disc_gen = image_disc(gen)
+    image_gen_loss = -image_disc_gen.mean()
+    seg_disc_gen = seg_disc(gen_label)
+    seg_gen_loss = -seg_disc_gen.mean()
+    (image_gen_loss + seg_gen_loss).backward()
     g_optim.step()
-    utils.requires_grad(disc, True)
+    utils.requires_grad(image_disc, True)
+    utils.requires_grad(seg_disc, True)
 
     # display
-    record['disc_loss'].append(utils.torch2numpy(disc_loss))
-    record['grad_penalty'].append(utils.torch2numpy(grad_penalty))
-    record['gen_loss'].append(utils.torch2numpy(gen_loss))
+    record['image_disc_loss'].append(utils.torch2numpy(image_disc_loss))
+    record['seg_disc_loss'].append(utils.torch2numpy(seg_disc_loss))
+    record['image_disc_gp'].append(utils.torch2numpy(image_disc_gp))
+    record['seg_disc_gp'].append(utils.torch2numpy(seg_disc_gp))
+    record['image_gen_loss'].append(utils.torch2numpy(image_gen_loss))
+    record['seg_gen_loss'].append(utils.torch2numpy(seg_gen_loss))
 
     if cfg.debug:
         print(record.keys())
@@ -133,15 +134,18 @@ for ind, sample in enumerate(pbar):
             l.append(record[k][-1])
         print(l)
 
-        p = next(disc.parameters())
-        print("Disc: %f %f" % (p.max(), p.min()))
+        p = next(image_disc.parameters())
+        print("Image Disc: %f %f" % (p.max(), p.min()))
+        p = next(seg_disc.parameters())
+        print("Seg Disc: %f %f" % (p.max(), p.min()))
         p = next(sg.parameters())
         print("Gen: %f %f" % (p.max(), p.min()))
 
     if ind % cfg.save_iter == 0 or ind == cfg.n_iter:
         print(f"=> Snapshot model {ind}")
         torch.save(sg.state_dict(), cfg.expr_dir + "/gen_iter_%06d.model" % ind)
-        torch.save(disc.state_dict(), cfg.expr_dir + "/disc_iter_%06d.model" % ind)
+        torch.save(image_disc.state_dict(), cfg.expr_dir + "/image_disc_iter_%06d.model" % ind)
+        torch.save(seg_disc.state_dict(), cfg.expr_dir + "/seg_disc_iter_%06d.model" % ind)
 
     if ind % cfg.disp_iter == 0 or ind == cfg.n_iter or cfg.debug:
         if cfg.seg > 0:

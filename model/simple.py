@@ -36,6 +36,12 @@ class Generator(nn.Module):
         self.visualize = nn.Conv2d(dims[-1], 3, 3, padding=1)
         self.tanh = nn.Tanh()
         self.build_cat_extractor()
+    
+    def freeze(self, train=False):
+        for p in self.parameters():
+            p.requires_grad = train
+        for p in self.semantic_branch.parameters():
+            p.requires_grad = True
 
     def build_cat_extractor(self):
         def conv_block(in_dim, out_dim):
@@ -89,13 +95,13 @@ class Generator(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, bn='none', upsample=3):
+    def __init__(self, bn='none', upsample=3, in_dim=3):
         super(Discriminator, self).__init__()
 
         dims = [64 * (2**i) for i in range(upsample+1)]
         self.dims = dims
 
-        self.conv = nn.Conv2d(3, dims[0], 3, padding=1)
+        self.conv = nn.Conv2d(in_dim, dims[0], 3, padding=1)
         self.lrelu = nn.LeakyReLU(0.2, True)
         self.convs = nn.ModuleList()
         for prevDim, curDim in zip(dims[:-1], dims[1:]):

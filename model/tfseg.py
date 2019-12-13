@@ -583,6 +583,10 @@ class StyledGenerator(nn.Module):
         outputs.append(visualizer(feat))
         return outputs
 
+    def freeze(self, train=False):
+        self.freeze_g_mapping(train)
+        self.freeze_g_synthesis(train)
+
     def freeze_g_mapping(self, train=False):
         for param in self.g_mapping.parameters():
             param.requires_grad = train
