@@ -4,12 +4,10 @@ class FixSeg(object):
     def __init__(self):
         self.seg_cfgs = [
             "1cat1-64-16",
-            "3cat1-64-16",
-            "1cas1-64-16",
-            "1gen1-64-16",
+            "1mul1-64-16"
             ]
 
-        self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --arch tfseg --gpu %s --batch_size 1 --iter-num 5000 --zero 0 &"
+        self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --arch tfseg --gpu %s --batch_size 1 --iter-num 5000 &"
     
     def args_gen(self, gpus):
         l = []
@@ -46,4 +44,4 @@ def assign_run(command_generator, gpus, false_exec=False):
             os.system(s[:-2])
 
 gpus = ["4", "5", "6", "7"]; assign_run(FixSeg().command, gpus)
-gpus = ["0,2", "0,3"]; assign_run(TSSeg().command, gpus)
+#gpus = ["0,2", "0,3"]; assign_run(TSSeg().command, gpus)

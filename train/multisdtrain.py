@@ -38,9 +38,14 @@ if len(cfg.gen_load_path) > 0:
 sg = sg.to(cfg.device)
 sg.train()
 
+# because image generator has no gradient on semantic branch, so leave it here for convenience
 g_optim = torch.optim.Adam(sg.parameters(), lr=cfg.lr, betas=(0.0, 0.9))
+#sg_optim = torch.optim.Adam(sg.semantic_branch.parameters(), lr=cfg.lr, betas=(0.0, 0.9))
 id_optim = torch.optim.Adam(image_disc.parameters(), lr=cfg.lr * 2, betas=(0.0, 0.9))
 sd_optim = torch.optim.Adam(seg_disc.parameters(), lr=cfg.lr * 2, betas=(0.0, 0.9))
+
+softmax = torch.nn.Softmax2d()
+softmax = softmax.cuda()
 
 latent = torch.randn(cfg.batch_size, 128).cuda()
 eps = torch.rand(cfg.batch_size, 1, 1, 1).cuda()
@@ -89,13 +94,13 @@ for ind, sample in enumerate(pbar):
     real_image, real_label_compat = sample
     real_image = real_image.cuda()
     real_label = utils.onehot(real_label_compat, cfg.n_class).cuda()
-    real_label = F.interpolate(real_label, real_image.size(2), mode="bicubic")
+    real_label = F.interpolate(real_label, real_image.size(2), mode="bilinear")
     latent.normal_()
 
     with torch.no_grad():
-        fake_image, fake_label_logit = sg(latent)
-        fake_label = F.softmax(fake_label_logit, 1)
-        fake_label = F.interpolate(fake_label, fake_image.size(2), mode="bicubic")
+        fake_image = sg(latent, seg=False).clamp(-1, 1)
+        fake_label_logit = sg.extract_segmentation(sg.stage)[0]
+        fake_label = softmax(fake_label_logit)
 
     image_disc_loss, image_disc_gp = wgan_gp(image_disc, real_image, fake_image)
     id_optim.step()
@@ -107,9 +112,9 @@ for ind, sample in enumerate(pbar):
     utils.requires_grad(image_disc, False)
     utils.requires_grad(seg_disc, False)
     latent.normal_()
+    # detach for prevent semantic branch's gradient to backbone
     gen, gen_label_logit = sg(latent)
-    gen_label = F.softmax(gen_label_logit, 1)
-    gen_label = F.interpolate(gen_label, gen.size(2), mode="bicubic")
+    gen_label = softmax(gen_label_logit)
     image_disc_gen = image_disc(gen)
     image_gen_loss = -image_disc_gen.mean()
     seg_disc_gen = seg_disc(gen_label)
@@ -150,24 +155,27 @@ for ind, sample in enumerate(pbar):
     if ind % cfg.disp_iter == 0 or ind == cfg.n_iter or cfg.debug:
         if cfg.seg > 0:
             real_label_viz = []
-            num_iter = min(4, real_label.shape[0])
-            for i in range(num_iter):
+            num = min(4, real_label.shape[0])
+            for i in range(num):
+                img = (real_image[i] + 1) / 2
                 viz = utils.tensor2label(real_label_compat[i], cfg.n_class)
-                real_label_viz.append(F.interpolate(viz.unsqueeze(0), 256))
-            real_label_viz = torch.cat(real_label_viz)
+                real_label_viz.extend([img, viz])
+            real_label_viz = torch.cat([F.interpolate(m.unsqueeze(0), 256, mode="bilinear").cpu() for m in real_label_viz])
 
-            gen_label_viz = []
-            gen_label_compat = gen_label.argmax(1, keepdim=True)
-            for i in range(num_iter):
-                viz = utils.tensor2label(gen_label_compat[i], cfg.n_class)
-                gen_label_viz.append(F.interpolate(viz.unsqueeze(0), 256))
-            gen_label_viz = torch.cat(gen_label_viz)
+            fake_label_viz = []
+            fake_label_compat = fake_label_logit.argmax(1)
+            for i in range(num):
+                img = (fake_image[i] + 1) / 2
+                viz = utils.tensor2label(fake_label_compat[i], cfg.n_class)
+                fake_label_viz.extend([img, viz])
+            fake_label_viz = torch.cat([F.interpolate(m.unsqueeze(0), 256, mode="bilinear").cpu() for m in fake_label_viz])
 
-            vutils.save_image(gen_label_viz, cfg.expr_dir + "/gen_label_viz_%05d.png" % ind, nrow=2)
             vutils.save_image(real_label_viz, cfg.expr_dir + "/real_label_viz_%05d.png" % ind, nrow=2)
-        vutils.save_image(gen[:4], cfg.expr_dir + '/gen_%06d.png' % ind,
-                            nrow=2, normalize=True, range=(-1, 1))
-        vutils.save_image(real_image[:4], cfg.expr_dir + '/real_%06d.png' % ind,
-                            nrow=2, normalize=True, range=(-1, 1))
+            vutils.save_image(fake_label_viz, cfg.expr_dir + "/fake_label_viz_%05d.png" % ind, nrow=2)
+        else:
+            vutils.save_image(gen[:4], cfg.expr_dir + '/gen_%06d.png' % ind,
+                                nrow=2, normalize=True, range=(-1, 1))
+            vutils.save_image(real_image[:4], cfg.expr_dir + '/real_%06d.png' % ind,
+                                nrow=2, normalize=True, range=(-1, 1))
         utils.write_log(cfg.expr_dir, record)
         utils.plot_dic(record, cfg.expr_dir + "/loss.png")

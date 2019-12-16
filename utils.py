@@ -46,12 +46,11 @@ class Colorize(object):
         self.cmap = labelcolormap(n)
 
     def __call__(self, gray_image):
-        size = gray_image.shape
-        if len(size) == 2:
-            h, w = size
-        else:
-            h, w = size[1:]
+        if gray_image.shape[0] == 1:
             gray_image = gray_image[0]
+        size = gray_image.shape
+        assert len(size) == 2
+        h, w = size
 
         try:
             color_image = torch.ByteTensor(3, h, w).fill_(0)

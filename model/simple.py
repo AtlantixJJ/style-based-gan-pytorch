@@ -3,6 +3,29 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.transforms as transforms
 
+class MultiResolutionConvolution(nn.Module):
+    def __init__(self, in_dims=[512, 512, 256, 64, 32, 16], out_dim=16, kernel_size=1):
+        super(MultiResolutionConvolution, self).__init__()
+        self.convs = nn.ModuleList()
+        self.ksize = kernel_size
+        self.in_dims = in_dims
+        for in_dim in in_dims:
+            self.convs.append(nn.Conv2d(in_dim, out_dim, self.ksize, bias=False))
+        self.bias = nn.Parameter(torch.randn(1, 16, 1, 1))
+    
+    def forward(self, x):
+        """
+        x is list of multi resolution feature map
+        """
+        outs = []
+        for conv, xl in zip(self.convs, x):
+            outs.append(conv(xl))
+        
+        size = max([out.size(3) for out in outs])
+
+        return sum([F.interpolate(out, size, mode="bilinear") for out in outs]) + self.bias
+
+
 def get_bn(name, dim):
     if name == 'none':
         return None
@@ -22,6 +45,9 @@ class Generator(nn.Module):
         self.upsample = upsample
         self.segcfg, self.semantic_dim, self.n_class = semantic.split("-")
         self.n_class = int(self.n_class)
+        self.ksize = int(self.segcfg[0])
+        self.padsize = (self.ksize - 1) // 2
+        self.n_layer = int(self.segcfg[-1])
 
         self.fc = nn.Linear(128, 4 * 4 * dims[0])
         self.relu = nn.ReLU(True)
@@ -35,7 +61,7 @@ class Generator(nn.Module):
             self.deconvs.append(conv)
         self.visualize = nn.Conv2d(dims[-1], 3, 3, padding=1)
         self.tanh = nn.Tanh()
-        self.build_cat_extractor()
+        self.build_extractor()
     
     def freeze(self, train=False):
         for p in self.parameters():
@@ -43,49 +69,26 @@ class Generator(nn.Module):
         for p in self.semantic_branch.parameters():
             p.requires_grad = True
 
-    def build_cat_extractor(self):
-        def conv_block(in_dim, out_dim):
-            _m = [nn.Conv2d(in_dim, out_dim, 1, 1), nn.ReLU(inplace=True)]
-            return nn.Sequential(*_m)
-
-        if self.upsample == 3:
-            dims = [128, 64, 64] # 256
-        elif self.upsample == 4:
-            dims = [256, 128, 64, 64] # 512
-
-        semantic_extractor = nn.ModuleList()
-        for in_dim, out_dim in zip(self.dims[1:], dims):
-            semantic_extractor.append(conv_block(in_dim, out_dim))
-
-        semantic_visualizer = nn.Conv2d(sum(dims), self.n_class, 1, 1)
-
-        self.semantic_branch = nn.ModuleList([
-            semantic_extractor,
-            semantic_visualizer])
+    def build_extractor(self):
+        self.semantic_branch = MultiResolutionConvolution(
+            in_dims=self.dims[1:],
+            out_dim=self.n_class,
+            kernel_size=self.ksize
+        )
 
     def extract_segmentation(self, stage):
-        count = 0
-        outputs = []
-        hiddens = []
-        extractor, visualizer = self.semantic_branch
-        for i, seg_input in enumerate(stage):
-            hiddens.append(extractor[count](seg_input))
-            count += 1
-        # concat
-        base_size = hiddens[-1].size(2)
-        feat = torch.cat(
-            [F.interpolate(h.float(), base_size, mode="bilinear") for h in hiddens],
-            1)
-        outputs.append(visualizer(feat))
-        return outputs
+        return [self.semantic_branch(stage)]
 
-    def forward(self, x, seg=True):
+    def forward(self, x, seg=True, detach=False):
         x = self.relu(self.fc(x)).view(-1, self.dims[0], 4, 4)
 
         self.stage = []
         for layers in self.deconvs:
             x = layers(x)
-            self.stage.append(x)
+            if detach:
+                self.stage.append(x.detach())
+            else:
+                self.stage.append(x)
         x = self.tanh(self.visualize(x))
 
         if seg:

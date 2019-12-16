@@ -88,6 +88,28 @@ class MyConv2d(nn.Module):
         return x
 
 
+class MultiResolutionConvolution(nn.Module):
+    def __init__(self, in_dims=[512, 512, 256, 64, 32, 16], out_dim=16, kernel_size=1):
+        super(MultiResolutionConvolution, self).__init__()
+        self.convs = nn.ModuleList()
+        self.ksize = kernel_size
+        self.in_dims = in_dims
+        for in_dim in in_dims:
+            self.convs.append(MyConv2d(in_dim, out_dim, self.ksize, bias=False))
+    
+    def forward(self, x):
+        """
+        x is list of multi resolution feature map
+        """
+        outs = []
+        for conv, xl in zip(self.convs, x):
+            outs.append(conv(xl))
+        
+        size = max([out.size(3) for out in outs])
+
+        return sum([F.interpolate(out, size, mode="bilinear") for out in outs])
+
+
 class NoiseLayer(nn.Module):
     """adds noise. noise is per pixel (constant over channels) with per-channel weight"""
     def __init__(self, channels):
@@ -391,7 +413,16 @@ class StyledGenerator(nn.Module):
             self.build_gen_extractor()
         elif "cat" in self.segcfg:
             self.build_cat_extractor()
-    
+        elif "mul" in self.segcfg:
+            self.build_multi_extractor()
+
+    def build_multi_extractor(self):
+        self.semantic_branch = MultiResolutionConvolution(
+            in_dims=[512, 512, 256, 128, 64, 32, 16],
+            out_dim=self.n_class,
+            kernel_size=self.ksize
+        )
+
     def build_cat_extractor(self):
         def conv_block(in_dim, out_dim):
             midim = (in_dim + out_dim) // 2
@@ -583,6 +614,12 @@ class StyledGenerator(nn.Module):
         outputs.append(visualizer(feat))
         return outputs
 
+    def extract_segmentation_multi(self, stage):
+        for ind in range(len(stage)):
+            if stage[ind].size(2) >= 16:
+                break
+        return [self.semantic_branch(stage[ind:])]
+
     def freeze(self, train=False):
         self.freeze_g_mapping(train)
         self.freeze_g_synthesis(train)
@@ -626,7 +663,9 @@ class StyledGenerator(nn.Module):
             return self.extract_segmentation_cascade(stage)
         elif "cat" in self.segcfg:
             return self.extract_segmentation_cat(stage)
-    
+        elif "mul" in self.segcfg:
+            return self.extract_segmentation_multi(stage)
+
     def predict(self, latent):
         # start from w+
         if latent.dim() == 3 and latent.shape[1] == 18:

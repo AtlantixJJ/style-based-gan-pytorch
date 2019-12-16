@@ -55,12 +55,13 @@ record = cfg.record
 avgmseloss = 0
 count = 0
 
-for i in tqdm(range(cfg.n_iter + 1)):
+for ind in tqdm(range(cfg.n_iter)):
+	ind += 1
 	latent.normal_()
 
 	with torch.no_grad():
 		gen = sg(latent, seg=False).clamp(-1, 1)
-		gen = F.interpolate(gen, 512, mode="bilinear")
+		gen = F.interpolate(gen, cfg.seg_net_imsize, mode="bicubic")
 		label = faceparser(gen).argmax(1)
 		if cfg.map_id:
 			label = cfg.idmap(label.detach())
@@ -69,19 +70,8 @@ for i in tqdm(range(cfg.n_iter + 1)):
 	coefs = [1. for s in segs]
 	seglosses = []
 	for c, s in zip(coefs, segs):
-		# s: (batch, 19, h, w); label: (batch, h, w)
-		if s.shape[2] < label.shape[2]:
-			label_ = F.interpolate(
-				label.unsqueeze(1).float(), s.shape[2:],
-				mode="bilinear")
-			label_ = label_.squeeze(1).long()
-			l = logsoftmax(s, label_)
-		elif s.shape[2] > label.shape[2]:
-			l = logsoftmax(
-				F.interpolate(s, label.shape[2:], mode="bilinear"),
-				label)
-		else:
-			l = logsoftmax(s, label)
+		s_ = F.interpolate(s, label.size(2), mode="bicubic")
+		l = logsoftmax(s_, label)
 		seglosses.append(c * l)
 	segloss = cfg.seg_coef * sum(seglosses) / len(seglosses)
 
@@ -102,23 +92,20 @@ for i in tqdm(range(cfg.n_iter + 1)):
 			l.append(record[k][-1])
 		print(l)
 
-	if (i % 1000 == 0 and i > 0) or i == cfg.n_iter:
-		print("=> Snapshot model %d" % i)
-		torch.save(sg.state_dict(), cfg.expr_dir + "/iter_%06d.model" % i)
+	if (ind % 1000 == 0 and ind > 0) or ind == cfg.n_iter:
+		print("=> Snapshot model %d" % ind)
+		torch.save(sg.state_dict(), cfg.expr_dir + "/iter_%06d.model" % ind)
 
-	if i % 1000 == 0 or i == cfg.n_iter or cfg.debug:
-		vutils.save_image(gen[:4], cfg.expr_dir + '/gen_%06d.png' % i,
-							nrow=2, normalize=True, range=(-1, 1))
-
-		tarlabels = [utils.tensor2label(label[i:i+1], cfg.n_class).unsqueeze(0)
-						for i in range(label.shape[0])]
-		tarviz = torch.cat([F.interpolate(m.float(), 256).cpu() for m in tarlabels])
-		genlabels = [utils.tensor2label(s[0], cfg.n_class).unsqueeze(0)
-					for s in segs]
-		gen_img = (gen[0:1].clamp(-1, 1) + 1) / 2
-		genviz = genlabels + [gen_img]
-		genviz = torch.cat([F.interpolate(m.float(), 256).cpu() for m in genviz])
-		vutils.save_image(genviz, cfg.expr_dir + "/genlabel_viz_%05d.png" % i, nrow=2)
-		vutils.save_image(tarviz, cfg.expr_dir + "/tarlabel_viz_%05d.png" % i, nrow=2)
+	if ind % 1000 == 0 or ind == cfg.n_iter or cfg.debug:
+		num = min(4, label.shape[0])
+		res = []
+		for i in range(num):
+			gen_seg = segs[0][i].argmax(0)
+			tarlabel = utils.tensor2label(label[i], cfg.n_class)
+			genlabel = utils.tensor2label(gen_seg, cfg.n_class)
+			image = (gen[i].clamp(-1, 1) + 1) / 2
+			res.extend([image, genlabel, tarlabel])
+		res = torch.cat([F.interpolate(m.float().unsqueeze(0), 256).cpu() for m in res])
+		vutils.save_image(res, cfg.expr_dir + "/%05d.png" % ind, nrow=3)
 		utils.write_log(cfg.expr_dir, record)
 		utils.plot_dic(record, cfg.expr_dir + "/loss.png")

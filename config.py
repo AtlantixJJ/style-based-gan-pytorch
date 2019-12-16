@@ -119,7 +119,7 @@ class TSSegConfig(BaseConfig):
     def __init__(self):
         super(TSSegConfig, self).__init__()
     
-        self.parser.add_argument("--seg-net", default="checkpoint/faceparse_unet.pth", help="The load path of semantic segmentation network")
+        self.parser.add_argument("--seg-net", default="checkpoint/faceparse_unet_512.pth", help="The load path of semantic segmentation network")
         self.parser.add_argument("--seg", default=1., type=float, help="Coefficient of segmentation loss")
         self.parser.add_argument("--mse", default=1., type=float, help="Coefficient of MSE loss")
         self.parser.add_argument("--seg-cfg", default="1conv1-64-19", help="Configure of segmantic segmentation extractor")
@@ -252,7 +252,7 @@ class FixSegConfig(BaseConfig):
     def __init__(self):
         super(FixSegConfig, self).__init__()
 
-        self.parser.add_argument("--seg-net", default="checkpoint/faceparse_unet.pth", help="The load path of semantic segmentation network")
+        self.parser.add_argument("--seg-net", default="checkpoint/faceparse_unet_512.pth", help="The load path of semantic segmentation network")
         self.parser.add_argument("--seg", default=1., type=float, help="Coefficient of segmentation loss")
         self.parser.add_argument("--seg-cfg", default="3conv1-64-16", help="Configure of segmantic segmentation extractor")
         self.parser.add_argument("--n-class", type=int, default=16, help="Class num")
@@ -262,6 +262,8 @@ class FixSegConfig(BaseConfig):
         self.n_class = self.args.n_class
         self.seg_coef = self.args.seg
         self.seg_net_path = self.args.seg_net
+        ind = self.seg_net_path.rfind("_")
+        self.seg_net_imsize = int(self.seg_net_path[ind+1:ind+4])
         self.semantic_config = self.args.seg_cfg
         self.record = {'loss': [], 'segloss': []}
         if "faceparse_unet" in self.seg_net_path:
@@ -282,8 +284,10 @@ class FixSegConfig(BaseConfig):
 
     def print_info(self):
         super(FixSegConfig, self).print_info()
+        print("=> Segmentation network: %s" % self.seg_net_path)
         print("=> Segmentation configure: %s" % self.semantic_config)
         print("=> Segmentation loss coefficient: %.4f" % self.seg_coef)
+        
 
 
 class TSConfig(BaseConfig):
