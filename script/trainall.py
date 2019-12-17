@@ -43,5 +43,15 @@ def assign_run(command_generator, gpus, false_exec=False):
         if not false_exec:
             os.system(s[:-2])
 
-gpus = ["4", "5", "6", "7"]; assign_run(FixSeg().command, gpus)
+def direct_run(gpus):
+    commands = [
+        "python train/fixsegtrain.py --task fixseg --seg-cfg 1mul1-64-16 --arch tfseg --batch_size 1 --gpu %s &",
+        "python train/fixsegtrain.py --task fixsegsimple --seg-cfg 1mul1-64-16 --arch simple --batch_size 1 --load expr/celeba_wgan_64/gen_iter_100000.model --imsize 64 --seg-net checkpoint/faceparse_unet_128.pth --gpu %s &",
+        "python train/simplesdtrain.py --task simplesd --seg-cfg 1mul1-64-16 --arch simple --batch_size 64 --imsize 64 --load "" --disc-net "" --gpu %s &",
+    ]
+    for i, (c, gpu) in enumerate(zip(commands, gpus)):
+        yield i, c % gpu
+
+gpus = ["4", "5", "6", "7"]; assign_run(direct_run, gpus)
+#gpus = ["4", "5", "6", "7"]; assign_run(FixSeg().command, gpus)
 #gpus = ["0,2", "0,3"]; assign_run(TSSeg().command, gpus)

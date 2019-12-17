@@ -55,14 +55,14 @@ for ind, sample in enumerate(pbar):
     real_image, real_label_compat = sample
     real_image = real_image.cuda()
     real_label = utils.onehot(real_label_compat, cfg.n_class).cuda()
-    real_label = F.interpolate(real_label, real_image.size(2), mode="bicubic")
+    real_label = F.interpolate(real_label, real_image.size(2), mode="bilinear")
     latent.normal_()
     eps.uniform_()
 
     with torch.no_grad():
         fake_image, fake_label_logit = sg(latent)
         fake_label = F.softmax(fake_label_logit, 1)
-        fake_label = F.interpolate(fake_label, fake_image.size(2), mode="bicubic")
+        fake_label = F.interpolate(fake_label, fake_image.size(2), mode="bilinear")
     disc_fake_in = torch.cat([fake_image, fake_label], 1) if cfg.seg > 0 else fake_image
     disc_real_in = torch.cat([real_image, real_label], 1) if cfg.seg > 0 else real_image
 
@@ -79,14 +79,8 @@ for ind, sample in enumerate(pbar):
     # not sure the segmenation mask can be interpolated
     x_hat = eps * real_image.data + (1 - eps) * fake_image.data
     y_hat = eps * real_label.data + (1 - eps) * fake_label.data
-    # DRAGAN
-    # std_x = real_image.view(real_image.size(0), -1).std(1).view(-1, 1, 1, 1)
-    # std_y = real_label.view(real_image.size(0), -1).std(1).view(-1, 1, 1, 1)
-    # x_hat = std_x * eps + (1 - eps) * real_image.data
-    # y_hat = std_y * eps + (1 - eps) * real_label.data
-    x_hat.requires_grad = True
-    y_hat.requires_grad = True
     in_hat = torch.cat([x_hat, y_hat], 1) if cfg.seg > 0 else x_hat
+    in_hat.requires_grad = True
     disc_hat = disc(in_hat, step=step, alpha=alpha)
     grad_in_hat = torch.autograd.grad(
         outputs=disc_hat.sum(), 
@@ -95,26 +89,24 @@ for ind, sample in enumerate(pbar):
         retain_graph=True,
         only_inputs=True)[0]
     grad_in_hat_norm = grad_in_hat.view(grad_in_hat.size(0), -1).norm(2, dim=1)
-    grad_penalty = ((grad_in_hat_norm - 1) ** 2).mean()
+    grad_penalty = 10 * ((grad_in_hat_norm - 1) ** 2).mean()
     grad_penalty.backward()
     d_optim.step()
 
     # Train gen
-    sg.zero_grad()
-    utils.requires_grad(disc, False)
-    latent.normal_()
-    gen, gen_label_logit = sg(latent)
-    #this is not differentiable
-    #gen_label = utils.onehot_logit(gen_label_logit, cfg.n_class)
-    gen_label = F.softmax(gen_label_logit, 1)
-    gen_label = F.interpolate(gen_label, gen.size(2), mode="bicubic")
-    disc_gen_in = torch.cat([gen, gen_label], 1) if cfg.seg > 0 else gen
-    disc_gen = disc(disc_gen_in, step=step, alpha=alpha)
-    gen_loss = -disc_gen.mean()
-    gen_loss.backward()
-    g_optim.step()
-
-    utils.requires_grad(disc, True)
+    if utils.torch2numpy(disc_loss) < 0:
+        sg.zero_grad()
+        utils.requires_grad(disc, False)
+        latent.normal_()
+        gen, gen_label_logit = sg(latent, detach=True)
+        gen_label = F.softmax(gen_label_logit, 1)
+        gen_label = F.interpolate(gen_label, gen.size(2), mode="bilinear")
+        disc_gen_in = torch.cat([gen, gen_label], 1) if cfg.seg > 0 else gen
+        disc_gen = disc(disc_gen_in, step=step, alpha=alpha)
+        gen_loss = -disc_gen.mean()
+        gen_loss.backward()
+        g_optim.step()
+        utils.requires_grad(disc, True)
 
     # display
     record['disc_loss'].append(utils.torch2numpy(disc_loss))

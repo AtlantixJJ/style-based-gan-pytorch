@@ -75,7 +75,7 @@ def wgan_gp(D, x_real, x_fake):
         retain_graph=True,
         only_inputs=True)[0]
     grad_x_hat_norm = grad_x_hat.view(grad_x_hat.size(0), -1).norm(2, dim=1)
-    grad_penalty = ((grad_x_hat_norm - 1) ** 2).mean()
+    grad_penalty = 10 * ((grad_x_hat_norm - 1) ** 2).mean()
     grad_penalty.backward()
 
     return disc_loss, grad_penalty

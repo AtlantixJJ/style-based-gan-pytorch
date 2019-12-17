@@ -218,7 +218,10 @@ def set_seed(seed):
 
 
 def torch2numpy(x):
-    return x.data.cpu().numpy()
+    try:
+        return x.data.cpu().numpy()
+    except:
+        return x
 
 
 def lerp(a, b, x, y, i):

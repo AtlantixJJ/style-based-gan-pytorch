@@ -646,9 +646,14 @@ class StyledGenerator(nn.Module):
 
     #def forward(self, x):
     #    return self.g_synthesis(self.g_mapping(x))
-    def forward(self, x, seg=True):
+    def forward(self, x, seg=True, detach=False):
         image, stage = self.g_synthesis(self.g_mapping(x))
         self.stage = stage
+
+        if detach:
+            for i in range(len(self.stage)):
+                self.stage[i] = self.stage[i].detach()
+
         if seg:
             seg = self.extract_segmentation(stage)[-1]
             return image, seg
