@@ -256,12 +256,14 @@ class FixSegConfig(BaseConfig):
         self.parser.add_argument("--seg", default=1., type=float, help="Coefficient of segmentation loss")
         self.parser.add_argument("--seg-cfg", default="3conv1-64-16", help="Configure of segmantic segmentation extractor")
         self.parser.add_argument("--n-class", type=int, default=16, help="Class num")
+        self.parser.add_argument("--save-seg", type=int, default=0, help="If to save the weight evolution of semantic branch")
 
     def parse(self):
         super(FixSegConfig, self).parse()
         self.n_class = self.args.n_class
         self.seg_coef = self.args.seg
         self.seg_net_path = self.args.seg_net
+        self.save_seg = self.args.save_seg
         ind = self.seg_net_path.rfind("_")
         self.seg_net_imsize = int(self.seg_net_path[ind+1:ind+4])
         self.semantic_config = self.args.seg_cfg

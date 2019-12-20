@@ -341,6 +341,7 @@ class G_synthesis(nn.Module):
         ):
         
         super().__init__()
+        self.ortho_w = None
         def nf(stage):
             return min(int(fmap_base / (2.0 ** (stage * fmap_decay))), fmap_max)
         self.dlatent_size = dlatent_size
@@ -373,7 +374,7 @@ class G_synthesis(nn.Module):
         #self.torgbs.append(self.torgb)
         self.blocks = nn.ModuleDict(OrderedDict(blocks))
         
-    def forward(self, dlatents_in):
+    def forward(self, dlatents_in, orthogonal=None):
         # Input: Disentangled latents (W) [minibatch, num_layers, dlatent_size].
         # lod_in = tf.cast(tf.get_variable('lod', initializer=np.float32(0), trainable=False), dtype)
         stage = []
@@ -383,6 +384,8 @@ class G_synthesis(nn.Module):
                 x = m(dlatents_in[:, 2*i:2*i+2])
             else:
                 x = m(x, dlatents_in[:, 2*i:2*i+2])
+            if orthogonal is not None:
+                x = orthogonal(x)
             stage.append(x)
         rgb = self.torgb(x)
         return rgb, stage
@@ -646,7 +649,13 @@ class StyledGenerator(nn.Module):
 
     #def forward(self, x):
     #    return self.g_synthesis(self.g_mapping(x))
-    def forward(self, x, seg=True, detach=False):
+    def forward(self, x, seg=True, detach=False, ortho=False):
+        if ortho:
+            ortho_ws = []
+            for conv in self.semantic_branch.convs:
+                w = conv.weight.data.numpy()
+                
+                ortho_ws.append(conv.weight)
         image, stage = self.g_synthesis(self.g_mapping(x))
         self.stage = stage
 

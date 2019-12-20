@@ -94,19 +94,18 @@ for ind, sample in enumerate(pbar):
     d_optim.step()
 
     # Train gen
-    if utils.torch2numpy(disc_loss) < 0:
-        sg.zero_grad()
-        utils.requires_grad(disc, False)
-        latent.normal_()
-        gen, gen_label_logit = sg(latent, detach=True)
-        gen_label = F.softmax(gen_label_logit, 1)
-        gen_label = F.interpolate(gen_label, gen.size(2), mode="bilinear")
-        disc_gen_in = torch.cat([gen, gen_label], 1) if cfg.seg > 0 else gen
-        disc_gen = disc(disc_gen_in, step=step, alpha=alpha)
-        gen_loss = -disc_gen.mean()
-        gen_loss.backward()
-        g_optim.step()
-        utils.requires_grad(disc, True)
+    sg.zero_grad()
+    utils.requires_grad(disc, False)
+    latent.normal_()
+    gen, gen_label_logit = sg(latent, detach=True)
+    gen_label = F.softmax(gen_label_logit, 1)
+    gen_label = F.interpolate(gen_label, gen.size(2), mode="bilinear")
+    disc_gen_in = torch.cat([gen, gen_label], 1) if cfg.seg > 0 else gen
+    disc_gen = disc(disc_gen_in, step=step, alpha=alpha)
+    gen_loss = -disc_gen.mean()
+    gen_loss.backward()
+    g_optim.step()
+    utils.requires_grad(disc, True)
 
     # display
     record['disc_loss'].append(utils.torch2numpy(disc_loss))
@@ -141,8 +140,8 @@ for ind, sample in enumerate(pbar):
                 gen_label_viz.append(F.interpolate(viz.unsqueeze(0), 256))
             gen_label_viz = torch.cat(gen_label_viz)
 
-            vutils.save_image(gen_label_viz, cfg.expr_dir + "/gen_label_viz_%05d.png" % ind, nrow=2)
-            vutils.save_image(real_label_viz, cfg.expr_dir + "/real_label_viz_%05d.png" % ind, nrow=2)
+            vutils.save_image(gen_label_viz, cfg.expr_dir + "/fake_%05d.png" % ind, nrow=2)
+            vutils.save_image(real_label_viz, cfg.expr_dir + "/real_%05d.png" % ind, nrow=2)
         vutils.save_image(gen[:4], cfg.expr_dir + '/gen_%06d.png' % ind,
                             nrow=2, normalize=True, range=(-1, 1))
         vutils.save_image(real_image[:4], cfg.expr_dir + '/real_%06d.png' % ind,
