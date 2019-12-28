@@ -106,6 +106,7 @@ class BaseConfig(object):
     def print_info(self):
         print("=> Task : %s" % self.task)
         print("=> Name : %s" % self.name)
+        print("=> Arch : model.%s" % self.arch)
         print("=> Experiment directory %s" % self.expr_dir)
         if self.load:
             print("=> Load from %s" % self.load_path)
@@ -122,7 +123,7 @@ class TSSegConfig(BaseConfig):
         self.parser.add_argument("--seg-net", default="checkpoint/faceparse_unet_512.pth", help="The load path of semantic segmentation network")
         self.parser.add_argument("--seg", default=1., type=float, help="Coefficient of segmentation loss")
         self.parser.add_argument("--mse", default=1., type=float, help="Coefficient of MSE loss")
-        self.parser.add_argument("--seg-cfg", default="1conv1-64-19", help="Configure of segmantic segmentation extractor")
+        self.parser.add_argument("--seg-cfg", default="mul-16", help="Configure of segmantic segmentation extractor")
 
     def parse(self):
         super(TSSegConfig, self).parse()
@@ -163,7 +164,7 @@ class SegConfig(BaseConfig):
         self.parser.add_argument("--dataset", default="datasets/CelebAMask-HQ", help="Path of latent segmentation dataset")
         self.parser.add_argument("--idmap", default=1, type=int, help="Map the 19 class id of CelebA Mask to 16 classes")
         self.parser.add_argument("--seg", default=1., type=float, help="Coefficient of segmentation loss")
-        self.parser.add_argument("--seg-cfg", default="3conv1-64-16", help="Configure of segmantic segmentation extractor")
+        self.parser.add_argument("--seg-cfg", default="mul-16", help="Configure of segmantic segmentation extractor")
 
     def parse(self):
         super(SegConfig, self).parse()
@@ -197,7 +198,7 @@ class SDConfig(BaseConfig):
         self.parser.add_argument("--disc-net", default="checkpoint/stylegan-1024px-new-disc.model")
         self.parser.add_argument("--dataset", default="datasets/CelebAMask-HQ")
         self.parser.add_argument("--seg", default=1., type=float, help="Use segmentation or not")
-        self.parser.add_argument("--seg-cfg", default="3cat1-1-16", help="Configure of segmantic segmentation extractor")
+        self.parser.add_argument("--seg-cfg", default="mul-16", help="Configure of segmantic segmentation extractor")
         self.parser.add_argument("--n-class", type=int, default=16, help="Class num")
         self.parser.add_argument("--n-critic", type=int, default=2, help="Number of discriminator steps")
         self.parser.add_argument("--dseg-cfg", default="lowcat-16", help="Configure of how discriminator use segmantic segmentation")
@@ -235,7 +236,7 @@ class SDConfig(BaseConfig):
         if "mix" in self.disc_semantic_config:
             self.record["disc_low_loss"] = []
 
-        self.name = f"{self.task}_{self.seg}_{self.semantic_config}"
+        self.name = f"{self.task}{self.imsize}_{self.seg}_{self.semantic_config}"
         self.expr_dir = osj("expr", self.name)
 
     def print_info(self):
@@ -254,16 +255,16 @@ class FixSegConfig(BaseConfig):
 
         self.parser.add_argument("--seg-net", default="checkpoint/faceparse_unet_512.pth", help="The load path of semantic segmentation network")
         self.parser.add_argument("--seg", default=1., type=float, help="Coefficient of segmentation loss")
-        self.parser.add_argument("--seg-cfg", default="3conv1-64-16", help="Configure of segmantic segmentation extractor")
+        self.parser.add_argument("--seg-cfg", default="mul-16", help="Configure of segmantic segmentation extractor")
         self.parser.add_argument("--n-class", type=int, default=16, help="Class num")
-        self.parser.add_argument("--save-seg", type=int, default=0, help="If to save the weight evolution of semantic branch")
+        self.parser.add_argument("--trace", type=int, default=0, help="If to save the weight evolution of semantic branch")
 
     def parse(self):
         super(FixSegConfig, self).parse()
         self.n_class = self.args.n_class
         self.seg_coef = self.args.seg
         self.seg_net_path = self.args.seg_net
-        self.save_seg = self.args.save_seg
+        self.trace_weight = self.args.trace
         ind = self.seg_net_path.rfind("_")
         self.seg_net_imsize = int(self.seg_net_path[ind+1:ind+4])
         self.semantic_config = self.args.seg_cfg
@@ -289,8 +290,22 @@ class FixSegConfig(BaseConfig):
         print("=> Segmentation network: %s" % self.seg_net_path)
         print("=> Segmentation configure: %s" % self.semantic_config)
         print("=> Segmentation loss coefficient: %.4f" % self.seg_coef)
-        
 
+class GuideConfig(SDConfig):
+    def __init__(self):
+        super(GuideConfig, self).__init__()
+        self.parser.add_argument("--guide", default="delta", help="delta|norm")
+    
+    def parse(self):
+        super(GuideConfig, self).parse()
+        self.guide = self.args.guide
+        self.name = f"{self.task}{self.imsize}_{self.guide}_{self.seg}_{self.semantic_config}"
+        self.expr_dir = osj("expr", self.name)
+        self.record = {'disc_loss': [], 'gen_loss': [], "gp_image": [], "gp_label": []}
+
+    def print_info(self):
+        super(GuideConfig, self).print_info()
+        print("=> Guide loss type: %s" % self.guide)
 
 class TSConfig(BaseConfig):
     def __init__(self):

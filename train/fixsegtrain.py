@@ -12,7 +12,6 @@ from torchvision import utils as vutils
 from lib.face_parsing import unet
 import config
 import utils
-from loss import *
 import model
 
 cfg = config.FixSegConfig()
@@ -52,8 +51,13 @@ logsoftmax = logsoftmax.cuda()
 latent = torch.randn(cfg.batch_size, LATENT_SIZE).cuda()
 
 record = cfg.record
-avgmseloss = 0
-count = 0
+trace_weight = 0
+trace_bias = 0
+if cfg.trace_weight:
+	conv_dim = sg.semantic_branch.weight.shape[1]
+	#bias_dim = sg.semantic_branch.bias.shape[0]
+	trace_weight = np.zeros((cfg.n_iter, cfg.n_class, conv_dim), dtype="float16")
+	#trace_bias = np.zeros((cfg.n_iter, bias_dim, cfg.n_class), dtype="float16")
 
 for ind in tqdm(range(cfg.n_iter)):
 	ind += 1
@@ -61,7 +65,7 @@ for ind in tqdm(range(cfg.n_iter)):
 
 	with torch.no_grad():
 		gen = sg(latent, seg=False).clamp(-1, 1)
-		gen = F.interpolate(gen, cfg.seg_net_imsize, mode="bicubic")
+		gen = F.interpolate(gen, cfg.seg_net_imsize, mode="bilinear")
 		label = faceparser(gen).argmax(1)
 		if cfg.map_id:
 			label = cfg.idmap(label.detach())
@@ -70,7 +74,7 @@ for ind in tqdm(range(cfg.n_iter)):
 	coefs = [1. for s in segs]
 	seglosses = []
 	for c, s in zip(coefs, segs):
-		s_ = F.interpolate(s, label.size(2), mode="bicubic")
+		s_ = F.interpolate(s, label.size(2), mode="bilinear")
 		l = logsoftmax(s_, label)
 		seglosses.append(c * l)
 	segloss = cfg.seg_coef * sum(seglosses) / len(seglosses)
@@ -84,6 +88,9 @@ for ind in tqdm(range(cfg.n_iter)):
 
 	record['loss'].append(utils.torch2numpy(loss))
 	record['segloss'].append(utils.torch2numpy(segloss))
+	if cfg.trace_weight:
+		trace_weight[ind - 1] = utils.torch2numpy(sg.semantic_branch.weight)[:, :, 0, 0]
+		#trace_bias[ind - 1] = utils.torch2numpy(sg.semantic_branch.bias)
 
 	if cfg.debug:
 		print(record.keys())
@@ -95,6 +102,9 @@ for ind in tqdm(range(cfg.n_iter)):
 	if (ind % 1000 == 0 and ind > 0) or ind == cfg.n_iter:
 		print("=> Snapshot model %d" % ind)
 		torch.save(sg.state_dict(), cfg.expr_dir + "/iter_%06d.model" % ind)
+		if cfg.trace_weight:
+			np.save(cfg.expr_dir + "/trace_weight.npy", trace_weight[:ind])
+			#np.save(cfg.expr_dir + "/trace_bias.npy", trace_bias[:ind])
 
 	if ind % 1000 == 0 or ind == cfg.n_iter or cfg.debug:
 		num = min(4, label.shape[0])

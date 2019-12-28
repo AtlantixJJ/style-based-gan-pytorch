@@ -76,7 +76,7 @@ if "log" in args.task:
 if "seg" in args.task:
     colorizer = utils.Colorize(16) #label to rgb
 
-    state_dict = torch.load("checkpoint/faceparse_unet.pth", map_location='cpu')
+    state_dict = torch.load("checkpoint/faceparse_unet_512.pth", map_location='cpu')
     faceparser = unet.unet()
     faceparser.load_state_dict(state_dict)
     faceparser = faceparser.to(device)

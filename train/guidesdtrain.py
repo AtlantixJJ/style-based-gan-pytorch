@@ -15,7 +15,7 @@ import config
 import utils
 import model
 
-cfg = config.SDConfig()
+cfg = config.GuideConfig()
 cfg.parse()
 cfg.print_info()
 cfg.setup()
@@ -50,8 +50,7 @@ latent = torch.randn(cfg.batch_size, 128).cuda()
 eps = torch.rand(cfg.batch_size, 1, 1, 1).cuda()
 
 
-def wgan_gp(D, x_real, x_fake):
-    eps.uniform_()
+def wgan(D, x_real, x_fake):
     D.zero_grad()
     disc_real = D(x_real)
     disc_real_loss = - disc_real.mean()
@@ -60,26 +59,69 @@ def wgan_gp(D, x_real, x_fake):
     disc_fake_loss = disc_fake.mean()
     disc_fake_loss.backward()
     disc_loss = disc_fake_loss + disc_real_loss
+    
+    return disc_loss
 
-    # not sure the segmenation mask can be interpolated
-    x_hat = eps * x_real.data + (1 - eps) * x_fake.data
-    # DRAGAN
-    # std_x = x_real.view(x_real.size(0), -1).std(1).view(-1, 1, 1, 1)
-    # x_hat = std_x * eps + (1 - eps) * x_real.data
-    x_hat.requires_grad = True
-    disc_hat = D(x_hat)
-    grad_x_hat = torch.autograd.grad(
-        outputs=disc_hat.sum(), 
-        inputs=x_hat,
+def norm_gradient_penalty(y, x):
+    grad = torch.autograd.grad(
+        outputs=y, 
+        inputs=x,
         create_graph=True,
         retain_graph=True,
         only_inputs=True)[0]
-    grad_x_hat_norm = grad_x_hat.view(grad_x_hat.size(0), -1).norm(2, dim=1)
-    grad_penalty = 10 * ((grad_x_hat_norm - 1) ** 2).mean()
-    grad_penalty.backward()
+    norm = grad.view(grad.size(0), -1).norm(2, dim=1)
+    loss = 10 * ((norm - 1) ** 2).mean()
+    return loss
 
-    return disc_loss, grad_penalty
+def target_gradient_penalty(y, x, target):
+    grad = torch.autograd.grad(
+        outputs=y, 
+        inputs=x,
+        create_graph=True,
+        retain_graph=True,
+        only_inputs=True)[0]
+    loss = 10 * ((grad - target) ** 2).mean()
+    return loss
 
+def delta_gradient_guide(D, real_image, fake_image, real_label, fake_label):
+    std_image = real_image.view(real_image.size(0), -1).std(1).view(-1, 1, 1, 1)
+    std_label = real_label.view(real_label.size(0), -1).std(1).view(-1, 1, 1, 1)
+    eps = torch.randn_like(real_image) * std_image
+    mid_image = eps + real_image.data
+    eps = torch.randn_like(real_label) * std_label
+    mid_label = eps + real_label.data
+    mid_label = (mid_label - mid_label.min()) / (mid_label.max() - mid_label.min())
+    mid_label = mid_label.detach()
+    mid_image.requires_grad = True
+    mid_label.requires_grad = True
+
+    disc_image = D(torch.cat([mid_image, real_label], 1))
+    gp1 = target_gradient_penalty(disc_image.sum(), mid_image, real_image - mid_image)
+    gp1.backward()
+
+    disc_label = D(torch.cat([real_image, mid_label], 1))
+    gp2 = target_gradient_penalty(disc_label.sum(), mid_label, real_label - mid_label)
+    gp2.backward()
+
+    return gp1, gp2
+
+def norm_gradient_guide(D, real_image, fake_image, real_label, fake_label):
+    eps.uniform_()
+    mid_image = eps * real_image.data + (1 - eps) * fake_image.data
+    eps.uniform_()
+    mid_label = eps * real_label.data + (1 - eps) * fake_label.data
+    mid_image.requires_grad = True
+    mid_label.requires_grad = True
+
+    disc_image = D(torch.cat([mid_image, real_label], 1))
+    gp1 = norm_gradient_penalty(disc_image.sum(), mid_image)
+    gp1.backward()
+
+    disc_label = D(torch.cat([real_image, mid_label], 1))
+    gp2 = norm_gradient_penalty(disc_label.sum(), mid_label)
+    gp2.backward()
+
+    return gp1, gp2
 
 record = cfg.record
 
@@ -100,7 +142,13 @@ for ind, sample in enumerate(pbar):
     disc_real_in = torch.cat([real_image, real_label], 1) if cfg.seg > 0 else real_image
 
     # Train disc
-    disc_loss, grad_penalty = wgan_gp(disc, disc_real_in, disc_fake_in)
+    disc_loss = wgan(disc, disc_real_in, disc_fake_in)
+    if cfg.guide == "delta":
+        gp_image, gp_label = delta_gradient_guide(
+            disc, real_image, fake_image, real_label, fake_label)
+    elif cfg.guide == "norm":
+        gp_image, gp_label = norm_gradient_guide(
+            disc, real_image, fake_image, real_label, fake_label)
     d_optim.step()
 
     # Train gen
@@ -119,7 +167,8 @@ for ind, sample in enumerate(pbar):
 
     # display
     record['disc_loss'].append(utils.torch2numpy(disc_loss))
-    record['grad_penalty'].append(utils.torch2numpy(grad_penalty))
+    record['gp_image'].append(utils.torch2numpy(gp_image))
+    record['gp_label'].append(utils.torch2numpy(gp_label))
     record['gen_loss'].append(utils.torch2numpy(gen_loss))
 
     if cfg.debug:

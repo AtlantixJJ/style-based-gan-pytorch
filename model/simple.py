@@ -9,21 +9,24 @@ class MultiResolutionConvolution(nn.Module):
         self.convs = nn.ModuleList()
         self.ksize = kernel_size
         self.in_dims = in_dims
-        for in_dim in in_dims:
-            self.convs.append(nn.Conv2d(in_dim, out_dim, self.ksize, bias=False))
-        self.bias = nn.Parameter(torch.randn(1, 16, 1, 1))
+        self.weight = nn.Parameter(torch.zeros(out_dim, sum(in_dims), 1, 1))
+        torch.nn.init.kaiming_normal_(self.weight)
+        self.bias = nn.Parameter(torch.zeros(len(in_dims), out_dim))
     
     def forward(self, x):
         """
         x is list of multi resolution feature map
         """
         outs = []
-        for conv, xl in zip(self.convs, x):
-            outs.append(conv(xl))
+        prev = 0
+        for i in range(len(self.in_dims)):
+            cur = prev + self.in_dims[i]
+            outs.append(F.conv2d(x[i], self.weight[:, prev : cur], self.bias[i]))
+            prev = cur
         
         size = max([out.size(3) for out in outs])
 
-        return sum([F.interpolate(out, size, mode="bilinear") for out in outs]) + self.bias
+        return sum([F.interpolate(out, size, mode="bilinear") for out in outs])
 
 
 def get_bn(name, dim):
@@ -43,11 +46,10 @@ class Generator(nn.Module):
         dims = [64 * (2**i) for i in range(upsample+1)][::-1]
         self.dims = dims
         self.upsample = upsample
-        self.segcfg, self.semantic_dim, self.n_class = semantic.split("-")
+        self.segcfg, self.n_class = semantic.split("-")
         self.n_class = int(self.n_class)
-        self.ksize = int(self.segcfg[0])
+        self.ksize = 1
         self.padsize = (self.ksize - 1) // 2
-        self.n_layer = int(self.segcfg[-1])
 
         self.fc = nn.Linear(128, 4 * 4 * dims[0])
         self.relu = nn.ReLU(True)

@@ -94,21 +94,30 @@ class MultiResolutionConvolution(nn.Module):
         self.convs = nn.ModuleList()
         self.ksize = kernel_size
         self.in_dims = in_dims
-        for in_dim in in_dims:
-            self.convs.append(MyConv2d(in_dim, out_dim, self.ksize, bias=False))
+class MultiResolutionConvolution(nn.Module):
+    def __init__(self, in_dims=[512, 512, 256, 64, 32, 16], out_dim=16, kernel_size=1):
+        super(MultiResolutionConvolution, self).__init__()
+        self.convs = nn.ModuleList()
+        self.ksize = kernel_size
+        self.in_dims = in_dims
+        self.weight = nn.Parameter(torch.zeros(out_dim, sum(in_dims), 1, 1))
+        torch.nn.init.kaiming_normal_(self.weight)
+        self.bias = nn.Parameter(torch.zeros(len(in_dims), out_dim))
     
     def forward(self, x):
         """
         x is list of multi resolution feature map
         """
         outs = []
-        for conv, xl in zip(self.convs, x):
-            outs.append(conv(xl))
+        prev = 0
+        for i in range(len(self.in_dims)):
+            cur = prev + self.in_dims[i]
+            outs.append(F.conv2d(x[i], self.weight[:, prev : cur], self.bias[i]))
+            prev = cur
         
         size = max([out.size(3) for out in outs])
 
         return sum([F.interpolate(out, size, mode="bilinear") for out in outs])
-
 
 class NoiseLayer(nn.Module):
     """adds noise. noise is per pixel (constant over channels) with per-channel weight"""
@@ -392,32 +401,18 @@ class G_synthesis(nn.Module):
 
 
 class StyledGenerator(nn.Module):
-    def __init__(self, semantic="3res2-64-19"):
+    def __init__(self, semantic="mul-16"):
         super().__init__()
         self.g_mapping = G_mapping()
         self.g_synthesis = G_synthesis()
 
-        self.segcfg, self.semantic_dim, self.n_class = semantic.split("-")
+        self.segcfg, self.n_class = semantic.split("-")
         self.n_class = int(self.n_class)
-        self.semantic_dim = int(self.semantic_dim)
-        
-        self.ksize = int(self.segcfg[0])
-        self.padsize = (self.ksize - 1) // 2
-        self.n_layer = int(self.segcfg[-1])
 
-        if "conv" in self.segcfg:
-            # final layer not good, but good classification on early layers
-            self.build_conv_extractor()
-        elif "cas" in self.segcfg:
-            # good in general, but some details are still lost
-            self.build_cascade_extractor()
-        elif "gen" in self.segcfg:
-            # generally the same with cas, a little worse, some details are lost
-            self.build_gen_extractor()
-        elif "cat" in self.segcfg:
-            self.build_cat_extractor()
-        elif "mul" in self.segcfg:
-            self.build_multi_extractor()
+        self.ksize = 1
+        self.padsize = (self.ksize - 1) // 2
+
+        self.build_multi_extractor()
 
     def build_multi_extractor(self):
         self.semantic_branch = MultiResolutionConvolution(
@@ -425,197 +420,6 @@ class StyledGenerator(nn.Module):
             out_dim=self.n_class,
             kernel_size=self.ksize
         )
-
-    def build_cat_extractor(self):
-        def conv_block(in_dim, out_dim):
-            midim = (in_dim + out_dim) // 2
-            if self.n_layer == 1:
-                _m = [MyConv2d(in_dim, out_dim, self.ksize), nn.ReLU(inplace=True)]
-            else:
-                _m = []
-                _m.append(MyConv2d(in_dim, midim, self.ksize))
-                _m.append(nn.ReLU(inplace=True))
-                for i in range(self.n_layer - 2):
-                    _m.append(MyConv2d(midim, midim, self.ksize))
-                    _m.append(nn.ReLU(inplace=True))
-                _m.append(MyConv2d(midim, out_dim, self.ksize))
-                _m.append(nn.ReLU(inplace=True))
-            return nn.Sequential(*_m)
-        
-
-        # start from 16x16 resolution
-        semantic_extractor = nn.ModuleList([
-            conv_block(512, 128),#256), # (128,512, 512)
-            conv_block(512, 128),#256), # (128,512, 512)
-            conv_block(256, 128),#256), # (128,512, 512)
-            conv_block(128, 128),#128), # (128,512, 512)
-            conv_block(64 , 64),#64 ), # (64, 512, 512)
-            conv_block(32 , 64),#64 ), # (32, 512, 512)
-            #conv_block(16 , 16 )
-        ])
-
-        semantic_visualizer = MyConv2d(128 * 5, self.n_class, self.ksize)
-
-        self.semantic_branch = nn.ModuleList([
-            semantic_extractor,
-            semantic_visualizer])
-
-    def build_gen_extractor(self):
-        def conv_block(in_dim, out_dim):
-            midim = (in_dim + out_dim) // 2
-            if self.n_layer == 1:
-                _m = [MyConv2d(in_dim, out_dim, self.ksize), nn.ReLU(inplace=True)]
-            else:
-                _m = []
-                _m.append(MyConv2d(in_dim, midim, self.ksize))
-                _m.append(nn.ReLU(inplace=True))
-                for i in range(self.n_layer - 2):
-                    _m.append(MyConv2d(midim, midim, self.ksize))
-                    _m.append(nn.ReLU(inplace=True))
-                _m.append(MyConv2d(midim, out_dim, self.ksize))
-                _m.append(nn.ReLU(inplace=True))
-            return nn.Sequential(*_m)
-
-        # start from 16x16 resolution
-        semantic_extractor = nn.ModuleList([
-            conv_block(512, 512),
-            conv_block(512, 512),
-            conv_block(256, 256),
-            conv_block(128, 128),
-            conv_block(64 , 64 ),
-            conv_block(32 , 32 ),
-            conv_block(16 , 16 )
-        ])
-        semantic_visualizer = nn.ModuleList([
-            MyConv2d(512, self.n_class, 1),
-            MyConv2d(512, self.n_class, 1),
-            MyConv2d(256, self.n_class, 1),
-            MyConv2d(128, self.n_class, 1),
-            MyConv2d(64 , self.n_class, 1),
-            MyConv2d(32 , self.n_class, 1),
-            MyConv2d(16 , self.n_class, 1)])
-        semantic_reviser = nn.ModuleList([
-            conv_block(512, 512),
-            conv_block(512, 256),
-            conv_block(256, 128),
-            conv_block(128, 64 ),
-            conv_block(64 , 32 ),
-            conv_block(32 , 16 )])
-
-        self.semantic_branch = nn.ModuleList([
-            semantic_extractor, # 0
-            semantic_reviser, # 1
-            semantic_visualizer]) # 2
-
-    def build_cascade_extractor(self):
-        def conv_block(in_dim, out_dim, ksize):
-            midim = (in_dim + out_dim) // 2
-            if self.n_layer == 1:
-                _m = [MyConv2d(in_dim, out_dim, ksize), nn.ReLU(inplace=True)]
-            else:
-                _m = []
-                _m.append(MyConv2d(in_dim, midim, ksize))
-                _m.append(nn.ReLU(inplace=True))
-                for i in range(self.n_layer - 2):
-                    _m.append(MyConv2d(midim, midim, ksize))
-                    _m.append(nn.ReLU(inplace=True))
-                _m.append(MyConv2d(midim, out_dim, ksize))
-                _m.append(nn.ReLU(inplace=True))
-            return nn.Sequential(*_m)
-
-        # start from 16x16 resolution
-        semantic_extractor = nn.ModuleList([
-            conv_block(512, self.semantic_dim, self.ksize),
-            conv_block(512, self.semantic_dim, self.ksize),
-            conv_block(256, self.semantic_dim, self.ksize),
-            conv_block(128, self.semantic_dim, self.ksize),
-            conv_block(64 , self.semantic_dim, self.ksize),
-            conv_block(32 , self.semantic_dim, self.ksize),
-            conv_block(16 , self.semantic_dim, self.ksize)
-        ])
-        semantic_reviser = nn.ModuleList([
-            conv_block(self.semantic_dim, self.semantic_dim, 3)
-                for i in range(len(semantic_extractor) - 1)
-            ])
-        semantic_visualizer = nn.ModuleList([
-            MyConv2d(self.semantic_dim, self.n_class, 1)
-                for i in range(len(semantic_extractor))
-            ])
-        
-        self.semantic_branch = nn.ModuleList([
-            semantic_extractor, # 0
-            semantic_reviser, # 1
-            semantic_visualizer]) # 2
-
-    def build_conv_extractor(self):
-        def conv_block(in_dim, out_dim, ksize):
-            midim = (in_dim + out_dim) // 2
-            if self.n_layer == 1:
-                _m = [MyConv2d(in_dim, out_dim, ksize)]
-            else:
-                _m = []
-                _m.append(MyConv2d(in_dim, midim, ksize))
-                for i in range(self.n_layer - 2):
-                    _m.append(nn.ReLU(inplace=True))
-                    _m.append(MyConv2d(midim, midim, ksize))
-                _m.append(MyConv2d(midim, out_dim, ksize))
-            return nn.Sequential(*_m)
-
-        # start from 16x16 resolution
-        self.semantic_extractor = nn.ModuleList([
-            conv_block(512, self.n_class, self.ksize),
-            conv_block(512, self.n_class, self.ksize),
-            conv_block(256, self.n_class, self.ksize),
-            conv_block(128, self.n_class, self.ksize),
-            conv_block(64 , self.n_class, self.ksize),
-            conv_block(32 , self.n_class, self.ksize),
-            conv_block(16 , self.n_class, self.ksize)
-        ])
-
-        self.semantic_branch = self.semantic_extractor
-
-    def extract_segmentation_cascade(self, stage):
-        extractor, reviser, visualizer = self.semantic_branch
-        count = 0
-        outputs = []
-        for i, seg_input in enumerate(stage):
-            if seg_input.size(2) >= 16:
-                if count == 0:
-                    hidden = extractor[count](seg_input)
-                else:
-                    hidden = reviser[count - 1](F.interpolate(hidden, scale_factor=2))
-                    hidden = hidden + extractor[count](seg_input)
-                outputs.append(visualizer[count](hidden))
-                count += 1
-        return outputs
-    
-    def extract_segmentation_conv(self, stage):
-        count = 0
-        outputs = []
-        for i, seg_input in enumerate(stage):
-            if seg_input.size(2) >= 16:
-                outputs.append(self.semantic_extractor[count](seg_input))
-                count += 1
-        return outputs
-
-    def extract_segmentation_cat(self, stage):
-        count = 0
-        outputs = []
-        hiddens = []
-        extractor, visualizer = self.semantic_branch
-        # note the the 1024 resolution layer's output is not collected
-        for i, seg_input in enumerate(stage):
-            #net_device = next(visualizer.parameters()).device
-            if seg_input.size(2) >= 16 and seg_input.size(2) <= 512:
-                hiddens.append(extractor[count](seg_input))
-                count += 1
-        # concat
-        base_size = hiddens[-1].size(2)
-        feat = torch.cat(
-            [F.interpolate(h.float(), base_size, mode="bilinear") for h in hiddens],
-            1)
-        outputs.append(visualizer(feat))
-        return outputs
 
     def extract_segmentation_multi(self, stage):
         for ind in range(len(stage)):

@@ -13,7 +13,6 @@ from torchvision import utils as vutils
 from lib.face_parsing import unet
 import config
 import utils
-from loss import *
 import model
 
 cfg = config.SDConfig()
