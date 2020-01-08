@@ -36,11 +36,11 @@ def assign_run(command_generator, gpus, false_exec=False):
 
 def direct_run(gpus):
     commands = [
-        #"python train/fixsegtrain.py --task fixseg --seg-cfg mul-16 --arch tfseg --batch_size 1 --gpu %s --trace 1 &",
+        "python train/fixsegtrain.py --task fixseg --seg-cfg mul-16 --arch tfseg --batch_size 1 --gpu %s --trace 1 &",
         #"python train/fixsegtrain.py --task fixsegsimple --seg-cfg mul-16 --arch simple --batch_size 1 --load expr/celeba_wgan_64/gen_iter_100000.model --imsize 64 --seg-net checkpoint/faceparse_unet_128.pth --gpu %s --trace 1 &",
-        #"python train/simplesdtrain.py --task simplesd --seg-cfg mul-16 --arch simple --batch_size 64 --imsize 64 --load \"\" --disc-net \"\" --gpu %s &",
-        #"python train/simplesdtrain.py --task simplesd --seg-cfg mul-16 --arch simple --batch_size 64 --imsize 64 --load \"\" --disc-net \"\" --gpu %s &",
-        "python train/simplesdtrain.py --task simplesegsd --seg -1 --seg-cfg mul-16 --arch simple --batch_size 64 --imsize 64 --load \"\" --disc-net \"\" --gpu %s &",
+        #"python train/simplesdtrain.py --task simplesd --seg-cfg mul-16 --arch simple --batch_size 64 --imsize 256 --load \"\" --disc-net \"\" --gpu %s --iter-num 100000 &",
+        #"python train/simplesdtrain.py --task simplesd --seg-cfg mul-16 --seg 0 --arch simple --batch_size 64 --imsize 256 --load \"\" --disc-net \"\" --gpu %s --iter-num 100000 &",
+        #"python train/segtrain.py --task simpleseg --arch simple --batch_size 64 --imsize 64 --load \"\" --disc-net \"\" --gpu %s &",
         #"python train/guidesdtrain.py --task simplesd --seg-cfg mul-16 --arch simple --batch_size 64 --imsize 64 --load \"\" --disc-net \"\" --gpu %s --guide norm &",
         #"python train/guidesdtrain.py --task simplesd --seg-cfg mul-16 --arch simple --batch_size 64 --imsize 64 --load \"\" --disc-net \"\" --gpu %s --guide delta &",
     ]
@@ -50,6 +50,6 @@ def direct_run(gpus):
         c = commands[i]
         yield index, c % gpu
 
-gpus = ["4", "5", "6", "7"]; assign_run(direct_run, gpus)
+gpus = ["6", "7"]; assign_run(direct_run, gpus)
 #gpus = ["4", "5", "6", "7"]; assign_run(FixSeg().command, gpus)
 #gpus = ["0,2", "0,3"]; assign_run(TSSeg().command, gpus)

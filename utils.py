@@ -257,11 +257,13 @@ class PLComposite(object):
 #########
 
 
-def compute_iou(a, b):
-    if b.any() == False:
-        return -1
-    return (a & b).astype("float32").sum() / (a | b).astype("float32").sum()
-
+def compute_score(y_pred, y_true):
+    n_true = y_true.astype("float32").sum()
+    n_pred = y_pred.astype("float32").sum()
+    tp = (y_true & y_pred).astype("float32").sum()
+    fp = n_pred - tp
+    fn = n_true - tp
+    return tp, fp, fn
 
 def idmap(x):
     id2cid = {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 4, 6: 5, 7: 5, 8: 6, 9: 6, 10: 7, 11: 8, 12: 9, 13: 10, 14: 11, 15: 12, 16: 13, 17: 14, 18: 15}
@@ -278,6 +280,7 @@ class MaskCelebAEval(object):
         self.dic["class"] = ['background', 'skin', 'nose', 'eye_g', 'eye', 'brow', 'ear', 'mouth', 'u_lip', 'l_lip', 'hair', 'hat', 'ear_r', 'neck_l', 'neck', 'cloth']
         self.n_class = len(self.dic["class"])
         self.ignore_classes = [0]
+        self.dic["result"] = []
         self.dic["class_result"] = [[] for i in range(self.n_class)]
         self.id_to_contiguous_id()
         self.map_id = map_id
@@ -303,43 +306,83 @@ class MaskCelebAEval(object):
         return x
 
     def compute_score(self, seg, label):
-        res = []
+        metrics = []
+        pixelcorrect = pixeltotal = 0
         for i in range(self.n_class):
             if i in self.ignore_classes:
-                score = -1
+                precision, recall, iou = -1, -1, -1
             else:
-                score = compute_iou(seg == i, label == i)
-            res.append(score)
-        return res
+                tp, fp, fn = compute_score(seg == i, label == i)
+                pixelcorrect += tp
+                pixeltotal += tp + fn
+                gt_nonempty = (tp + fn) > 0
+                if gt_nonempty:
+                    if tp + fp == 0:
+                        precision = 0
+                    else:
+                        precision = tp / (tp + fp)
+                    recall = tp / (tp + fn)
+                    iou = tp / (tp + fp + fn)
+                else:
+                    # doesn't count if gt is empty
+                    if fn > 0:
+                        precision = 0
+                    else:
+                        precision = -1
+                    recall = -1
+                    iou = -1
+            metrics.append([precision, recall, iou])
+        pixelacc = float(pixelcorrect) / pixeltotal
+        return pixelacc, metrics
 
     def accumulate(self, scores):
-        for i, s in enumerate(scores):
+        pixelacc, metrics = scores
+        self.dic["result"].append(pixelacc)
+        for i, s in enumerate(metrics):
             self.dic["class_result"][i].append(s)
 
     def aggregate(self):
-        self.dic["class_acc"] = [-1] * self.n_class
-        total = 0
-        cnt = 0
+        arr = self.dic["result"]
+        self.dic["pixelacc"] = float(sum(arr)) / len(arr)
+        self.dic["AP"] = [-1] * self.n_class
+        self.dic["AR"] = [-1] * self.n_class
+        self.dic["IoU"] = [-1] * self.n_class
         for i in range(self.n_class):
-            arr = np.array(self.dic["class_result"][i])
-            arr = arr[arr > -1]
-            if arr.shape[0] == 0:
-                self.dic["class_acc"][i] = -1
-                continue
-            cnt += arr.shape[0]
-            total += arr.sum()
-            self.dic["class_acc"][i] = arr.mean()
-        self.dic["acc"] = total / cnt
+            metrics = np.array(self.dic["class_result"][i])
+            for j, name in enumerate(["AP", "AR", "IoU"]):
+                arr = metrics[j]
+                arr = arr[arr > -1]
+                if arr.shape[0] == 0:
+                    self.dic[name][i] = -1
+                    continue
+                self.dic[name][i] = arr.mean()
+        
+        for j, name in enumerate(["AP", "AR", "IoU"]):
+            vals = [self.dic[name][i] for i in range(self.n_class)]
+            vals = np.array(vals)
+            self.dic["m" + name] = vals[vals > -1].mean()
 
     def summarize(self):
-        print("=> Total accuracy: %.3f" % self.dic["acc"])
-        print("=> Class wise accuracy:")
+        print("=> mAP \t mAR \t mIoU \t PixelAcc")
+        print("=> %.3f\t%.3f\t%.3f\t%.3f" % (self.dic["mAP"], self.dic["mAR"], self.dic["mIoU"], self.dic["pixelacc"]))
+        print("=> Class wise metrics:")
+        
+        self.clean_dic = {}
+        for key in ["mAP", "mAR", "mIoU", "pixelacc"]:
+            self.clean_dic[key] = self.dic[key]
+
+        print("=> Name \t mAP \t mAR \t mIoU \t")
         for i in range(self.n_class):
-            if self.dic["class_acc"][i] < 0:
+            if self.dic["AP"][i] < 0:
                 continue
-            print("=> %s:\t%.3f" % (
+            print("=> %s: \t%.3f\t%.3f\t%.3f" % (
                 self.dic["class"][i],
-                self.dic["class_acc"][i]))
+                self.dic["AP"][i],
+                self.dic["AR"][i],
+                self.dic["IoU"][i]))
+            for key in ["AP", "AR", "IoU"]:
+                self.clean_dic[key] = self.dic[key]
+        return self.clean_dic
 
     def save(self, fpath):
         np.save(fpath, self.dic)

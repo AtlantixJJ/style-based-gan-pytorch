@@ -38,12 +38,14 @@ def get_bn(name, dim):
         return nn.InstanceNorm2d(dim)
 
 class Generator(nn.Module):
-    def __init__(self, bn='none', upsample=3, semantic=""):
+    def __init__(self, out_dim=3, out_act="tanh", upsample=3, semantic="mul-16"):
         """
         Start from 4x4, upsample=3 -> 32
         """
         super(Generator, self).__init__()
         dims = [64 * (2**i) for i in range(upsample+1)][::-1]
+        self.out_dim = out_dim
+        self.out_act = out_act
         self.dims = dims
         self.upsample = upsample
         self.segcfg, self.n_class = semantic.split("-")
@@ -58,10 +60,9 @@ class Generator(nn.Module):
             conv = nn.Sequential()
             conv.upsample = nn.UpsamplingNearest2d(scale_factor=2)
             conv.conv = nn.Conv2d(prevDim, curDim, 3, 1, padding=1)
-            conv.bn = get_bn(bn, curDim)
             conv.relu = nn.ReLU(True)
             self.deconvs.append(conv)
-        self.visualize = nn.Conv2d(dims[-1], 3, 3, padding=1)
+        self.visualize = nn.Conv2d(dims[-1], self.out_dim, 3, padding=1)
         self.tanh = nn.Tanh()
         self.build_extractor()
     
@@ -91,7 +92,9 @@ class Generator(nn.Module):
                 self.stage.append(x.detach())
             else:
                 self.stage.append(x)
-        x = self.tanh(self.visualize(x))
+        x = self.visualize(x)
+        if self.out_act == "tanh":
+            x = self.tanh(x)
 
         if seg:
             seg = self.extract_segmentation(self.stage)[-1]
@@ -100,7 +103,7 @@ class Generator(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, bn='none', upsample=3, in_dim=3):
+    def __init__(self, upsample=3, in_dim=3):
         super(Discriminator, self).__init__()
 
         dims = [64 * (2**i) for i in range(upsample+1)]
@@ -112,7 +115,6 @@ class Discriminator(nn.Module):
         for prevDim, curDim in zip(dims[:-1], dims[1:]):
             conv = nn.Sequential()
             conv.conv = nn.Conv2d(prevDim, curDim, 4, stride=2, padding=1)
-            conv.bn = get_bn(bn, curDim)
             conv.lrelu = nn.LeakyReLU(0.2, True)
             self.convs.append(conv)
         self.fc = nn.Linear(4 * 4 * dims[-1], 1)

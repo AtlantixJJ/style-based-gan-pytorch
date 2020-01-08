@@ -104,6 +104,7 @@ for i in range(1, 51):
         optim2.step()
         count += 1
     print("=> %d MSE loss: %.3f\tRevise: %d" % (i, utils.torch2numpy(mseloss), total_diff))
+    
     if i % 10 == 0:
         res.append((image.clamp(-1, 1) + 1) / 2)
         res.append(utils.tensor2label(new_label, 16).unsqueeze(0))

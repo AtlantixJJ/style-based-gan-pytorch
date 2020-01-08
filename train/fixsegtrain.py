@@ -14,6 +14,9 @@ import config
 import utils
 import model
 
+def l2loss(x):
+	return (x ** 2).sum()
+
 cfg = config.FixSegConfig()
 cfg.parse()
 cfg.print_info()
@@ -79,7 +82,10 @@ for ind in tqdm(range(cfg.n_iter)):
 		seglosses.append(c * l)
 	segloss = cfg.seg_coef * sum(seglosses) / len(seglosses)
 
-	loss = segloss
+	regloss = 1e-2 * l2loss(sg.semantic_branch.weight)
+	regloss+= 1e-2 * l2loss(sg.semantic_branch.bias)
+
+	loss = segloss + regloss
 	with torch.autograd.detect_anomaly():
 		loss.backward()
 
@@ -88,6 +94,7 @@ for ind in tqdm(range(cfg.n_iter)):
 
 	record['loss'].append(utils.torch2numpy(loss))
 	record['segloss'].append(utils.torch2numpy(segloss))
+	record['regloss'].append(utils.torch2numpy(regloss))
 	if cfg.trace_weight:
 		trace_weight[ind - 1] = utils.torch2numpy(sg.semantic_branch.weight)[:, :, 0, 0]
 		#trace_bias[ind - 1] = utils.torch2numpy(sg.semantic_branch.bias)

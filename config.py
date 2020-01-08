@@ -216,12 +216,12 @@ class SDConfig(BaseConfig):
         self.dataset = self.args.dataset
         self.map_id = True
         self.imsize = self.args.imsize
-        if self.imsize == 64:
+        if self.imsize < 512:
             self.ds = dataset.ImageSegmentationDataset(
                 root=self.dataset,
                 size=self.imsize,
-                image_dir="CelebA-HQ-img-64",
-                label_dir="CelebAMask-HQ-mask-64",
+                image_dir=f"CelebA-HQ-img-{self.imsize}",
+                label_dir=f"CelebAMask-HQ-mask-{self.imsize}",
                 idmap=utils.idmap)
         else:
             self.ds = dataset.ImageSegmentationDataset(
@@ -268,7 +268,7 @@ class FixSegConfig(BaseConfig):
         ind = self.seg_net_path.rfind("_")
         self.seg_net_imsize = int(self.seg_net_path[ind+1:ind+4])
         self.semantic_config = self.args.seg_cfg
-        self.record = {'loss': [], 'segloss': []}
+        self.record = {'loss': [], 'segloss': [], "regloss": []}
         if "faceparse_unet" in self.seg_net_path:
             self.map_id = True
             self.id2cid = {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 4, 6: 5, 7: 5, 8: 6, 9: 6, 10: 7, 11: 8, 12: 9, 13: 10, 14: 11, 15: 12, 16: 13, 17: 14, 18: 15}

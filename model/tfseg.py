@@ -94,12 +94,6 @@ class MultiResolutionConvolution(nn.Module):
         self.convs = nn.ModuleList()
         self.ksize = kernel_size
         self.in_dims = in_dims
-class MultiResolutionConvolution(nn.Module):
-    def __init__(self, in_dims=[512, 512, 256, 64, 32, 16], out_dim=16, kernel_size=1):
-        super(MultiResolutionConvolution, self).__init__()
-        self.convs = nn.ModuleList()
-        self.ksize = kernel_size
-        self.in_dims = in_dims
         self.weight = nn.Parameter(torch.zeros(out_dim, sum(in_dims), 1, 1))
         torch.nn.init.kaiming_normal_(self.weight)
         self.bias = nn.Parameter(torch.zeros(len(in_dims), out_dim))
