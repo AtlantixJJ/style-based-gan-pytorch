@@ -52,7 +52,8 @@ label = utils.torch2numpy(label)
 del faceparser
 
 feat_size = max([feat.shape[3] for feat in generator.stage if feat.shape[3] >= 16])
-feat = [F.interpolate(feat.cpu(), feat_size)[0].detach().numpy() for feat in generator.stage]
+feat = [F.interpolate(feat.cpu(), feat_size)[0].detach().numpy()
+    for feat in generator.stage if feat.shape[3] >= 16]
 feat = np.concatenate(feat)
 del generator # release GPU memory
 

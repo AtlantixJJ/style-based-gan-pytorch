@@ -94,10 +94,32 @@ class MultiResolutionConvolution(nn.Module):
         self.convs = nn.ModuleList()
         self.ksize = kernel_size
         self.in_dims = in_dims
+        self.segments = []
+        cur = 0
+        for dim in in_dims:
+            self.segments.append((cur, cur + dim))
+            cur += dim
         self.weight = nn.Parameter(torch.zeros(out_dim, sum(in_dims), 1, 1))
         torch.nn.init.kaiming_normal_(self.weight)
         self.bias = nn.Parameter(torch.zeros(len(in_dims), out_dim))
     
+    def get_orthogonal_weight(self):
+        W = self.weight[:, :, 0, 0].permute(1, 0) # (1520, 16)
+        self.Ms = []
+        for i in range(len(self.segments)):
+            bg, ed = self.segments[i]
+            trunc_Q, trunc_R = torch.qr(W[bg:ed])
+            I = torch.eye(ed - bg, ed - bg).cuda()
+            M = I - torch.matmul(trunc_Q, trunc_Q.permute(1, 0))
+            M = M.permute(1, 0).unsqueeze(2).unsqueeze(3) # (dim, dim, 1, 1)
+            self.Ms.append(M)
+
+    # orthogonalize the delta
+    def orthogonalize(self, i, delta):
+        new_delta = F.conv2d(delta, self.Ms[i])
+        print("%.3f %.3f" % (new_delta.min(), new_delta.max()))
+        return new_delta
+
     def forward(self, x):
         """
         x is list of multi resolution feature map
@@ -377,18 +399,17 @@ class G_synthesis(nn.Module):
         #self.torgbs.append(self.torgb)
         self.blocks = nn.ModuleDict(OrderedDict(blocks))
         
-    def forward(self, dlatents_in, orthogonal=None):
-        # Input: Disentangled latents (W) [minibatch, num_layers, dlatent_size].
-        # lod_in = tf.cast(tf.get_variable('lod', initializer=np.float32(0), trainable=False), dtype)
-        stage = []
-        batch_size = dlatents_in.size(0)       
+    def forward(self, dlatents_in, orthogonal=None, ortho_bias=0):
+        cnt = 0
+        stage = []    
         for i, m in enumerate(self.blocks.values()):
             if i == 0:
                 x = m(dlatents_in[:, 2*i:2*i+2])
             else:
                 x = m(x, dlatents_in[:, 2*i:2*i+2])
-            if orthogonal is not None:
-                x = orthogonal(x)
+            if orthogonal is not None and x.shape[3] >= 16 and x.shape[3] <= 256:
+                x = ortho_bias[i] + orthogonal(cnt, x - ortho_bias[i])
+                cnt += 1
             stage.append(x)
         rgb = self.torgb(x)
         return rgb, stage
@@ -447,14 +468,13 @@ class StyledGenerator(nn.Module):
 
     #def forward(self, x):
     #    return self.g_synthesis(self.g_mapping(x))
-    def forward(self, x, seg=True, detach=False, ortho=False):
-        if ortho:
-            ortho_ws = []
-            for conv in self.semantic_branch.convs:
-                w = conv.weight.data.numpy()
-                
-                ortho_ws.append(conv.weight)
-        image, stage = self.g_synthesis(self.g_mapping(x))
+    def forward(self, x, seg=True, detach=False, ortho_bias=None):
+        if ortho_bias is not None:
+            image, stage = self.g_synthesis(self.g_mapping(x),
+                orthogonal=self.semantic_branch.orthogonalize,
+                ortho_bias=ortho_bias)
+        else:
+            image, stage = self.g_synthesis(self.g_mapping(x))
         self.stage = stage
 
         if detach:

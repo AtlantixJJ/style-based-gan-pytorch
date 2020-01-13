@@ -1,9 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
-
+import sys
 
 WINDOW_SIZE = 40
-trace_path = "expr/fixsegsimple_1.0_mul-16/trace_weight.npy"
+name = sys.argv[1] # fixseg_1.0_mul-16
+trace_path = f"expr/{name}/trace_weight.npy"
 
 trace = np.load(trace_path) # (N, 16, 960)
 weight = trace[-1]
@@ -17,7 +18,7 @@ for j in range(16):
     ax.plot(weight[j])
     ax.axes.get_xaxis().set_visible(False)
     ax.set_ylim([weight[j].min(), weight[j].max()])
-fig.savefig("weight.png", bbox_inches='tight')
+fig.savefig(f"results/{name}_weight.png", bbox_inches='tight')
 plt.close()
 
 for i in range(trace.shape[0]):
@@ -35,7 +36,7 @@ for j in range(16):
     ax.plot(step_delta_norm[:, j])
     ax.axes.get_xaxis().set_visible(False)
     ax.set_ylim([minimum, maximum])
-fig.savefig("step_delta_norm.png", bbox_inches='tight')
+fig.savefig(f"results/{name}_step_delta_norm.png", bbox_inches='tight')
 plt.close()
 
 moving_avg_delta = trace - moving_avg_trace
@@ -48,7 +49,7 @@ for j in range(16):
     ax.plot(moving_avg_delta_norm[:, j])
     ax.axes.get_xaxis().set_visible(False)
     ax.set_ylim([minimum, maximum])
-fig.savefig("moving_avg_delta_norm.png", bbox_inches='tight')
+fig.savefig(f"results/{name}_moving_avg_delta_norm.png", bbox_inches='tight')
 plt.close()
 
 

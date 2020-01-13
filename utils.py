@@ -122,7 +122,7 @@ def numpy2label(label_np, n_label):
 
 def imread(fpath):
     with open(os.path.join(fpath), "rb") as f:
-        return np.asarray(Image.open(f))
+        return np.asarray(Image.open(f), dtype="uint8")
 
 
 def imwrite(fpath, image):
@@ -286,7 +286,6 @@ class MaskCelebAEval(object):
         self.map_id = map_id
 
     def id_to_contiguous_id(self):
-        cnt = 0
         self.id2cid = {}
         for id, name in enumerate(self.raw_label):
             if name == "l_eye" or name == "r_eye":
@@ -296,8 +295,7 @@ class MaskCelebAEval(object):
             if name == "l_ear" or name == "r_ear":
                 name = "ear"
             self.id2cid[id] = self.dic["class"].index(name)
-            cnt += 1
-    
+
     def idmap(self, x):
         for fr,to in self.id2cid.items():
             if fr == to:
@@ -325,13 +323,15 @@ class MaskCelebAEval(object):
                     iou = tp / (tp + fp + fn)
                 else:
                     # doesn't count if gt is empty
-                    if fn > 0:
+                    if fp > 0:
                         precision = 0
                     else:
                         precision = -1
                     recall = -1
                     iou = -1
+
             metrics.append([precision, recall, iou])
+
         pixelacc = float(pixelcorrect) / pixeltotal
         return pixelacc, metrics
 
@@ -350,12 +350,12 @@ class MaskCelebAEval(object):
         for i in range(self.n_class):
             metrics = np.array(self.dic["class_result"][i])
             for j, name in enumerate(["AP", "AR", "IoU"]):
-                arr = metrics[j]
+                arr = metrics[:, j]
                 arr = arr[arr > -1]
                 if arr.shape[0] == 0:
                     self.dic[name][i] = -1
-                    continue
-                self.dic[name][i] = arr.mean()
+                else:
+                    self.dic[name][i] = arr.mean()
         
         for j, name in enumerate(["AP", "AR", "IoU"]):
             vals = [self.dic[name][i] for i in range(self.n_class)]
@@ -363,7 +363,7 @@ class MaskCelebAEval(object):
             self.dic["m" + name] = vals[vals > -1].mean()
 
     def summarize(self):
-        print("=> mAP \t mAR \t mIoU \t PixelAcc")
+        print("=> mAP  \t  mAR  \t  mIoU  \t  PixelAcc")
         print("=> %.3f\t%.3f\t%.3f\t%.3f" % (self.dic["mAP"], self.dic["mAR"], self.dic["mIoU"], self.dic["pixelacc"]))
         print("=> Class wise metrics:")
         
@@ -371,10 +371,8 @@ class MaskCelebAEval(object):
         for key in ["mAP", "mAR", "mIoU", "pixelacc"]:
             self.clean_dic[key] = self.dic[key]
 
-        print("=> Name \t mAP \t mAR \t mIoU \t")
+        print("=> Name \t  AP \t  AR \t  IoU \t")
         for i in range(self.n_class):
-            if self.dic["AP"][i] < 0:
-                continue
             print("=> %s: \t%.3f\t%.3f\t%.3f" % (
                 self.dic["class"][i],
                 self.dic["AP"][i],
