@@ -131,6 +131,7 @@ if "agreement" in args.task:
 
     new_dic = {k: [d[k] for d in dics] for k in dics[0].keys()}
     np.save(savepath + "_agreement", new_dic)
+    utils.format_agreement_result(new_dic)
 
 if "seg" in args.task:
     colorizer = utils.Colorize(16) #label to rgb

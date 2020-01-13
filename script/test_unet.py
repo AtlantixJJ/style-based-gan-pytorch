@@ -44,5 +44,4 @@ for i, (x, y) in tqdm(enumerate(dl)):
         tar_score = evaluator.compute_score(tar_seg[i], y[i])
         evaluator.accumulate(tar_score)
 evaluator.aggregate()
-evaluator.summarize()
-evaluator.save("tar_record.npy")
+np.save("tar_record.npy", evaluator.summarize())

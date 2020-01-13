@@ -389,6 +389,105 @@ class MaskCelebAEval(object):
 ## Logging related functions
 #########
 
+def str_num(n):
+    return ("%.3f" % n).replace(".000", "")
+
+
+def str_latex_table(strs):
+    for i in range(len(strs)):
+        for j in range(len(strs[0])):
+            if "_" in strs[i][j]:
+                strs[i][j] = strs[i][j].replace("_", "\\_")
+
+    ncols = len(strs[0])
+    seps = "".join(["c" for i in range(ncols)])
+    s = []
+    s.append("\\begin{tabular}{%s}" % seps)
+    s.append(" & ".join(strs[0]) + " \\\\\\hline")
+    for line in strs[1:]:
+        s.append(" & ".join(line) + " \\\\")
+    s.append("\\end{tabular}")
+
+    for i in range(len(strs)):
+        for j in range(len(strs[0])):
+            if "_" in strs[i][j]:
+                strs[i][j] = strs[i][j].replace("\\_", "_")
+
+    return "\n".join(s)
+
+
+def str_csv_table(strs):
+    s = []
+    for i in range(len(strs)):
+        s.append(",".join(strs[i]))
+    return "\n".join(s)
+
+
+def format_agreement_result(dic):
+    label_list = ['skin', 'nose', 'eye_g', 'eye', 'brow', 'ear', 'mouth', 'u_lip', 'l_lip', 'hair', 'hat', 'ear_r', 'neck_l', 'neck', 'cloth']
+
+    global_metrics = ["pixelacc", "mAP", "mAR", "mIoU"]
+    class_metrics = ["AP", "AR", "IoU"]
+
+    n_model = len(dic["mIoU"])
+    iters = [i * 1000 for i in range(1, 1 + n_model)]
+
+    # table 1: model iterations and global accuracy
+    numbers = [iters, dic["pixelacc"], dic["mAP"], dic["mAR"], dic["mIoU"]]
+    numbers = np.array(numbers).transpose() # (10, 5)
+    strs = [["step"] + global_metrics]
+    for i in range(n_model):
+        strs.append([str_num(n) for n in numbers[i]])
+    # print latex table
+    print(str_latex_table(strs))
+    print(str_csv_table(strs))
+
+    # table 2: classwise accuracy
+    best_ind = np.argmax(dic["mIoU"])
+    strs = [["metric"] + label_list]
+    numbers = []
+    for metric in class_metrics:
+        data = dic[metric][best_ind][1:] # ignore background
+        numbers.append(data)
+    numbers = np.array(numbers) # (3, 16)
+    for i in range(len(class_metrics)):
+        strs.append(["%.3f" % n if n > -1 else "-" for n in numbers[i]])
+    for i in range(1, len(strs)):
+        strs[i] = [class_metrics[i - 1]] + strs[i]
+    # print latex table
+    print(str_latex_table(strs))
+    print(str_csv_table(strs))
+
+
+def format_test_result(dic):
+    label_list = ['skin', 'nose', 'eye_g', 'eye', 'brow', 'ear', 'mouth', 'u_lip', 'l_lip', 'hair', 'hat', 'ear_r', 'neck_l', 'neck', 'cloth']
+
+    global_metrics = ["pixelacc", "mAP", "mAR", "mIoU"]
+    class_metrics = ["AP", "AR", "IoU"]
+    
+    # table 1: global metrics
+    numbers = [dic[m] for m in global_metrics]
+    numbers = np.array(numbers)
+    strs = [global_metrics]
+    strs.append([str_num(n) for n in numbers])
+    # print latex table
+    print(str_latex_table(strs))
+    print(str_csv_table(strs))
+
+    # table 2: classwise accuracy
+    strs = [["metric"] + label_list]
+    numbers = []
+    for metric in class_metrics:
+        data = dic[metric][1:] # ignore background
+        numbers.append(data)
+    numbers = np.array(numbers) # (3, 16)
+    for i in range(len(class_metrics)):
+        strs.append(["%.3f" % n if n > -1 else "-" for n in numbers[i]])
+    for i in range(1, len(strs)):
+        strs[i] = [class_metrics[i - 1]] + strs[i]
+    # print latex table
+    print(str_latex_table(strs))
+    print(str_csv_table(strs))
 
 def plot_dic(dic, file):
     for k, v in dic.items():
