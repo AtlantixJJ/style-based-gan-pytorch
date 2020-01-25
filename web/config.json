@@ -1,0 +1,15 @@
+{
+    "collect_data_dir": "collect_data",
+    "models": {
+        "StyleGAN (512px)": {
+            "model_def" : "home.stylegan.WrappedStyledGenerator",
+            "in_dim" : 512,
+            "out_dim" : 3,
+            "output_size" : 256,
+            "model_args": {
+                "resume" : "./stylegan-512px-running-180000.model",
+                "gpu" : -1
+            }
+        }
+    }
+}

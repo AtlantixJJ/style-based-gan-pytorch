@@ -9,9 +9,12 @@ expr
 *.tar.gz
 datasets
 checkpoint
+pretrained
+*.sqlite3
+web/collect_data
 
 # Byte-compiled / optimized / DLL files
-__pycache__/
+*__pycache__/
 *.py[cod]
 *$py.class
 
