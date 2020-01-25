@@ -1,14 +1,15 @@
 {
     "collect_data_dir": "collect_data",
     "models": {
-        "StyleGAN (512px)": {
-            "model_def" : "home.stylegan.WrappedStyledGenerator",
+        "SegGAN (1024px)": {
+            "model_def" : "home.seg_stylegan.WrapedStyledGenerator",
             "in_dim" : 512,
             "out_dim" : 3,
-            "output_size" : 512,
+            "output_size" : 1024,
             "model_args": {
-                "resume" : "./stylegan-512px-running-180000.model",
-                "gpu" : 4
+                "load_path" : "../pretrained/fixseg.model",
+                "seg_cfg": "mul-16",
+                "gpu" : -1
             }
         }
     }

@@ -686,7 +686,7 @@ class WrappedStyledGenerator(nn.Module):
     """
     Standard wrapper for mask based spatial debug purpose.
     """
-    def __init__(self, resume="./stylegan-512px-running-180000.model", gpu=-1, seed=None):
+    def __init__(self, load_path="./stylegan-512px-running-180000.model", gpu=-1, seed=None):
         super(WrappedStyledGenerator, self).__init__()
         print("=> Wrapped Style GAN initializing")
         self.code_dim = 512
@@ -695,14 +695,14 @@ class WrappedStyledGenerator(nn.Module):
         self.alpha = 1
         self.style_weight = 0.7
         self.device = 'cuda' if gpu >= 0 else 'cpu'
-        self.resume = resume
+        self.load_path = load_path
         self.seed = seed
         if seed is not None:
             torch.manual_seed(seed)
         print("=> Constructing network architecture")
         self.model = StyledGenerator(code_dim=self.code_dim, n_mlp=self.n_mlp)
-        print("=> Loading parameter from %s" % self.resume)
-        self.model.load_state_dict(torch.load(self.resume, map_location='cpu'))
+        print("=> Loading parameter from %s" % self.load_path)
+        self.model.load_state_dict(torch.load(self.load_path, map_location='cpu'))
         self.model = self.model.to(self.device)
         self.model.eval()
         print("=> Check running")

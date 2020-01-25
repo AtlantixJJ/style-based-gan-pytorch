@@ -41,7 +41,7 @@ var COLORS = [
 ];
 
 var MODEL_NAMES = [
-  'StyleGAN (512px)',
+  'StyleGAN (1024px)',
 ]
 
 Date.prototype.format = function (format) {

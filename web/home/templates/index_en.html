@@ -14,7 +14,7 @@
   <script src="{% static 'lib/spin.min.js' %}"></script>
   <script src="{% static 'js/graph.js' %}"></script>
   <script src="{% static 'js/draw.js' %}"></script>
-  <title>GAN Debug Server</title>
+  <title>Image Edit</title>
 </head>
 
 <body>
@@ -22,7 +22,7 @@
     <div class="col-md-8 offset-md-2 col-sm-10 offset-sm-1">
 
       <div class="row my-4">
-        <h4 class="col title">GAN Debug Server</h4>
+        <h4 class="col title">Image Edit</h4>
       </div>
 
       <div class="row d-flex justify-content-around my-4">
@@ -55,7 +55,7 @@
           <label class="option-label">Category</label>
           <div class="dropdown">
             <button type="button" class="model-btn d-flex align-items-center ml-1" id="model-drop-menu" aria-haspopup="true" data-toggle="dropdown">
-              <span id="model-label">StyleGAN (512px)</span>
+              <span id="model-label">StyleGAN (1024px)</span>
               <div class="caret ml-2"></div>
             </button>
             <ul class="dropdown-menu model-menu" role="menu" aria-labelledby="model-drop-menu" id="model-menu">
@@ -67,9 +67,14 @@
 
       <div class="row canvas-background my-4">
         <div id="spin"></div>
-        <img id="image" width="512" height="512" src="" class="image" hidden/>
-        <canvas id="canvas" width="512" height="512" class="image">
-        </canvas>
+        <img id="image" width="" height="" src="" class="image" hidden/>
+        <img id="label" width="" height="" src="" class="label" hidden/>
+        <div class="row d-flex justify-content-around my-4">
+          <canvas id="canvas" width="{{imsize}}" height="{{imsize}}" class="image">
+          </canvas>
+          <canvas id="label-canvas" width="{{imsize}}" height="{{imsize}}" class="image">
+          </canvas>
+        </div>
         <button id="start" type="button" class="btn btn-outline-success btn-sm">
           Start ▶︎
         </button>

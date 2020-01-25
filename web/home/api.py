@@ -3,16 +3,16 @@ API for interaction between GAN and django views
 By Jianjin Xu.
 8/25/2019
 """
+import sys
+sys.path.insert(0, '..')
 import importlib
 import json
-import sys
 import os
 import random
 import numpy as np
 from PIL import Image
 from datetime import datetime
-sys.path.insert(0, '..')
-
+from home.colorize import Colorize
 
 def open_image(name):
     with open(name, "rb") as f:
@@ -59,9 +59,6 @@ def stroke2array(image, target_size=None):
             new_image.putpixel(
                 (i, j), (color[0], color[1], color[2], int(masked * 255)))
 
-    #prefix = os.path.join(self.data_dir, model_name.replace(" ", "_"))
-    #save_image_with_time(prefix, mask_image, 'mask')
-    #save_image_with_time(prefix, new_image, 'stroke')
     return [origin, mask]
 
 
@@ -71,6 +68,9 @@ def std_img_shape(x):
     """
     if len(x.shape) > 3:
         x = x[0]
+    
+    if x.shape[0] == 1 or x.shape[0] == 3:
+        x = x.transpose(1, 2, 0)
 
     if x.shape[-1] == 1:
         x = x[:, :, 0]
@@ -97,6 +97,7 @@ class ImageGenerationAPI(object):
 
     def init_model(self):
         self.models = {}
+        self.colorizer = {}
         for name, mc in self.models_config.items():
             ind = mc['model_def'].rfind('.')
             module_name = mc['model_def'][:ind]
@@ -106,6 +107,7 @@ class ImageGenerationAPI(object):
             os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
             os.environ['CUDA_VISIBLE_DEVICES'] = str(mc['model_args']['gpu'])
             self.models[name] = obj(**mc['model_args'])
+            self.colorizer[name] = Colorize(self.models[name].n_class)
 
     def __init__(self, config_file):
         self.config_file = config_file
@@ -117,25 +119,22 @@ class ImageGenerationAPI(object):
 
     def debug_mask_image(self, model_name, mask, latent):
         latent = np.fromstring(latent, dtype=np.float32).reshape((1, -1))
-        # return generate_random_image(IMG_SIZE), z.tobytes(), c.tobytes()
-        # [TODO]: hard coded for StyleGAN
-        gen = self.models[model_name](latent, [4, mask])
-        gen = (gen + 1) * 255 / 2
+        image, label = self.models[model_name](latent)
         latent = np.float32(latent).tobytes()
-        gen = std_img_shape(gen)
-        gen = np.uint8(gen)
-        save_image_with_time(self.data_dir, gen, "gen")
+        image = std_img_shape(image)
+        image = np.uint8(image)
+        save_image_with_time(self.data_dir, image, "gen")
         save_image_with_time(self.data_dir, mask, "mask")
-        return Image.fromarray(gen), latent
+        return image, latent
 
     def generate_new_image(self, model_name):
         latent_size = self.models_config[model_name]['in_dim']
         latent = np.random.normal(0, 2, (1, latent_size)).astype('float32')
-        # return generate_random_image(IMG_SIZE), z.tobytes(), c.tobytes()
-        gen = self.models[model_name](latent)
-        gen = (gen + 1) * 255 / 2
+        image, label = self.models[model_name](latent)
+        label_viz = self.colorizer[model_name](label[0].detach().cpu().numpy())
         latent = np.float32(latent).tobytes()
-        gen = std_img_shape(gen)
-        gen = np.uint8(gen)
-        save_image_with_time(self.data_dir, gen, "gen")
-        return Image.fromarray(gen), latent
+        image = std_img_shape(image)
+        image = np.uint8(image)
+        save_image_with_time(self.data_dir, image, "gen")
+        save_image_with_time(self.data_dir, label_viz, "seg")
+        return image, label_viz, latent

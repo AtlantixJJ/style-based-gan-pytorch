@@ -13,26 +13,34 @@ from base64 import b64encode, b64decode
 
 INDEX_FILE = "index_en.html"
 generator = api.ImageGenerationAPI("config.json")
+model_name = list(generator.models_config.keys())[0]
+imsize = generator.models_config[model_name]["output_size"]
+base_dic = {
+    "imsize" : imsize,
+    "canvas_box" : imsize * 2 + 50}
 
-
-def response(image, latent):
+# np.array
+def image2bytes(image):
     buffered = BytesIO()
-    image.save(buffered, format="PNG")
-    imageString = b64encode(buffered.getvalue()).decode('utf-8')
+    Image.fromarray(image).save(buffered, format="PNG")
+    return b64encode(buffered.getvalue()).decode('utf-8')
+
+
+def response(image, label, latent):
+    imageString = image2bytes(image)
+    segString = image2bytes(label)
     latent = b64encode(latent).decode('utf-8')
-    json = '{"ok":"true","img":"data:image/png;base64,%s","latent":"%s"}' % (
-        imageString, latent)
+    json = '{"ok":"true","img":"data:image/png;base64,%s","seg":"data:image/png;base64,%s","latent":"%s"}' % (imageString, segString, latent)
     return HttpResponse(json)
 
 
 def index(request):
-    return render(request, INDEX_FILE)
+    return render(request, INDEX_FILE, base_dic)
 
 
 @csrf_exempt
 def debug_mask_image(request):
     form_data = request.POST
-    # print(form_data)
     if request.method == 'POST' and 'sketch' in form_data and 'model' in form_data:
         try:
             model = form_data['model']
@@ -68,8 +76,8 @@ def generate_new_image(request):
                 print("=> No model name %s" % model)
                 return HttpResponse('{}')
 
-            gen, latent = generator.generate_new_image(model)
-            return response(gen, latent)
+            image, label, latent = generator.generate_new_image(model)
+            return response(image, label, latent)
         except Exception:
             print("!> Exception:")
             traceback.print_exc()
