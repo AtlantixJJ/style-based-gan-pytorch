@@ -23,11 +23,14 @@ def open_image(name):
         return np.asarray(Image.open(f))
 
 # constants setup
+INTERVAL = 20
+TOTAL = INTERVAL * 7
 torch.manual_seed(1)
 device = 'cuda'
 LR = 0.2
 # input
 latent = torch.randn(1, 512).to(device)
+latent.requires_grad = True
 noises = []
 for i in range(18):
     size = 4 * 2 ** (i // 2)
@@ -50,47 +53,44 @@ generator.set_noise(noises)
 generator.semantic_branch.get_orthogonal_weight()
 
 with torch.no_grad():
-    extended_latent = generator.g_mapping(latent)
-    orig_image, orig_stage = generator.g_synthesis(extended_latent)
-    seg = generator.extract_segmentation(orig_stage)[-1]
-
+    orig_image, orig_seg = generator(latent)
+orig_stage = [s.clone() for s in generator.stage]
 orig_image = (orig_image.clamp(-1, 1) + 1) / 2
-orig_label = seg.argmax(1).long()
-extended_latent = extended_latent.clone()
-extended_latent.requires_grad = True
-optim = torch.optim.SGD([extended_latent], lr=1e-2)
+orig_label = orig_seg.argmax(1).long()
+revise_bias = [torch.zeros_like(t) for t in orig_stage if t.shape[3] >= 16]
+for r in revise_bias:
+    r.requires_grad = True
+
+optim = torch.optim.SGD([latent], lr=1e-2)
 
 # target
 y = torch.zeros(1, 3, 1024, 1024).cuda()
 y.fill_(-1)
-y[0, 0] = 1.0 # RGB = (255, 0, 0)
+y[0, 2] = 0.7
 
 logsoftmax = torch.nn.CrossEntropyLoss()
 logsoftmax = logsoftmax.cuda()
 
 record = {"mseloss": []}
 res = []
-for i in tqdm(range(71)):
+for i in tqdm(range(TOTAL)):
     if args.reg == 1: # orthogonal
-        image, stage = generator.g_synthesis(extended_latent,
-            orthogonal=generator.semantic_branch.orthogonalize,
-            ortho_bias=orig_stage)
+        image, seg = generator(latent, ortho_bias=orig_stage)
     else:
-        image, stage = generator.g_synthesis(extended_latent)
-    seg = generator.extract_segmentation(stage)[-1]
+        image, seg = generator(latent)
     new_label = seg.argmax(1)
 
     mseloss = ((image - y) * mask) ** 2
     mseloss = mseloss.sum() / mask.sum()
-    extended_latent.grad = torch.autograd.grad(
+    latent.grad = torch.autograd.grad(
         outputs=mseloss,
-        inputs=extended_latent,
+        inputs=latent,
         only_inputs=True)[0]
     optim.step()
 
     record["mseloss"].append(utils.torch2numpy(mseloss))
 
-    if (i + 1) % 10 == 0:
+    if (i + 1) % INTERVAL == 0:
         res.append((image.clamp(-1, 1) + 1) / 2)
         res.append(utils.tensor2label(new_label, 16).unsqueeze(0))
 
@@ -98,5 +98,5 @@ res.append(orig_image * (1 - mask) + y * mask)
 res.append(utils.tensor2label(orig_label, 16).unsqueeze(0))
 res = torch.cat([r.cpu() for r in res])
 
-vutils.save_image(res, f'ortho_edit_{args.reg}_sample.png', nrow=4)
-utils.plot_dic(record, "ortho_edit_loss.png")
+vutils.save_image(res, f"ortho_edit_{args.reg}_sample.png", nrow=4)
+utils.plot_dic(record, f"ortho_edit_{args.reg}_loss.png")

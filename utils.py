@@ -490,9 +490,11 @@ def format_test_result(dic):
     print(str_csv_table(strs))
 
 def plot_dic(dic, file):
-    for k, v in dic.items():
-        plt.plot(v)
-    plt.legend(list(dic.keys()))
+    n = len(dic.items())
+    for i, (k, v) in enumerate(dic.items()):
+        ax = plt.subplot(1, n, i + 1)
+        ax.plot(v)
+        ax.legend([k])
     plt.savefig(file)
     plt.close()
 
