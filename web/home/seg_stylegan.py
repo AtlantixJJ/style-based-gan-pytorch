@@ -436,7 +436,7 @@ class StyledGenerator(nn.Module):
             kernel_size=self.ksize
         )
 
-    def extract_segmentation_multi(self, stage):
+    def extract_segmentation(self, stage):
         for ind in range(len(stage)):
             if stage[ind].size(2) >= 16:
                 break
@@ -486,27 +486,6 @@ class StyledGenerator(nn.Module):
             return image, seg
         return image
     
-    def extract_segmentation(self, stage):
-        if "conv" in self.segcfg:
-            return self.extract_segmentation_conv(stage)
-        elif "cas" in self.segcfg:
-            return self.extract_segmentation_cascade(stage)
-        elif "gen" in self.segcfg:
-            return self.extract_segmentation_cascade(stage)
-        elif "cat" in self.segcfg:
-            return self.extract_segmentation_cat(stage)
-        elif "mul" in self.segcfg:
-            return self.extract_segmentation_multi(stage)
-
-    def predict(self, latent):
-        # start from w+
-        if latent.dim() == 3 and latent.shape[1] == 18:
-            gen = self.g_synthesis(latent).clamp(-1, 1)
-            seg_logit = self.extract_segmentation()[-1]
-            seg_logit = F.interpolate(seg_logit, (512, 512), mode="bilinear")
-            seg = seg_logit.argmax(dim=1)
-        return gen, seg
-
 
 class WrapedStyledGenerator(nn.Module):
     def __init__(self, seg_cfg="", load_path="", gpu=-1):
@@ -523,10 +502,12 @@ class WrapedStyledGenerator(nn.Module):
         self.model.eval()
         print("=> Check running")
         self.n_class = self.model.n_class
+
     
     def forward(self, latent): # [0, 1] in torch
+        latent = torch.from_numpy(latent).to(self.device)
         gen, seg = self.model(latent)
-        gen = (1 + gen.clamp(-1, 1)) / 2
-        #gen = gen.detach().cpu().numpy().transpose(0, 2, 3, 1)
-        label = seg.argmax(1)
-        return gen, label
+        gen = (1 + gen.clamp(-1, 1)) * 255 / 2
+        gen = gen.detach().cpu().numpy().transpose(0, 2, 3, 1)
+        label = seg.argmax(1).detach().cpu().numpy()
+        return gen.astype("uint8"), label

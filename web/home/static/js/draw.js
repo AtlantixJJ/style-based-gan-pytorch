@@ -12,18 +12,23 @@ function readTextFile(file, callback) {
   rawFile.send(null);
 }
 
-var graph = null;
+var graph = null,
+    labelgraph = null;
 var mouseOld = {};
 var mouseDown = false;
 var currentModel = 0;
 var loading = false;
 var image = null,
+    label = null,
     latent = null;
 var config = null;
 var imwidth = 256,
     imheight = 256;
 var use_args = false;
 var spinner = new Spinner({ color: '#999' });
+
+var CATEGORY = ['background', 'skin', 'nose', 'eye glasses', 'eye', 'brow', 'ear', 'mouth', 'upper lip', 'lower lip', 'hair', 'hat', 'ear rings', 'necklace', 'neck', 'cloth'];
+var CATEGORY_COLORS = ['rgb(0, 0, 0)', 'rgb(128, 0, 0)', 'rgb(0, 128, 0)', 'rgb(128, 128, 0)', 'rgb(0, 0, 128)', 'rgb(128, 0, 128)', 'rgb(0, 128, 128)', 'rgb(128, 128, 128)', 'rgb(64, 0, 0)', 'rgb(192, 0, 0)', 'rgb(64, 128, 0)', 'rgb(192, 128, 0)', 'rgb(64, 0, 128)', 'rgb(192, 0, 128)', 'rgb(64, 128, 128)', 'rgb(192, 128, 128)'];
 
 var COLORS = [
   'black',
@@ -41,7 +46,7 @@ var COLORS = [
 ];
 
 var MODEL_NAMES = [
-  'StyleGAN (1024px)',
+  'SegGAN (1024px)',
 ]
 
 Date.prototype.format = function (format) {
@@ -114,6 +119,12 @@ function setColor(color) {
   $('#color-drop-menu .color-block').css('border', color == 'white' ? 'solid 1px rgba(0, 0, 0, 0.2)' : 'none');
 }
 
+function setCategory(color) {
+  graph.setCurrentColor(color);
+  $('#category-drop-menu .color-block').css('background-color', color);
+  $('#category-drop-menu .color-block').css('border', color == 'white' ? 'solid 1px rgba(0, 0, 0, 0.2)' : 'none');
+}
+
 function setLineWidth(width) {
   graph.setLineWidth(width * 2);
   $('#width-label').text(width);
@@ -135,10 +146,18 @@ function setImage(data) {
     $('#option-buttons').prop('hidden', false);
     $('#extra-args').prop('hidden', false);
   }
+  if (!label) {
+    //$('#stroke').removeClass('disabled');
+    //$('#option-buttons').prop('hidden', false);
+    //$('#extra-args').prop('hidden', false);
+  }
   image = data.img;
   latent = data.latent;
+  label = data.label;
   $('#image').attr('src', image);
   $('#canvas').css('background-image', 'url(' + image + ')');
+  $('#label').attr('src', label);
+  $('#label-canvas').css('background-image', 'url(' + label + ')');
   spinner.spin();
 }
 
@@ -180,7 +199,6 @@ function onStartNew() {
 }
 
 function onStart() {
-  console.log(document.getElementById('canvas').getContext('2d').lineWidth);
   onStartNew();
   $('#start').prop('hidden', true);
 }
@@ -214,6 +232,17 @@ function init() {
       (color == 'white' ? 'solid 1px rgba(0, 0, 0, 0.2)' : 'none') +
       '"/>\n  </div>\n</li>');
   });
+
+  CATEGORY_COLORS.forEach(function (color, idx) {
+    $('#category-menu').append(
+      '\n<li role="presentation">\n' +
+      ' <div style="float:left;width:100%" onclick="setCategory(\'' +color + '\')">\n' + 
+      '   <div class="color-block" style="float:left;background-color:' + color + 
+      ';border:' + (color == 'white' ? 'solid 1px rgba(0, 0, 0, 0.2)' : 'none') + '"/>\n' +
+      '   <div class="semantic-block" >' + 
+      CATEGORY[idx] + '</div>\n</div>\n</li>');
+  });
+
 
   MODEL_NAMES.forEach(function (model, idx) {
     $('#model-menu').append(
@@ -256,10 +285,14 @@ function init() {
   canvas.addEventListener('touchcancel', onMouseUp, false);
 
   $('#download-sketch').click(function () {
-    download(canvas.toDataURL('image/png'), 'sketch_' + new Date().format('yyyyMMdd_hhmmss') + '.png');
+    download(
+      canvas.toDataURL('image/png'),
+      'sketch_' + new Date().format('yyyyMMdd_hhmmss') + '.png');
   });
   $('#download-image').click(function () {
-    download(image, 'image_' + new Date().format('yyyyMMdd_hhmmss') + '.png');
+    download(
+      image,
+      'image_' + new Date().format('yyyyMMdd_hhmmss') + '.png');
   });
   $('#clear').click(onClear);
   $('#submit').click(onSubmit);
@@ -318,7 +351,11 @@ $(document).ready(function () {
       x = document.getElementById('canvas');
       x.width = imwidth;
       x.height = imheight;
-      graph = new Graph(document);
+      x = document.getElementById('label-canvas');
+      x.width = imwidth;
+      x.height = imheight;
+      graph = new Graph(document, 'canvas');
+      labelgraph = new Graph(document, 'label-canvas');
       init();
     });
 });

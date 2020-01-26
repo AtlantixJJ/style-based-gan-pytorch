@@ -30,7 +30,7 @@ def response(image, label, latent):
     imageString = image2bytes(image)
     segString = image2bytes(label)
     latent = b64encode(latent).decode('utf-8')
-    json = '{"ok":"true","img":"data:image/png;base64,%s","seg":"data:image/png;base64,%s","latent":"%s"}' % (imageString, segString, latent)
+    json = '{"ok":"true","img":"data:image/png;base64,%s","label":"data:image/png;base64,%s","latent":"%s"}' % (imageString, segString, latent)
     return HttpResponse(json)
 
 
@@ -53,11 +53,9 @@ def debug_mask_image(request):
             image = Image.open(BytesIO(imageData))
             # TODO: hard coded for stylegan
             sketch, mask = api.stroke2array(image)
-            #print("=> edit")
             gen, latent = generator.debug_mask_image(model, mask, latent)
-            #print("=> edit done")
 
-            return response(gen, latent)
+            return response(image, seg, latent)
         except Exception:
             print("!> Exception:")
             traceback.print_exc()

@@ -18,8 +18,8 @@
 </head>
 
 <body>
-  <div class="container">
-    <div class="col-md-8 offset-md-2 col-sm-10 offset-sm-1">
+  <div class="container-fluid">
+    <div id="frame" class="col-md-12 col-sm-10 offset-sm-1">
 
       <div class="row my-4">
         <h4 class="col title">Image Edit</h4>
@@ -33,6 +33,18 @@
               <div class="color-block"></div>
             </button>
             <ul class="dropdown-menu color-menu" role="menu" aria-labelledby="color-drop-menu" id="color-menu">
+            </ul>
+
+          </div>
+        </div>
+
+        <div class="option-item d-flex align-items-center mx-1">
+          <label class="option-label">Semantic Category</label>
+          <div class="dropdown">
+            <button type="button" class="color-btn ml-2" id="category-drop-menu" aria-haspopup="true" data-toggle="dropdown">
+              <div class="color-block"></div>
+            </button>
+            <ul class="dropdown-menu semantic-menu" role="menu" aria-labelledby="category-drop-menu" id="category-menu">
             </ul>
           </div>
         </div>
@@ -52,10 +64,10 @@
         </div>
 
         <div class="option-item d-flex align-items-center mx-1">
-          <label class="option-label">Category</label>
+          <label class="option-label">GAN Model</label>
           <div class="dropdown">
             <button type="button" class="model-btn d-flex align-items-center ml-1" id="model-drop-menu" aria-haspopup="true" data-toggle="dropdown">
-              <span id="model-label">StyleGAN (1024px)</span>
+              <span id="model-label">SegGAN (1024px)</span>
               <div class="caret ml-2"></div>
             </button>
             <ul class="dropdown-menu model-menu" role="menu" aria-labelledby="model-drop-menu" id="model-menu">
@@ -69,12 +81,17 @@
         <div id="spin"></div>
         <img id="image" width="" height="" src="" class="image" hidden/>
         <img id="label" width="" height="" src="" class="label" hidden/>
-        <div class="row d-flex justify-content-around my-4">
-          <canvas id="canvas" width="{{imsize}}" height="{{imsize}}" class="image">
-          </canvas>
-          <canvas id="label-canvas" width="{{imsize}}" height="{{imsize}}" class="image">
+        <div class="row col-md-1"></div>
+        <div class="row col-md-5">
+          <canvas id="canvas" width="512" height="512" class="image">
           </canvas>
         </div>
+        <div class="row col-md-1"></div>
+        <div class="row col-md-5">
+          <canvas id="label-canvas" width="512" height="512" class="image">
+          </canvas>
+        </div>
+        <div class="row col-md-1"></div>
         <button id="start" type="button" class="btn btn-outline-success btn-sm">
           Start ▶︎
         </button>

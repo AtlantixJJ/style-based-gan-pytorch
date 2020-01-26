@@ -131,10 +131,10 @@ class ImageGenerationAPI(object):
         latent_size = self.models_config[model_name]['in_dim']
         latent = np.random.normal(0, 2, (1, latent_size)).astype('float32')
         image, label = self.models[model_name](latent)
-        label_viz = self.colorizer[model_name](label[0].detach().cpu().numpy())
+        image = image[0]
+        label = label[0]
+        label_viz = self.colorizer[model_name](label)
         latent = np.float32(latent).tobytes()
-        image = std_img_shape(image)
-        image = np.uint8(image)
         save_image_with_time(self.data_dir, image, "gen")
         save_image_with_time(self.data_dir, label_viz, "seg")
         return image, label_viz, latent
