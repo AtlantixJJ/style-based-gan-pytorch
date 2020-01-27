@@ -4,12 +4,21 @@
 <head>{% load static %}
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- web version
   <script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
   <script src="https://cdn.bootcss.com/popper.js/1.14.2/umd/popper.min.js"></script>
   <script src="https://cdn.bootcss.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
   <script src="https://cdn.bootcss.com/noUiSlider/11.1.0/nouislider.min.js"></script>
   <link href="https://cdn.bootcss.com/bootstrap/4.0.0/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.bootcss.com/noUiSlider/11.1.0/nouislider.min.css" rel="stylesheet">
+  -->
+  <script src="{% static 'lib/jquery.min.js' %}"></script>
+  <script src="{% static 'lib/popper.min.js' %}"></script>
+  <script src="{% static 'lib/bootstrap.min.js' %}"></script>
+  <script src="{% static 'lib/nouislider.min.js' %}"></script>
+  <link href="{% static 'lib/bootstrap.min.css' %}" rel="stylesheet">
+  <link href="{% static 'lib/nouislider.css' %}" rel="stylesheet">
+
   <link href="{% static 'css/style.css' %}" rel="stylesheet">
   <script src="{% static 'lib/spin.min.js' %}"></script>
   <script src="{% static 'js/graph.js' %}"></script>

@@ -12,25 +12,23 @@ function readTextFile(file, callback) {
   rawFile.send(null);
 }
 
-var graph = null,
-    labelgraph = null;
-var mouseOld = {};
-var mouseDown = false;
-var currentModel = 0;
-var loading = false;
-var image = null,
-    label = null,
-    latent = null;
-var config = null;
-var imwidth = 256,
-    imheight = 256;
-var use_args = false;
+var graph = null, // canvas manager
+    labelgraph = null; // label canvas manager
+var currentModel = 0; // current model name
+var loading = false; // the image is loading (waiting response)
+var image = null, // image data
+    label = null, // label image data
+    latent = null; // latent data
+var config = null; // config file
+var imwidth = 256, // image size
+    imheight = 256; // image size
+var use_args = false; // [deprecated]
 var spinner = new Spinner({ color: '#999' });
 
 var CATEGORY = ['background', 'skin', 'nose', 'eye glasses', 'eye', 'brow', 'ear', 'mouth', 'upper lip', 'lower lip', 'hair', 'hat', 'ear rings', 'necklace', 'neck', 'cloth'];
 var CATEGORY_COLORS = ['rgb(0, 0, 0)', 'rgb(128, 0, 0)', 'rgb(0, 128, 0)', 'rgb(128, 128, 0)', 'rgb(0, 0, 128)', 'rgb(128, 0, 128)', 'rgb(0, 128, 128)', 'rgb(128, 128, 128)', 'rgb(64, 0, 0)', 'rgb(192, 0, 0)', 'rgb(64, 128, 0)', 'rgb(192, 128, 0)', 'rgb(64, 0, 128)', 'rgb(192, 0, 128)', 'rgb(64, 128, 128)', 'rgb(192, 128, 128)'];
 
-var COLORS = [
+var COLORS = [ // drawing colors
   'black',
   'rgb(208, 2, 27)',
   'rgb(245, 166, 35)',
@@ -72,46 +70,6 @@ function drawShape(x1, y1, x2, y2) {
   graph.drawLine(x1, y1, x2, y2);
 }
 
-function getMouse(event) {
-  var rect = event.target.getBoundingClientRect();
-  var mouse = {
-    x: (event.touches && event.touches[0] || event).clientX - rect.left,
-    y: (event.touches && event.touches[0] || event).clientY - rect.top
-  };
-  if (mouse.x > rect.width || mouse.x < 0 || mouse.y > rect.height || mouse.y < 0)
-    return null;
-  return mouse;
-}
-
-function onMouseDown(event) {
-  if (event.button == 2 || loading) {
-    mouseDown = false;
-    return;
-  }
-  if (mouseDown) {
-    onMouseUp(event);
-    return;
-  }
-  mouseOld = getMouse(event);
-  if (mouseOld != null) mouseDown = true;
-}
-
-function onMouseUp(event) {
-  mouseDown = false;
-}
-
-function onMouseMove(event) {
-  event.preventDefault();
-  if (mouseDown && !loading) {
-    var mouse = getMouse(event);
-    if (mouse == null) {
-      mouseDown = false;
-      return;
-    }
-    drawShape(mouseOld.x, mouseOld.y, mouse.x, mouse.y);
-    mouseOld = mouse;
-  }
-}
 
 function setColor(color) {
   graph.setCurrentColor(color);
@@ -274,16 +232,6 @@ function init() {
   setColor('black');
   setLineWidth(5);
 
-  var canvas = document.getElementById('canvas');
-  canvas.addEventListener('mousedown', onMouseDown, false);
-  canvas.addEventListener('mouseup', onMouseUp, false);
-  canvas.addEventListener('mousemove', onMouseMove, false);
-  canvas.addEventListener('mouseout', onMouseUp, false);
-  canvas.addEventListener('touchstart', onMouseDown, false);
-  canvas.addEventListener('touchend', onMouseUp, false);
-  canvas.addEventListener('touchmove', onMouseMove, false);
-  canvas.addEventListener('touchcancel', onMouseUp, false);
-
   $('#download-sketch').click(function () {
     download(
       canvas.toDataURL('image/png'),
@@ -340,22 +288,18 @@ $(document).ready(function () {
   readTextFile("static/config.json",
     function(text){
       config = JSON.parse(text);
-      // set as the default model
-      var key = Object.keys(config.models)[0];
+      MODEL_NAMES = Object.keys(config.models);
+      var key = MODEL_NAMES[0];
       imwidth = config.models[key].output_size;
       imheight = config.models[key].output_size;
       document.getElementById('model-label').textContent = key;
       var x = document.getElementById('image');
       x.width = imwidth;
       x.height = imheight;
-      x = document.getElementById('canvas');
-      x.width = imwidth;
-      x.height = imheight;
-      x = document.getElementById('label-canvas');
-      x.width = imwidth;
-      x.height = imheight;
       graph = new Graph(document, 'canvas');
       labelgraph = new Graph(document, 'label-canvas');
+      graph.setSize(imheight, imwidth);
+      labelgraph.setSize(imheight, imwidth);
       init();
     });
 });
