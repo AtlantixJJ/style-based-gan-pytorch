@@ -12,9 +12,9 @@ from PIL import Image
 from base64 import b64encode, b64decode
 
 INDEX_FILE = "index_en.html"
-generator = api.ImageGenerationAPI("config.json")
-model_name = list(generator.models_config.keys())[0]
-imsize = generator.models_config[model_name]["output_size"]
+editor = api.ImageGenerationAPI("config.json")
+model_name = list(editor.models_config.keys())[0]
+imsize = editor.models_config[model_name]["output_size"]
 base_dic = {
     "imsize" : imsize,
     "canvas_box" : imsize * 2 + 50}
@@ -26,11 +26,12 @@ def image2bytes(image):
     return b64encode(buffered.getvalue()).decode('utf-8')
 
 
-def response(image, label, latent):
+def response(image, label, latent, noise):
     imageString = image2bytes(image)
     segString = image2bytes(label)
     latent = b64encode(latent).decode('utf-8')
-    json = '{"ok":"true","img":"data:image/png;base64,%s","label":"data:image/png;base64,%s","latent":"%s"}' % (imageString, segString, latent)
+    noise = b64encode(noise).decode('utf-8')
+    json = '{"ok":"true","img":"data:image/png;base64,%s","label":"data:image/png;base64,%s","latent":"%s","noise":"%s"}' % (imageString, segString, latent, noise)
     return HttpResponse(json)
 
 
@@ -39,43 +40,52 @@ def index(request):
 
 
 @csrf_exempt
-def debug_mask_image(request):
+def generate_image_given_stroke(request):
     form_data = request.POST
-    if request.method == 'POST' and 'sketch' in form_data and 'model' in form_data:
+    if request.method == 'POST' and 'image_stroke' in form_data:
         try:
             model = form_data['model']
-            if not generator.has_model(model):
+            if not editor.has_model(model):
+                print(f"!> Model not exist {model}")
                 return HttpResponse('{}')
 
-            imageData = b64decode(form_data['sketch'].split(',')[1])
+            imageStrokeData = b64decode(form_data['image_stroke'].split(',')[1])
+            labelStrokeData = b64decode(form_data['label_stroke'].split(',')[1])
             latent = b64decode(form_data['latent'])
+            noise = b64decode(form_data['noise'])
 
-            image = Image.open(BytesIO(imageData))
+            imageStroke = Image.open(BytesIO(imageStrokeData))
+            labelStroke = Image.open(BytesIO(labelStrokeData))
             # TODO: hard coded for stylegan
-            sketch, mask = api.stroke2array(image)
-            gen, latent = generator.debug_mask_image(model, mask, latent)
+            imageStroke, imageMask = api.stroke2array(imageStroke)
+            labelStroke, labelMask = api.stroke2array(labelStroke)
 
-            return response(image, seg, latent)
+            image, label, latent, noise = editor.generate_image_given_stroke(
+                model, latent, noise,
+                imageStroke, imageMask,
+                labelStroke, labelMask)
+
+            return response(image, label, latent, noise)
         except Exception:
             print("!> Exception:")
             traceback.print_exc()
             return HttpResponse('{}')
+    print(f"!> Invalid request: {str(form_data.keys())}")
     return HttpResponse('{}')
 
 
 @csrf_exempt
 def generate_new_image(request):
     form_data = request.POST
-    # print(form_data)
     if request.method == 'POST' and 'model' in form_data:
         try:
             model = form_data['model']
-            if not generator.has_model(model):
+            if not editor.has_model(model):
                 print("=> No model name %s" % model)
                 return HttpResponse('{}')
 
-            image, label, latent = generator.generate_new_image(model)
-            return response(image, label, latent)
+            image, label, latent, noise = editor.generate_new_image(model)
+            return response(image, label, latent, noise)
         except Exception:
             print("!> Exception:")
             traceback.print_exc()

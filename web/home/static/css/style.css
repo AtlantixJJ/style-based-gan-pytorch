@@ -152,8 +152,8 @@
 }
 .model-menu {
   padding: 0;
-  width: 120px;
-  min-width: 120px;
+  width: 220px;
+  min-width: 220px;
 }
 .model-item {
   color: #666;
@@ -188,6 +188,9 @@
   margin: 50px auto;
 }
 #canvas {
+  background-size: contain;
+}
+#label-canvas {
   background-size: contain;
 }
 #start {

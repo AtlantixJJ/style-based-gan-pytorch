@@ -17,7 +17,7 @@
   <script src="{% static 'lib/bootstrap.min.js' %}"></script>
   <script src="{% static 'lib/nouislider.min.js' %}"></script>
   <link href="{% static 'lib/bootstrap.min.css' %}" rel="stylesheet">
-  <link href="{% static 'lib/nouislider.css' %}" rel="stylesheet">
+  <link href="{% static 'lib/nouislider.min.css' %}" rel="stylesheet">
 
   <link href="{% static 'css/style.css' %}" rel="stylesheet">
   <script src="{% static 'lib/spin.min.js' %}"></script>
@@ -88,19 +88,16 @@
 
       <div class="row canvas-background my-4">
         <div id="spin"></div>
-        <img id="image" width="" height="" src="" class="image" hidden/>
-        <img id="label" width="" height="" src="" class="label" hidden/>
-        <div class="row col-md-1"></div>
-        <div class="row col-md-5">
+        <div id="image-container" class="row col-md-6">
           <canvas id="canvas" width="512" height="512" class="image">
           </canvas>
+          <img id="image" width="" height="" src="" class="image" hidden/>
         </div>
-        <div class="row col-md-1"></div>
-        <div class="row col-md-5">
+        <div id="label-container" class="row col-md-6">
           <canvas id="label-canvas" width="512" height="512" class="image">
           </canvas>
+          <img id="label" width="" height="" src="" class="image" hidden/>
         </div>
-        <div class="row col-md-1"></div>
         <button id="start" type="button" class="btn btn-outline-success btn-sm">
           Start ▶︎
         </button>
@@ -108,6 +105,10 @@
 
       <div id="option-buttons" class="container" hidden>
         <div class="row d-flex justify-content-around my-4">
+          <button id="clear-image" type="button" class="option-btn">
+            <div class="btn-icon clear-icon"></div>
+            <div class="btn-text">Clear Image</div>
+          </button>
           <button id="stroke" type="button" class="option-btn active">
             <div class="btn-icon stroke-icon"></div>
             <div class="btn-text">Hide Stroke</div>
@@ -116,9 +117,9 @@
             <div class="btn-icon regen-icon"></div>
             <div class="btn-text">Generate</div>
           </button>
-          <button id="clear" type="button" class="option-btn">
+          <button id="clear-label" type="button" class="option-btn">
             <div class="btn-icon clear-icon"></div>
-            <div class="btn-text">Clear</div>
+            <div class="btn-text">Clear Label</div>
           </button>
         </div>
 

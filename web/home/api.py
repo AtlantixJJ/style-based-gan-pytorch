@@ -42,8 +42,8 @@ def stroke2array(image, target_size=None):
     if target_size is not None:
         image = image.resize(target_size)
     w, h = image.size
-    origin = np.zeros([w, h, 3])
-    mask = np.zeros([w, h])
+    origin = np.zeros([w, h, 3], dtype="uint8")
+    mask = np.zeros([w, h], dtype="uint8")
     mask_image = Image.new('L', (w, h))
     new_image = Image.alpha_composite(
         Image.new('RGBA', (w, h), 'white'), image)
@@ -59,7 +59,7 @@ def stroke2array(image, target_size=None):
             new_image.putpixel(
                 (i, j), (color[0], color[1], color[2], int(masked * 255)))
 
-    return [origin, mask]
+    return origin, mask
 
 
 def std_img_shape(x):
@@ -117,24 +117,43 @@ class ImageGenerationAPI(object):
     def has_model(self, model_name):
         return model_name in list(self.models.keys())
 
-    def debug_mask_image(self, model_name, mask, latent):
-        latent = np.fromstring(latent, dtype=np.float32).reshape((1, -1))
-        image, label = self.models[model_name](latent)
-        latent = np.float32(latent).tobytes()
-        image = std_img_shape(image)
-        image = np.uint8(image)
-        save_image_with_time(self.data_dir, image, "gen")
-        save_image_with_time(self.data_dir, mask, "mask")
-        return image, latent
+    def generate_image_given_stroke(self, model_name, latent, noise,
+        image_stroke, image_mask, label_stroke, label_mask):
+        save_image_with_time(self.data_dir, image_stroke, "image_stroke")
+        save_image_with_time(self.data_dir, label_stroke, "label_stroke")
+        save_image_with_time(self.data_dir, image_mask, "image_mask")
+        save_image_with_time(self.data_dir, label_mask, "label_mask")
 
-    def generate_new_image(self, model_name):
-        latent_size = self.models_config[model_name]['in_dim']
-        latent = np.random.normal(0, 2, (1, latent_size)).astype('float32')
-        image, label = self.models[model_name](latent)
+        latent = np.fromstring(latent, dtype=np.float32).reshape((1, -1))
+        noise = np.fromstring(noise, dtype=np.float32).reshape((-1,))
+        image_stroke    = (image_stroke - 127.5) / 127.5
+        #label_stroke
+        image_mask      /= 255.
+        label_mask      /= 255.
+        
+        model = self.models[model_name]
+        image, label = model.generate_given_image_stroke(
+            latent, noise,
+            image_stroke, image_mask)
         image = image[0]
         label = label[0]
         label_viz = self.colorizer[model_name](label)
         latent = np.float32(latent).tobytes()
+        noise = np.float32(noise).tobytes()
+
         save_image_with_time(self.data_dir, image, "gen")
         save_image_with_time(self.data_dir, label_viz, "seg")
-        return image, label_viz, latent
+
+        return image, label_viz, latent, noise
+
+    def generate_new_image(self, model_name):
+        latent, noise = self.models[model_name].generate_noise()
+        image, label = self.models[model_name](latent, noise)
+        image = image[0]
+        label = label[0]
+        label_viz = self.colorizer[model_name](label)
+        latent = np.float32(latent).tobytes()
+        noise = np.float32(noise).tobytes()
+        save_image_with_time(self.data_dir, image, "gen")
+        save_image_with_time(self.data_dir, label_viz, "seg")
+        return image, label_viz, latent, noise

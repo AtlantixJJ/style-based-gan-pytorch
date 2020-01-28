@@ -18,7 +18,8 @@ var currentModel = 0; // current model name
 var loading = false; // the image is loading (waiting response)
 var image = null, // image data
     label = null, // label image data
-    latent = null; // latent data
+    latent = null, // latent data
+    noise = null; // noise data
 var config = null; // config file
 var imwidth = 256, // image size
     imheight = 256; // image size
@@ -65,12 +66,6 @@ Date.prototype.format = function (format) {
 
 var MAX_LINE_WIDTH = 10;
 
-function drawShape(x1, y1, x2, y2) {
-  if (!image) return;
-  graph.drawLine(x1, y1, x2, y2);
-}
-
-
 function setColor(color) {
   graph.setCurrentColor(color);
   $('#color-drop-menu .color-block').css('background-color', color);
@@ -78,13 +73,14 @@ function setColor(color) {
 }
 
 function setCategory(color) {
-  graph.setCurrentColor(color);
+  labelgraph.setCurrentColor(color);
   $('#category-drop-menu .color-block').css('background-color', color);
   $('#category-drop-menu .color-block').css('border', color == 'white' ? 'solid 1px rgba(0, 0, 0, 0.2)' : 'none');
 }
 
 function setLineWidth(width) {
   graph.setLineWidth(width * 2);
+  labelgraph.setLineWidth(width * 2);
   $('#width-label').text(width);
 }
 
@@ -104,23 +100,24 @@ function setImage(data) {
     $('#option-buttons').prop('hidden', false);
     $('#extra-args').prop('hidden', false);
   }
-  if (!label) {
-    //$('#stroke').removeClass('disabled');
-    //$('#option-buttons').prop('hidden', false);
-    //$('#extra-args').prop('hidden', false);
-  }
+
   image = data.img;
   latent = data.latent;
+  noise = data.noise;
   label = data.label;
   $('#image').attr('src', image);
   $('#canvas').css('background-image', 'url(' + image + ')');
   $('#label').attr('src', label);
   $('#label-canvas').css('background-image', 'url(' + label + ')');
+  graph.setHasImage(true);
+  labelgraph.setHasImage(true);
   spinner.spin();
 }
 
 function setLoading(isLoading) {
   loading = isLoading;
+  graph.setHasImage(false);
+  labelgraph.setHasImage(false);
   $('#start-new').prop('disabled', loading);
   $('#submit').prop('disabled', loading);
   $('#spin').prop('hidden', !loading);
@@ -133,26 +130,27 @@ function setLoading(isLoading) {
   }
 }
 
-function onClear() {
-  graph.clear();
-}
-
 function onSubmit() {
+  console.log(loading);
   if (graph && !loading) {
     setLoading(true);
     var formData = {
       model: MODEL_NAMES[currentModel],
-      sketch: graph.getImageData(),
-      latent: latent
+      image_stroke: graph.getImageData(),
+      label_stroke: labelgraph.getImageData(),
+      latent: latent,
+      noise: noise
     };
-    $.post('dbg', formData, setImage, 'json');
+    console.log(formData);
+    $.post('stroke', formData, setImage, 'json');
   }
 }
 
 function onStartNew() {
   if (loading) return;
   setLoading(true);
-  onClear();
+  graph.clear();
+  labelgraph.clear();
   $.post('new', { model: MODEL_NAMES[currentModel] }, setImage, 'json');
 }
 
@@ -242,18 +240,23 @@ function init() {
       image,
       'image_' + new Date().format('yyyyMMdd_hhmmss') + '.png');
   });
-  $('#clear').click(onClear);
+  $('#clear-image').click(graph.clear);
+  $('#clear-label').click(labelgraph.clear);
   $('#submit').click(onSubmit);
   $('#stroke').click(function() {
     var stroke = $('#stroke').hasClass('active');
     if (stroke) {
       $('#image').prop('hidden', false);
+      $('#label').prop('hidden', false);
       $('#canvas').prop('hidden', true);
+      $('#label-canvas').prop('hidden', true);
       $('#stroke').removeClass('active');
       $('#stroke .btn-text').text('Show stroke');
     } else {
       $('#image').prop('hidden', true);
+      $('#label').prop('hidden', true);
       $('#canvas').prop('hidden', false);
+      $('#label-canvas').prop('hidden', false);
       $('#stroke').addClass('active');
       $('#stroke .btn-text').text('Hide stroke');
     }
@@ -293,13 +296,20 @@ $(document).ready(function () {
       imwidth = config.models[key].output_size;
       imheight = config.models[key].output_size;
       document.getElementById('model-label').textContent = key;
-      var x = document.getElementById('image');
-      x.width = imwidth;
-      x.height = imheight;
       graph = new Graph(document, 'canvas');
       labelgraph = new Graph(document, 'label-canvas');
-      graph.setSize(imheight, imwidth);
-      labelgraph.setSize(imheight, imwidth);
+      var x = document.getElementById('image-container');
+      var h = x.clientHeight;
+      var w = x.clientWidth;
+      var size = h < w ? h : w;
+      graph.setSize(size, size);
+      labelgraph.setSize(size, size);
+      x = document.getElementById('image');
+      x.width = size;
+      x.height = size;
+      x = document.getElementById('label');
+      x.width = size;
+      x.height = size;
       init();
     });
 });

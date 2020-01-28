@@ -19,6 +19,6 @@ from . import views
 
 urlpatterns = [
     url(r'^$', views.index),
-    url(r'^dbg$', views.debug_mask_image),
+    url(r'^stroke$', views.generate_image_given_stroke),
     url(r'^new$', views.generate_new_image),
 ]

@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from collections import OrderedDict
 import pickle
 import numpy as np
-
+from tqdm import tqdm
 
 class MyLinear(nn.Module):
     """Linear layer with equalized learning rate and custom learning rate multiplier."""
@@ -503,9 +503,60 @@ class WrapedStyledGenerator(nn.Module):
         print("=> Check running")
         self.n_class = self.model.n_class
 
+        # optimization related
+        self.latent_param = torch.randn(1, 512, requires_grad=True)
+        self.optim = torch.optim.SGD([self.latent_param], lr=1e-2)
+        self.logsoftmax = torch.nn.CrossEntropyLoss().to(self.device)
+        self.record = {"mseloss": [], "celoss": [], "segdiff": []}
+        self.n_iter = 20
+
+    def generate_noise(self):
+        sizes = [4 * 2 ** (i // 2) for i in range(18)]
+        length = sum([size ** 2 for size in sizes])
+        return torch.randn(1, 512), torch.randn((length,))
     
-    def forward(self, latent): # [0, 1] in torch
-        latent = torch.from_numpy(latent).to(self.device)
+    def parse_noise(self, vec):
+        noise = []
+        prev = 0
+        for i in range(18):
+            size = 4 * 2 ** (i // 2)
+            noise.append(vec[prev : prev + size ** 2].view(1, 1, size, size))
+            prev += size ** 2
+        return noise
+
+    def generate_given_image_stroke(self, latent, noise, image_stroke, image_mask):
+        if not isinstance(latent, torch.Tensor):
+            latent = torch.from_numpy(latent).to(self.device)
+        if not isinstance(noise, torch.Tensor):
+            noise = torch.from_numpy(noise).to(self.device)
+        noise = self.parse(noise)
+        self.model.set_noise(noise)
+        with torch.no_grad():
+            orig_image, orig_seg = self.model(latent)
+        orig_label = orig_seg.argmax(1).long()
+
+
+
+        for i in tqdm(range(self.n_iter)):
+            image, seg = self.model(latent)
+            new_label = seg.argmax(1)
+
+            mseloss = ((image_stroke - y) * image_mask) ** 2
+            mseloss = mseloss.sum() / mask.sum()
+            latent.grad = torch.autograd.grad(
+                outputs=mseloss,
+                inputs=latent,
+                only_inputs=True)[0]
+            optim.step()
+
+    def forward(self, latent, noise): # [0, 1] in torch
+        if not isinstance(latent, torch.Tensor):
+            latent = torch.from_numpy(latent).to(self.device)
+        if not isinstance(noise, torch.Tensor):
+            noise = torch.from_numpy(noise).to(self.device)
+            
+        noise = self.parse_noise(noise)
+        self.model.set_noise(noise)
         gen, seg = self.model(latent)
         gen = (1 + gen.clamp(-1, 1)) * 255 / 2
         gen = gen.detach().cpu().numpy().transpose(0, 2, 3, 1)
