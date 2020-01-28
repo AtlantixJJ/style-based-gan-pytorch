@@ -1,6 +1,7 @@
 import sys
 sys.path.insert(0, '..')
 import numpy as np
+import torch
 
 class Colorize(object):
     def __init__(self, n=19):
@@ -13,14 +14,14 @@ class Colorize(object):
         assert len(size) == 2
         h, w = size
 
-        try:
+        if isinstance(gray_image, torch.Tensor):
             color_image = torch.ByteTensor(3, h, w).fill_(0)
             for label in range(0, len(self.cmap)):
                 mask = (label == gray_image).cpu()
                 color_image[0][mask] = int(self.cmap[label, 0])
                 color_image[1][mask] = int(self.cmap[label, 1])
                 color_image[2][mask] = int(self.cmap[label, 2])
-        except:
+        else:
             color_image = np.zeros((h, w, 3), dtype="uint8")
             for label in range(len(self.cmap)):
                 mask = (label == gray_image)

@@ -131,7 +131,6 @@ function setLoading(isLoading) {
 }
 
 function onSubmit() {
-  console.log(loading);
   if (graph && !loading) {
     setLoading(true);
     var formData = {
@@ -141,7 +140,6 @@ function onSubmit() {
       latent: latent,
       noise: noise
     };
-    console.log(formData);
     $.post('stroke', formData, setImage, 'json');
   }
 }

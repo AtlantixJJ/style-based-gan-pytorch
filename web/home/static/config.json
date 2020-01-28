@@ -3,24 +3,22 @@
     "models": {
         "SegGAN (1024px)": {
             "model_def" : "home.seg_stylegan.WrapedStyledGenerator",
-            "in_dim" : 512,
             "out_dim" : 3,
             "output_size" : 1024,
             "model_args": {
                 "load_path" : "../pretrained/fixseg.model",
                 "seg_cfg": "mul-16",
-                "gpu" : -1
+                "gpu" : 0
             }
         },
         "SegGAN (512px)": {
             "model_def" : "home.seg_stylegan.WrapedStyledGenerator",
-            "in_dim" : 512,
             "out_dim" : 3,
             "output_size" : 512,
             "model_args": {
                 "load_path" : "../pretrained/fixseg.model",
                 "seg_cfg": "mul-16",
-                "gpu" : -1
+                "gpu" : 0
             }
         }
     }

@@ -10,79 +10,9 @@ import json
 import os
 import random
 import numpy as np
-from PIL import Image
-from datetime import datetime
+import torch
 from home.colorize import Colorize
-
-def open_image(name):
-    with open(name, "rb") as f:
-        return np.asarray(Image.open(f))
-
-
-def save_image(name, image):
-    fmt = "JPEG" if ".jpg" in name else "PNG"
-    with open(name, "wb") as f:
-        Image.fromarray(image).convert("RGB").save(f, format=fmt)
-
-
-def save_image_with_time(dirname, image, name):
-    """
-    Args:
-        image: numpy image
-    """
-    if not os.path.exists(dirname):
-        os.makedirs(dirname)
-    time_str = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
-    save_image(os.path.join(dirname, '%s_%s.png' %
-                            (time_str, name)), image)
-
-
-def stroke2array(image, target_size=None):
-    image = image.convert('RGBA')
-    if target_size is not None:
-        image = image.resize(target_size)
-    w, h = image.size
-    origin = np.zeros([w, h, 3], dtype="uint8")
-    mask = np.zeros([w, h], dtype="uint8")
-    mask_image = Image.new('L', (w, h))
-    new_image = Image.alpha_composite(
-        Image.new('RGBA', (w, h), 'white'), image)
-
-    for i in range(w):
-        for j in range(h):
-            masked = image.getpixel((i, j))[3] > 0
-            color = new_image.getpixel((i, j))
-            origin[j, i] = color[:3]
-            mask[j, i] = masked
-            mask_image.putpixel(
-                (i, j), int(masked * 255))
-            new_image.putpixel(
-                (i, j), (color[0], color[1], color[2], int(masked * 255)))
-
-    return origin, mask
-
-
-def std_img_shape(x):
-    """
-    Standardize image shape
-    """
-    if len(x.shape) > 3:
-        x = x[0]
-    
-    if x.shape[0] == 1 or x.shape[0] == 3:
-        x = x.transpose(1, 2, 0)
-
-    if x.shape[-1] == 1:
-        x = x[:, :, 0]
-    return x
-
-# test function
-
-
-def generate_random_image(size):
-    color = '#' + ''.join(random.sample('0123456789ABCDEF', 8))
-    background = Image.new('RGBA', size, color)
-    return background
+from home.utils import *
 
 
 class ImageGenerationAPI(object):
@@ -124,17 +54,19 @@ class ImageGenerationAPI(object):
         save_image_with_time(self.data_dir, image_mask, "image_mask")
         save_image_with_time(self.data_dir, label_mask, "label_mask")
 
-        latent = np.fromstring(latent, dtype=np.float32).reshape((1, -1))
-        noise = np.fromstring(noise, dtype=np.float32).reshape((-1,))
-        image_stroke    = (image_stroke - 127.5) / 127.5
-        #label_stroke
-        image_mask      /= 255.
-        label_mask      /= 255.
-        
         model = self.models[model_name]
-        image, label = model.generate_given_image_stroke(
-            latent, noise,
-            image_stroke, image_mask)
+        device = model.device
+        latent      = np.fromstring(latent, dtype=np.float32).reshape((1, -1))
+        noise       = np.fromstring(noise, dtype=np.float32).reshape((-1,))
+        latent      = torch.from_numpy(latent).to(device)
+        noise       = torch.from_numpy(noise).to(device)
+        image_stroke= preprocess_image(image_stroke).to(device)
+        image_mask  = preprocess_mask(image_mask).to(device)
+        label_stroke= preprocess_image(label_stroke).to(device)
+        label_mask  = preprocess_mask(label_mask).to(device)
+        
+        image, label, latent, noise, record = model.generate_given_image_stroke(
+            latent, noise, image_stroke, image_mask)
         image = image[0]
         label = label[0]
         label_viz = self.colorizer[model_name](label)
@@ -143,7 +75,8 @@ class ImageGenerationAPI(object):
 
         save_image_with_time(self.data_dir, image, "gen")
         save_image_with_time(self.data_dir, label_viz, "seg")
-
+        plot_dic(record)
+        save_plot_with_time(self.data_dir, "record")
         return image, label_viz, latent, noise
 
     def generate_new_image(self, model_name):
@@ -152,8 +85,8 @@ class ImageGenerationAPI(object):
         image = image[0]
         label = label[0]
         label_viz = self.colorizer[model_name](label)
-        latent = np.float32(latent).tobytes()
-        noise = np.float32(noise).tobytes()
+        latent = np.float32(latent.cpu()).tobytes()
+        noise = np.float32(noise.cpu()).tobytes()
         save_image_with_time(self.data_dir, image, "gen")
         save_image_with_time(self.data_dir, label_viz, "seg")
         return image, label_viz, latent, noise

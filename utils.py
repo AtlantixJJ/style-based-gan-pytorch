@@ -489,15 +489,18 @@ def format_test_result(dic):
     print(str_latex_table(strs))
     print(str_csv_table(strs))
 
-def plot_dic(dic, file):
+
+def plot_dic(dic, file=None):
     n = len(dic.items())
+    fig = plt.figure(figsize=(3, 3 * n))
     for i, (k, v) in enumerate(dic.items()):
-        ax = plt.subplot(1, n, i + 1)
+        ax = fig.add_subplot(1, n, i + 1)
         ax.plot(v)
         ax.legend([k])
-    plt.savefig(file)
-    plt.close()
-
+    if file is not None:
+        plt.savefig(file)
+        plt.close()
+        
 
 def parse_log(logfile):
     with open(logfile) as f:

@@ -8,7 +8,7 @@
             "model_args": {
                 "load_path" : "../pretrained/fixseg.model",
                 "seg_cfg": "mul-16",
-                "gpu" : -1
+                "gpu" : 0
             }
         }
     }

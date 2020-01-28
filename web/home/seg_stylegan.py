@@ -5,6 +5,7 @@ from collections import OrderedDict
 import pickle
 import numpy as np
 from tqdm import tqdm
+from home import utils
 
 class MyLinear(nn.Module):
     """Linear layer with equalized learning rate and custom learning rate multiplier."""
@@ -504,16 +505,17 @@ class WrapedStyledGenerator(nn.Module):
         self.n_class = self.model.n_class
 
         # optimization related
-        self.latent_param = torch.randn(1, 512, requires_grad=True)
+        self.latent_param = torch.randn(1, 512, requires_grad=True, device=self.device)
         self.optim = torch.optim.SGD([self.latent_param], lr=1e-2)
         self.logsoftmax = torch.nn.CrossEntropyLoss().to(self.device)
-        self.record = {"mseloss": [], "celoss": [], "segdiff": []}
         self.n_iter = 20
 
     def generate_noise(self):
         sizes = [4 * 2 ** (i // 2) for i in range(18)]
         length = sum([size ** 2 for size in sizes])
-        return torch.randn(1, 512), torch.randn((length,))
+        latent = torch.randn(1, 512, device=self.device)
+        noise_vec = torch.randn((length,), device=self.device)
+        return latent, noise_vec
     
     def parse_noise(self, vec):
         noise = []
@@ -524,41 +526,67 @@ class WrapedStyledGenerator(nn.Module):
             prev += size ** 2
         return noise
 
-    def generate_given_image_stroke(self, latent, noise, image_stroke, image_mask):
-        if not isinstance(latent, torch.Tensor):
-            latent = torch.from_numpy(latent).to(self.device)
-        if not isinstance(noise, torch.Tensor):
-            noise = torch.from_numpy(noise).to(self.device)
-        noise = self.parse(noise)
-        self.model.set_noise(noise)
+    def generate_given_image_stroke(self, latent, noise, image_stroke, image_mask,
+        record={}):
+        utils.copy_tensor(self.latent_param, latent)
+        noises = self.parse_noise(noise)
+        self.model.set_noise(noises)
         with torch.no_grad():
             orig_image, orig_seg = self.model(latent)
-        orig_label = orig_seg.argmax(1).long()
+        orig_label = orig_seg.argmax(1)
+        record = {"mseloss": [], "celoss": [], "segdiff": []}
 
+        if image_mask.sum() < 1.0:
+            orig_image = (1 + orig_image.clamp(-1, 1)) * 255 / 2
+            orig_image = utils.torch2numpy(orig_image).transpose(0, 2, 3, 1)
+            orig_label = utils.torch2numpy(orig_label)
+            return orig_image, orig_label, latent, noise, record
 
+        for _ in tqdm(range(self.n_iter)):
+            image, seg = self.model(self.latent_param)
+            #new_label = seg.argmax(1)
 
-        for i in tqdm(range(self.n_iter)):
-            image, seg = self.model(latent)
-            new_label = seg.argmax(1)
+            mseloss = ((image_stroke - image) * image_mask) ** 2
+            mseloss = mseloss.sum() / image_mask.sum()
+            self.latent_param.grad = torch.autograd.grad(mseloss, self.latent_param)[0]
+            self.optim.step()
 
-            mseloss = ((image_stroke - y) * image_mask) ** 2
-            mseloss = mseloss.sum() / mask.sum()
-            latent.grad = torch.autograd.grad(
-                outputs=mseloss,
-                inputs=latent,
-                only_inputs=True)[0]
-            optim.step()
+            count = 0
+            total_diff = 0
+            while count < 10:
+                image, seg = self.model(self.latent_param)
+                mseloss = ((image_stroke - image) * image_mask) ** 2
+                mseloss = mseloss.sum() / image_mask.sum()
+                revise_label = seg.argmax(1).long()
+                celoss = self.logsoftmax(seg, orig_label)
+                # directly use cross entropy may also decrease other part
+                diff_mask = (revise_label != orig_label).float()
+                total_diff = diff_mask.sum()
+                count += 1
+                record["celoss"].append(utils.torch2numpy(celoss))
+                record["mseloss"].append(utils.torch2numpy(mseloss))
+                record["segdiff"].append(total_diff)
+                if total_diff < 100:
+                    break
+                grad_seg = torch.autograd.grad(celoss, seg)[0]
+                self.latent_param.grad = torch.autograd.grad(seg, self.latent_param,
+                    grad_outputs=grad_seg * diff_mask)[0]
+                self.optim.step()
+
+        image = (1 + image.clamp(-1, 1)) * 255 / 2
+        image = utils.torch2numpy(image).transpose(0, 2, 3, 1)
+        label = utils.torch2numpy(seg.argmax(1))
+        latent = utils.torch2numpy(self.latent_param)
+        noise = utils.torch2numpy(noise)
+        return image.astype("uint8"), label, latent, noise, record
+
 
     def forward(self, latent, noise): # [0, 1] in torch
-        if not isinstance(latent, torch.Tensor):
-            latent = torch.from_numpy(latent).to(self.device)
-        if not isinstance(noise, torch.Tensor):
-            noise = torch.from_numpy(noise).to(self.device)
-            
         noise = self.parse_noise(noise)
         self.model.set_noise(noise)
         gen, seg = self.model(latent)
+
         gen = (1 + gen.clamp(-1, 1)) * 255 / 2
-        gen = gen.detach().cpu().numpy().transpose(0, 2, 3, 1)
-        label = seg.argmax(1).detach().cpu().numpy()
+        gen = utils.torch2numpy(gen).transpose(0, 2, 3, 1)
+        label = utils.torch2numpy(seg.argmax(1))
         return gen.astype("uint8"), label
