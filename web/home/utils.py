@@ -43,9 +43,9 @@ def stroke2array(image, target_size=None):
             masked = image.getpixel((i, j))[3] > 0
             color = new_image.getpixel((i, j))
             origin[j, i] = color[:3]
-            mask[j, i] = masked
+            mask[j, i] = int(masked) * 255
             mask_image.putpixel(
-                (i, j), int(masked * 255))
+                (i, j), int(masked) * 255)
             new_image.putpixel(
                 (i, j), (color[0], color[1], color[2], int(masked * 255)))
 
@@ -76,6 +76,18 @@ def save_image(name, image):
     fmt = "JPEG" if ".jpg" in name else "PNG"
     with open(name, "wb") as f:
         Image.fromarray(image).convert("RGB").save(f, format=fmt)
+
+
+def save_npy_with_time(dirname, arr, name):
+    """
+    Args:
+        image: numpy image
+    """
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
+    time_str = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+    np.save(os.path.join(dirname, '%s_%s.npy' %
+                            (time_str, name)), arr)
 
 
 def save_image_with_time(dirname, image, name):
@@ -114,7 +126,7 @@ def torch2numpy(x):
 
 def plot_dic(dic, file=None):
     n = len(dic.items())
-    fig = plt.figure(figsize=(3, 3 * n))
+    fig = plt.figure(figsize=(3 * n, 3))
     for i, (k, v) in enumerate(dic.items()):
         ax = fig.add_subplot(1, n, i + 1)
         ax.plot(v)

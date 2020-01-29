@@ -1,8 +1,18 @@
 {
     "collect_data_dir": "collect_data",
     "models": {
-        "SegGAN (1024px)": {
+        "SegGAN": {
             "model_def" : "home.seg_stylegan.WrapedStyledGenerator",
+            "out_dim" : 3,
+            "output_size" : 1024,
+            "model_args": {
+                "load_path" : "../pretrained/fixseg.model",
+                "seg_cfg": "mul-16",
+                "gpu" : 0
+            }
+        },
+        "StyleGAN": {
+            "model_def" : "home.baseline_stylegan.WrapedStyledGenerator",
             "out_dim" : 3,
             "output_size" : 1024,
             "model_args": {

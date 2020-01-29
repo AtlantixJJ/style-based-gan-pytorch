@@ -49,6 +49,8 @@ class ImageGenerationAPI(object):
 
     def generate_image_given_stroke(self, model_name, latent, noise,
         image_stroke, image_mask, label_stroke, label_mask):
+        save_npy_with_time(self.data_dir, latent, "origin_latent")
+        save_npy_with_time(self.data_dir, latent, "origin_noise")
         save_image_with_time(self.data_dir, image_stroke, "image_stroke")
         save_image_with_time(self.data_dir, label_stroke, "label_stroke")
         save_image_with_time(self.data_dir, image_mask, "image_mask")
@@ -87,6 +89,4 @@ class ImageGenerationAPI(object):
         label_viz = self.colorizer[model_name](label)
         latent = np.float32(latent.cpu()).tobytes()
         noise = np.float32(noise.cpu()).tobytes()
-        save_image_with_time(self.data_dir, image, "gen")
-        save_image_with_time(self.data_dir, label_viz, "seg")
         return image, label_viz, latent, noise
