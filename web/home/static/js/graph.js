@@ -50,7 +50,7 @@ function Graph(document, name) {
   this.drawLine = drawLine;
 
   this.clear = function () {
-    ctx.clearRect(0, 0, width, height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
   };
 
   function getMouse(event) {

@@ -7,6 +7,11 @@ from PIL import Image
 from datetime import datetime
 
 
+def requires_grad(model, flag=True):
+    for p in model.parameters():
+        p.requires_grad = flag
+        
+
 def preprocess_image(arr, size=(1024, 1024)):
     """
     arr in [0, 255], shape (H, W, C)
