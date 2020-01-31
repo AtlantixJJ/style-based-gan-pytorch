@@ -553,13 +553,15 @@ def format_test_result(dic):
     print(str_csv_table(strs))
 
 
-def plot_dic(dic, file=None):
+def plot_dic(dic, title="", file=None):
     n = len(dic.items())
     fig = plt.figure(figsize=(3 * n, 3))
     for i, (k, v) in enumerate(dic.items()):
         ax = fig.add_subplot(1, n, i + 1)
         ax.plot(v)
         ax.legend([k])
+    if len(title) > 0:
+        plt.suptitle(title)
     if file is not None:
         plt.savefig(file)
         plt.close()

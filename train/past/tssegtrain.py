@@ -136,7 +136,7 @@ for i in tqdm(range(cfg.n_iter + 1)):
 		vutils.save_image(genviz, cfg.expr_dir + "/genlabel_viz_%05d.png" % i, nrow=3)
 		vutils.save_image(tarviz, cfg.expr_dir + "/tarlabel_viz_%05d.png" % i, nrow=2)
 		utils.write_log(cfg.expr_dir, record)
-		utils.plot_dic(record, cfg.expr_dir + "/loss.png")
+		utils.plot_dic(record, "loss", cfg.expr_dir + "/loss.png")
 
 #os.system(f"python script/monitor.py --task log,seg --model {cfg.expr_dir} --step 8 --gpu {cfg.gpu}")
 #os.system(f"python test.py --model {cfg.expr_dir} --gpu {cfg.gpu}")

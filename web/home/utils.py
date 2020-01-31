@@ -142,9 +142,11 @@ def torch2numpy(x):
         return x
 
 
-def plot_dic(dic, file=None):
+def plot_dic(dic, title="", file=None):
     n = len(dic.items())
     fig = plt.figure(figsize=(3 * n, 3))
+    if len(title) > 0:
+        plt.title(title)
     for i, (k, v) in enumerate(dic.items()):
         ax = fig.add_subplot(1, n, i + 1)
         ax.plot(v)

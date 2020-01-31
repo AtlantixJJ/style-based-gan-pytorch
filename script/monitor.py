@@ -93,7 +93,7 @@ del state_dict
 if "log" in args.task:
     logfile = args.model + "/log.txt"
     dic = utils.parse_log(logfile)
-    utils.plot_dic(dic, savepath + "_loss.png")
+    utils.plot_dic(dic, args.model, savepath + "_loss.png")
 
 if "agreement" in args.task:
     latent = torch.randn(batch_size, latent_size, device=device)

@@ -24,7 +24,8 @@ parser.add_argument("--external-model", default="checkpoint/faceparse_unet_512.p
 parser.add_argument("--output", default="results")
 parser.add_argument("--seg-cfg", default="mul-16")
 parser.add_argument("--lr", default=1e-2, type=int)
-parser.add_argument("--n-iter", default=200, type=int)
+parser.add_argument("--n-iter", default=10, type=int)
+parser.add_argument("--n-reg", default=3, type=int)
 parser.add_argument("--seed", default=65537, type=int)
 args = parser.parse_args()
 
@@ -32,7 +33,11 @@ args = parser.parse_args()
 # constants setup
 torch.manual_seed(args.seed)
 device = 'cuda'
-optim_types = ["baseline-latent","celossregexternal-latent","celossregexternal-latent-slow","celossreg-latent","celossreg-latent-slow"]
+optim_types = [
+    "baseline-latent",
+    "baseline-generalized-latent",
+    "celoss-external-generalized-latent-slow",
+    "celoss-generalized-latent-slow"]
 
 # build model
 generator = model.tfseg.StyledGenerator(semantic=args.seg_cfg).to(device)
@@ -54,12 +59,14 @@ for ind, dic in enumerate(dl):
     for k in dic.keys():
         dic[k] = dic[k].to(device)
 
-    latent = dic["origin_latent"][0]
-    noises = utils.parse_noise(dic["origin_noise"][0])
+    latent_ = dic["origin_latent"][0]
+    noises_ = utils.parse_noise(dic["origin_noise"][0])
 
     # get original images
     with torch.no_grad():
-        orig_image, orig_seg = generator(latent)
+        extended_latent_ = generator.g_mapping(latent_).detach()
+        generalized_latent_ = extended_latent_[:, 0:1, :].detach()
+        orig_image, orig_seg = generator(extended_latent_)
         ext_seg = utils.diff_idmap(external_model(orig_image.clamp(-1, 1)))
     orig_image = (1 + orig_image.clamp(-1, 1)) / 2
     ext_label = ext_seg.argmax(1)
@@ -73,15 +80,24 @@ for ind, dic in enumerate(dl):
 
     for t in optim_types:
         print("=> Optimization method %s" % t)
-        orig_image, orig_label, image, label, latent, noises, record = optim.get_optim(t,
+
+        if "extended-latent" in t:
+            param = extended_latent_
+        elif "generalized-latent" in t:
+            param = generalized_latent_
+        elif "latent" in t:
+            param = latent_
+
+        image, label, latent, noises, record = optim.get_optim(t,
             external_model=external_model,
             model=generator,
-            latent=dic["origin_latent"][0],
-            noises=utils.parse_noise(dic["origin_noise"][0]),
+            latent=param,
+            noises=noises_,
             image_stroke=dic["image_stroke"],
             image_mask=dic["image_mask"],
             lr=args.lr,
-            n_iter=args.n_iter)
+            n_iter=args.n_iter,
+            n_reg=args.n_reg)
     
         label_viz = colorizer(label[0]).unsqueeze(0) / 255.
         diff_image = (orig_image - image).abs().sum(1, keepdim=True)
@@ -90,9 +106,11 @@ for ind, dic in enumerate(dl):
         for i in range(3):
             diff_label[:, i, :, :][label == orig_label] = 1
         images.extend([image, label_viz, diff_image_viz, diff_label])
-        utils.plot_dic(record,   f"{args.output}/edit_{ind:02d}_{t}.png")
+        for i in range(len(images)):
+            images[i] = images[i].detach().cpu()
+        utils.plot_dic(record, t, f"{args.output}/edit_{ind:02d}_{t}.png")
 
     images = torch.cat(images)
-    images = F.interpolate(images, (512, 512), mode="bilinear")
+    images = F.interpolate(images, (256, 256), mode="bilinear")
     vutils.save_image(images,f"{args.output}/edit_{ind:02d}_result.png", nrow=4)
 

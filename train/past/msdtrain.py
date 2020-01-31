@@ -164,4 +164,4 @@ for ind, sample in enumerate(pbar):
         vutils.save_image(gen_label_viz, cfg.expr_dir + "/gen_label_viz_%05d.png" % ind, nrow=2)
         vutils.save_image(real_label_viz, cfg.expr_dir + "/real_label_viz_%05d.png" % ind, nrow=2)
         utils.write_log(cfg.expr_dir, record)
-        utils.plot_dic(record, cfg.expr_dir + "/loss.png")
+        utils.plot_dic(record, "loss", cfg.expr_dir + "/loss.png")

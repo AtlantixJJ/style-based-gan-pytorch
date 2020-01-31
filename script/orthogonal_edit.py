@@ -99,4 +99,4 @@ res.append(utils.tensor2label(orig_label, 16).unsqueeze(0))
 res = torch.cat([r.cpu() for r in res])
 
 vutils.save_image(res, f"ortho_edit_{args.reg}_sample.png", nrow=4)
-utils.plot_dic(record, f"ortho_edit_{args.reg}_loss.png")
+utils.plot_dic(record, "orthogonal edit", f"ortho_edit_{args.reg}_loss.png")

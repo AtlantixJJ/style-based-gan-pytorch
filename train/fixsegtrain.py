@@ -125,4 +125,4 @@ for ind in tqdm(range(cfg.n_iter)):
 		res = torch.cat([F.interpolate(m.float().unsqueeze(0), 256).cpu() for m in res])
 		vutils.save_image(res, cfg.expr_dir + "/%05d.png" % ind, nrow=3)
 		utils.write_log(cfg.expr_dir, record)
-		utils.plot_dic(record, cfg.expr_dir + "/loss.png")
+		utils.plot_dic(record, "loss", cfg.expr_dir + "/loss.png")

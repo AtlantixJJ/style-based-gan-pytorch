@@ -109,4 +109,4 @@ for ind, sample in enumerate(pbar):
 		viz = torch.cat([F.interpolate(m, 256).cpu() for m in viz])
 		vutils.save_image(viz, cfg.expr_dir + "/viz_%05d.png" % ind, nrow=2)
 		utils.write_log(cfg.expr_dir, record)
-		utils.plot_dic(record, cfg.expr_dir + "/loss.png")
+		utils.plot_dic(record, "loss", cfg.expr_dir + "/loss.png")

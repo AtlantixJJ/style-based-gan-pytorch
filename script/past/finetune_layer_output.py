@@ -63,7 +63,7 @@ for i in tqdm(range(10001)):
     record['loss'].append(torch2numpy(loss))
     if i % 20 == 0:
         write_log(cfg.expr_dir, record)
-        plot_dic(record, f"{cfg.expr_dir}/loss.png")
+        plot_dic(record, "loss", f"{cfg.expr_dir}/loss.png")
 
     if i % 1000 == 0:
         images = images + [target]

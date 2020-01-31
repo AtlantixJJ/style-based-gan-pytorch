@@ -178,4 +178,4 @@ for ind, sample in enumerate(pbar):
             vutils.save_image(real_image[:4], cfg.expr_dir + '/real_%06d.png' % ind,
                                 nrow=2, normalize=True, range=(-1, 1))
         utils.write_log(cfg.expr_dir, record)
-        utils.plot_dic(record, cfg.expr_dir + "/loss.png")
+        utils.plot_dic(record, "loss", cfg.expr_dir + "/loss.png")
