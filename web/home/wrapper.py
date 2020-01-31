@@ -29,23 +29,13 @@ class WrapedStyledGenerator(torch.nn.Module):
         latent = torch.randn(1, 512, device=self.device)
         noise_vec = torch.randn((length,), device=self.device)
         return latent, noise_vec
-        
-    
-    def parse_noise(self, vec):
-        noise = []
-        prev = 0
-        for i in range(18):
-            size = 4 * 2 ** (i // 2)
-            noise.append(vec[prev : prev + size ** 2].view(1, 1, size, size))
-            prev += size ** 2
-        return noise
 
 
     def generate_given_image_stroke(self, latent, noise, image_stroke, image_mask):
         utils.copy_tensor(self.latent_param, latent)
-        noises = self.parse_noise(noise)
+        noises = utils.parse_noise(noise)
 
-        image, label, latent, noises, record = self.optim_func(
+        orig_image, orig_label, image, label, latent, noises, record = self.optim_func(
             self.model, self.latent_param, noises, image_stroke, image_mask)
         noise = torch.cat([n.view(-1) for n in noise])
 
@@ -57,7 +47,7 @@ class WrapedStyledGenerator(torch.nn.Module):
 
 
     def forward(self, latent, noise): # [0, 1] in torch
-        noise = self.parse_noise(noise)
+        noise = utils.parse_noise(noise)
         self.model.set_noise(noise)
         gen, seg = self.model(latent)
 

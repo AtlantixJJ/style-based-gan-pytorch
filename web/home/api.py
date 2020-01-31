@@ -49,17 +49,18 @@ class ImageGenerationAPI(object):
 
     def generate_image_given_stroke(self, model_name, latent, noise,
         image_stroke, image_mask, label_stroke, label_mask):
-        save_npy_with_time(self.data_dir, latent, "origin_latent")
-        save_npy_with_time(self.data_dir, latent, "origin_noise")
         save_image_with_time(self.data_dir, image_stroke, "image_stroke")
         save_image_with_time(self.data_dir, label_stroke, "label_stroke")
         save_image_with_time(self.data_dir, image_mask, "image_mask")
         save_image_with_time(self.data_dir, label_mask, "label_mask")
+        
+        latent      = np.fromstring(latent, dtype=np.float32).reshape((1, -1))
+        noise       = np.fromstring(noise, dtype=np.float32).reshape((-1,))
+        save_npy_with_time(self.data_dir, latent, "origin_latent")
+        save_npy_with_time(self.data_dir, noise, "origin_noise")
 
         model = self.models[model_name]
         device = model.device
-        latent      = np.fromstring(latent, dtype=np.float32).reshape((1, -1))
-        noise       = np.fromstring(noise, dtype=np.float32).reshape((-1,))
         latent      = torch.from_numpy(latent).to(device)
         noise       = torch.from_numpy(noise).to(device)
         image_stroke= preprocess_image(image_stroke).to(device)

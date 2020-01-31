@@ -466,15 +466,17 @@ class StyledGenerator(nn.Module):
         for i in range(len(noises)):
             self.noise_layers[i].noise = noises[i]
 
-    #def forward(self, x):
-    #    return self.g_synthesis(self.g_mapping(x))
+    # x can be: (1, 512) low-level latent; (1, 512) generalized latent; (18, 512) extended latent
     def forward(self, x, seg=True, detach=False, ortho_bias=None):
+        if x.shape[1] != 18:
+            x = self.g_mapping(x)
+
         if ortho_bias is not None:
-            image, stage = self.g_synthesis(self.g_mapping(x),
+            image, stage = self.g_synthesis(x,
                 orthogonal=self.semantic_branch.orthogonalize,
                 ortho_bias=ortho_bias)
         else:
-            image, stage = self.g_synthesis(self.g_mapping(x))
+            image, stage = self.g_synthesis(x)
         self.stage = stage
 
         if detach:

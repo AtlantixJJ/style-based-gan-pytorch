@@ -2,6 +2,7 @@ from __future__ import print_function
 import matplotlib
 matplotlib.use("agg")
 import matplotlib.pyplot as plt
+from matplotlib import cm
 import os
 from os.path import join as osj
 try:
@@ -18,6 +19,7 @@ import torch
 import torch.nn.functional as F
 import torchvision.utils as vutils
 from torch.autograd import Variable
+import glob
 
 
 class MultiGPUTensor(object):
@@ -41,6 +43,24 @@ class MultiGPUTensor(object):
 ######
 
 
+HEATMAP_COLOR = cm.get_cmap("Reds")
+def heatmap_numpy(image):
+    """
+    assume numpy array as input: (N, H, W) in [0, 1]
+    returns: (N, H, W, 3)
+    """
+    return HEATMAP_COLOR(image)[:, :, :, :3]
+
+def heatmap_torch(tensor):
+    """
+    assume 4D torch.Tensor (N, 1, H, W)
+    """
+    numpy_arr = torch2numpy(tensor[:, 0, :, :])
+    heatmap = HEATMAP_COLOR(numpy_arr)[:, :, :, :3]
+    t = torch.from_numpy(heatmap.transpose(0, 3, 1, 2)).float()
+    return t.to(tensor.device)
+
+
 class Colorize(object):
     def __init__(self, n=19):
         self.cmap = labelcolormap(n)
@@ -52,14 +72,14 @@ class Colorize(object):
         assert len(size) == 2
         h, w = size
 
-        try:
-            color_image = torch.ByteTensor(3, h, w).fill_(0)
+        if isinstance(gray_image, torch.Tensor):
+            color_image = torch.zeros(3, h, w, device=gray_image.device).fill_(0)
             for label in range(0, len(self.cmap)):
                 mask = (label == gray_image).cpu()
                 color_image[0][mask] = int(self.cmap[label, 0])
                 color_image[1][mask] = int(self.cmap[label, 1])
                 color_image[2][mask] = int(self.cmap[label, 2])
-        except:
+        else:
             color_image = np.zeros((h, w, 3), dtype="uint8")
             for label in range(len(self.cmap)):
                 mask = (label == gray_image)
@@ -178,6 +198,28 @@ def get_generator_extractor_lr(g, lr):
 ######
 
 
+def parse_noise(vec):
+    """
+    StyleGAN only
+    """
+    noise = []
+    prev = 0
+    for i in range(18):
+        size = 4 * 2 ** (i // 2)
+        noise.append(vec[prev : prev + size ** 2].view(1, 1, size, size))
+        prev += size ** 2
+    return noise
+
+
+def list_collect_data(data_dir, keys=["origin_latent", "origin_noise", "image_stroke", "image_mask", "label_stroke", "label_mask"]):
+    dic = {}
+    for key in keys:
+        keyfiles = glob.glob(f"{data_dir}/*{key}*")
+        keyfiles.sort()
+        dic[key] = keyfiles
+    return dic
+
+
 def onehot(x, n):
     z = torch.zeros(x.shape[0], n, x.shape[2], x.shape[3])
     return z.scatter_(1, x, 1)
@@ -252,6 +294,7 @@ class PLComposite(object):
             if self.ins[i-1] <= x and x <= self.ins[i]:
                 return lerp(self.ins[i-1], self.ins[i], self.outs[i-1], self.outs[i], x)
 
+
 #########
 ### Evaluation
 #########
@@ -272,6 +315,26 @@ def idmap(x):
             continue
         x[x == fr] = to
     return x
+
+
+def diff_idmap(x):
+    """
+    combine neural network output
+    (N, C2, H, W) -> (N, C1, H, W)
+    """
+    cid2id = {0: 0, 1: 1, 2: 2, 3: 3, 4: [4, 5], 5: [6, 7], 6: [8, 9], 7: 10, 8: 11, 9: 12, 10: 13, 11: 14, 12: 15, 13: 16, 14: 17, 15: 18}
+    px = F.softmax(x, dim=1)
+    ts = []
+    for dst, src in cid2id.items():
+        if type(src) is int:
+            ts.append(px[:, src:src+1])
+        else:
+            composition = sum([px[:, index:index+1] for index in src])
+            ts.append(composition)
+    ps = torch.cat(ts, dim=1)
+    ps /= ps.sum(dim=1, keepdim=True)
+    return torch.log(ps)
+
 
 class MaskCelebAEval(object):
     def __init__(self, resdic=None, map_id=True):
@@ -492,7 +555,7 @@ def format_test_result(dic):
 
 def plot_dic(dic, file=None):
     n = len(dic.items())
-    fig = plt.figure(figsize=(3, 3 * n))
+    fig = plt.figure(figsize=(3 * n, 3))
     for i, (k, v) in enumerate(dic.items()):
         ax = fig.add_subplot(1, n, i + 1)
         ax.plot(v)

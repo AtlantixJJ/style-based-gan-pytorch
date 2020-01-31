@@ -1,4 +1,5 @@
 import torch.nn as nn
+import torch.nn.functional as F
 try:
     from lib.face_parsing.model_utils import *
 except:
@@ -48,6 +49,11 @@ class unet(nn.Module):
         self.final = nn.Conv2d(filters[0], n_classes, 1)
 
     def forward(self, inputs):
+        train_size = 512
+        input_size = inputs.shape[3]
+        if input_size != train_size:
+            inputs = F.interpolate(inputs, train_size, mode="bilinear")
+
         conv1 = self.conv1(inputs)
         maxpool1 = self.maxpool1(conv1)
 
@@ -67,5 +73,8 @@ class unet(nn.Module):
         up1 = self.up_concat1(conv1, up2)
 
         final = self.final(up1)
+
+        if input_size != train_size:
+            final = F.interpolate(final, input_size, mode="bilinear")
 
         return final

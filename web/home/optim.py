@@ -9,12 +9,12 @@ def baseline_edit_image_stroke(model, latent, noises, image_stroke, image_mask, 
     model.set_noise(noises)
     with torch.no_grad():
         orig_image, orig_seg = model(latent)
-    orig_image = (1 + orig_image.clamp(-1, 1)) * 255 / 2
+    orig_image = (1 + orig_image.clamp(-1, 1)) / 2
     orig_label = orig_seg.argmax(1)
     record = {"mseloss": []}
 
     if image_mask.sum() < 1.0:
-        return orig_image, orig_label, latent, noises, record
+        return orig_image, orig_label, orig_image, orig_label, latent, noises, record
 
     for _ in tqdm(range(n_iter)):
         image, seg = model(latent)
@@ -26,9 +26,9 @@ def baseline_edit_image_stroke(model, latent, noises, image_stroke, image_mask, 
 
         record["mseloss"].append(utils.torch2numpy(mseloss))
 
-    image = (1 + image.clamp(-1, 1)) * 255 / 2
+    image = (1 + image.clamp(-1, 1)) / 2
     label = seg.argmax(1)
-    return orig_image, image, label, latent, noises, record
+    return orig_image, orig_label, image, label, latent, noises, record
 
 
 def celossreg_edit_image_stroke(model, latent, noises, image_stroke, image_mask, n_iter=20, lr=1e-2):
@@ -38,7 +38,7 @@ def celossreg_edit_image_stroke(model, latent, noises, image_stroke, image_mask,
     model.set_noise(noises)
     with torch.no_grad():
         orig_image, orig_seg = model(latent)
-    orig_image = (1 + orig_image.clamp(-1, 1)) * 255 / 2
+    orig_image = (1 + orig_image.clamp(-1, 1)) / 2
     orig_label = orig_seg.argmax(1)
     record = {"mseloss": [], "celoss": [], "segdiff": []}
 
@@ -75,9 +75,9 @@ def celossreg_edit_image_stroke(model, latent, noises, image_stroke, image_mask,
                 grad_outputs=grad_seg * diff_mask)[0]
             optim.step()
 
-    image = (1 + image.clamp(-1, 1)) * 255 / 2
+    image = (1 + image.clamp(-1, 1)) / 2
     label = seg.argmax(1)
-    return orig_image, image, label, latent, noises, record
+    return orig_image, orig_label, image, label, latent, noises, record
 
 
 def get_optim(t):

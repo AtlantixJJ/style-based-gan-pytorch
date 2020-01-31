@@ -6,9 +6,10 @@ from torchvision import transforms
 import numpy as np
 import utils
 
+
 class SimpleDataset(torch.utils.data.Dataset):
     """
-    Currently label is not available
+    Image only dataset
     """
     def __init__(self, data_path, size, transform=None):
         if type(size) is int:
@@ -32,9 +33,10 @@ class SimpleDataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.files)
 
+
 class ImageSegmentationDataset(torch.utils.data.Dataset):
     """
-    Currently label is not available
+    Image and segmentation pair dataset
     """
     def __init__(self, root, size=(1024, 1024), image_dir="train", label_dir="label", idmap=None):
         if type(size) is int:
@@ -93,7 +95,42 @@ class ImageSegmentationDataset(torch.utils.data.Dataset):
         return strs
 
 
+class CollectedDataset(torch.utils.data.Dataset):
+    def __init__(self, root, size=(1024, 1024), keys=["origin_latent", "origin_noise", "image_stroke", "image_mask", "label_stroke", "label_mask"]):
+        self.root = root
+        self.size = size
+        self.keys = keys
+        self.dic = utils.list_collect_data(root, keys)
+        self.normal_transform = transforms.Compose([
+            transforms.Resize(self.size),
+            transforms.ToTensor()])
+
+    def __str__(self):
+        s = "\n"
+        s += f"=> Collected dataset at {self.root}\n"
+        s += f"=> Length {len(self)}\n"
+        s += f"=> Data keys: {' '.join(self.keys)}\n"
+        return s
+
+    def __len__(self):
+        return len(self.dic[self.keys[0]])
+
+    def __getitem__(self, idx):
+        data_dic = {k: v[idx] for k, v in self.dic.items()}
+        for k in self.keys:
+            if ".npy" in data_dic[k]:
+                data_dic[k] = torch.from_numpy(np.load(data_dic[k]))
+            elif ".png" in data_dic[k]:
+                img = self.normal_transform(utils.pil_read(data_dic[k]))
+                if "stroke" in data_dic[k]:
+                    img = img * 2 - 1
+                data_dic[k] = img
+        return data_dic
+
 class LatentSegmentationDataset(torch.utils.data.Dataset):
+    """
+    Reconstructed latent and segmentation dataset.
+    """
     def __init__(self, latent_dir=None, noise_dir=None, image_dir=None, seg_dir=None, n_class=19):
         super(LatentSegmentationDataset, self).__init__()
         self.n_class = n_class
@@ -101,7 +138,7 @@ class LatentSegmentationDataset(torch.utils.data.Dataset):
         self.noise_dir = noise_dir
         self.image_dir = image_dir
         self.seg_dir = seg_dir
-        self.latent_files = os.listdir(self.latent_dir)
+        self.latent_files = [f for f in os.listdir(self.latent_dir) if ".npy" in f]
         self.latent_files.sort()
 
         self.rng = np.random.RandomState(1116)

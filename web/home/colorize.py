@@ -15,7 +15,7 @@ class Colorize(object):
         h, w = size
 
         if isinstance(gray_image, torch.Tensor):
-            color_image = torch.ByteTensor(3, h, w).fill_(0)
+            color_image = torch.zeros(3, h, w, device=gray_image.device).fill_(0)
             for label in range(0, len(self.cmap)):
                 mask = (label == gray_image).cpu()
                 color_image[0][mask] = int(self.cmap[label, 0])
