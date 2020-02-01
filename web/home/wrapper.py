@@ -1,6 +1,6 @@
 import torch
 from home.stylegan import StyledGenerator
-from home.optim import get_optim
+from home.optim import get_optim_func
 from home import utils
 
 class WrapedStyledGenerator(torch.nn.Module):
@@ -9,19 +9,23 @@ class WrapedStyledGenerator(torch.nn.Module):
         self.device = 'cuda' if gpu >= 0 else 'cpu'
         self.load_path = load_path
         self.seg_cfg = seg_cfg
-        self.optim_func = get_optim(optim)
-        self.latent_param = torch.randn(1, 512, requires_grad=True, device=self.device)
+        self.optim_func = get_optim_func(optim)
 
         print("=> Constructing network architecture")
         self.model = StyledGenerator(semantic=seg_cfg)
         print("=> Loading parameter from %s" % self.load_path)
         self.model.load_state_dict(torch.load(self.load_path, map_location='cpu'))
-        self.model = self.model.to(self.device)
+        try:
+            self.model = self.model.to(self.device)
+        except:
+            print("=> Fall back to CPU")
+            self.device = 'cpu'
         self.model.eval()
         print("=> Check running")
         self.n_class = self.model.n_class
         print("=> Optimization method %s" % str(self.optim_func))
 
+        self.latent_param = torch.randn(1, 512, requires_grad=True, device=self.device)
 
     def generate_noise(self):
         sizes = [4 * 2 ** (i // 2) for i in range(18)]
@@ -35,8 +39,8 @@ class WrapedStyledGenerator(torch.nn.Module):
         utils.copy_tensor(self.latent_param, latent)
         noises = utils.parse_noise(noise)
 
-        orig_image, orig_label, image, label, latent, noises, record = self.optim_func(
-            self.model, self.latent_param, noises, image_stroke, image_mask)
+        image, label, latent, noises, record = self.optim_func(
+            model=self.model, latent=self.latent_param, noises=noises, image_stroke=image_stroke, image_mask=image_mask)
         noise = torch.cat([n.view(-1) for n in noise])
 
         image = utils.torch2numpy(image * 255).transpose(0, 2, 3, 1)

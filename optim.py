@@ -24,7 +24,7 @@ def mask_mse_loss(mask, x, y):
 
 
 def baseline_edit_image_stroke(model, latent, noises, image_stroke, image_mask,
-    n_iter=20, lr=1e-2):
+    n_iter=5, lr=1e-2):
     T = Temperture()
     latent = latent.detach().clone()
     latent.requires_grad = True
@@ -51,7 +51,7 @@ def baseline_edit_image_stroke(model, latent, noises, image_stroke, image_mask,
 
 
 def celossreg_edit_image_stroke(model, latent, noises, image_stroke, image_mask,
-    n_iter=20, lr=1e-2):
+    n_iter=5, lr=1e-2):
     T = Temperture()
     latent = latent.detach().clone()
     latent.requires_grad = True
@@ -85,7 +85,7 @@ def celossreg_edit_image_stroke(model, latent, noises, image_stroke, image_mask,
     return image, label, latent, noises, record
 
 
-def celossreg_external_edit_image_stroke(external_model, model, latent, noises, image_stroke, image_mask, n_iter=20, lr=1e-2):
+def celossreg_external_edit_image_stroke(external_model, model, latent, noises, image_stroke, image_mask, n_iter=5, lr=1e-2):
     T = Temperture()
     latent = latent.detach().clone()
     latent.requires_grad = True
@@ -145,7 +145,7 @@ def get_optim(t, **kwargs):
     return func(**dic)
 
 
-def celossreg_external_edit_image_stroke_slow(external_model, model, latent, noises, image_stroke, image_mask, n_iter=20, lr=1e-2, n_reg=5):
+def celossreg_external_edit_image_stroke_slow(external_model, model, latent, noises, image_stroke, image_mask, n_iter=5, lr=1e-2, n_reg=5):
     latent = latent.detach().clone()
     latent.requires_grad = True
     optim = torch.optim.Adam([latent], lr=lr)
@@ -185,7 +185,7 @@ def celossreg_external_edit_image_stroke_slow(external_model, model, latent, noi
 
 
 def celossreg_edit_image_stroke_slow(model, latent, noises, image_stroke, image_mask,
-    n_iter=20, lr=1e-2, n_reg=5):
+    n_iter=5, lr=1e-2, n_reg=5):
     latent = latent.detach().clone()
     latent.requires_grad = True
     optim = torch.optim.Adam([latent], lr=lr)

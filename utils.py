@@ -1,6 +1,4 @@
 from __future__ import print_function
-import matplotlib
-matplotlib.use("agg")
 import matplotlib.pyplot as plt
 from matplotlib import cm
 import os
@@ -9,10 +7,7 @@ try:
     import pickle
 except:
     import cPickle as pickle
-import datetime
-import time
-import random
-from contextlib import contextmanager
+import datetime, time
 from PIL import Image
 import numpy as np
 import torch
@@ -248,15 +243,9 @@ def infinite_dataloader(dl, total):
 
 
 def set_seed(seed):
-    random.seed(seed)
-    #print('setting random-seed to {}'.format(seed))
     np.random.seed(seed)
-    #print('setting np-random-seed to {}'.format(seed))
     torch.backends.cudnn.enabled = False
-    #print('cudnn.enabled set to {}'.format(torch.backends.cudnn.enabled))
-    # set seed for CPU
     torch.manual_seed(seed)
-    #print('setting torch-seed to {}'.format(seed))
 
 
 def torch2numpy(x):
@@ -298,6 +287,16 @@ class PLComposite(object):
 #########
 ### Evaluation
 #########
+
+
+class Timer(object):    
+    def __enter__(self):
+        self.start = time.clock()
+        return self
+
+    def __exit__(self, *args):
+        self.end = time.clock()
+        self.interval = self.end - self.start
 
 
 def compute_score(y_pred, y_true):

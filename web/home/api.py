@@ -76,7 +76,7 @@ class ImageGenerationAPI(object):
         latent = np.float32(latent).tobytes()
         noise = np.float32(noise).tobytes()
 
-        save_image_with_time(self.data_dir, image, "gen")
+        save_image_with_time(self.data_dir, image, "gen") # generated
         save_image_with_time(self.data_dir, label_viz, "seg")
         plot_dic(record)
         save_plot_with_time(self.data_dir, "record")

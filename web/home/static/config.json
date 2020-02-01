@@ -7,7 +7,7 @@
             "output_size" : 1024,
             "model_args": {
                 "optim" : "celossreg-latent",
-                "load_path" : "../pretrained/fixseg.model",
+                "load_path" : "../checkpoint/fixseg.model",
                 "seg_cfg": "mul-16",
                 "gpu" : 0
             }
@@ -18,7 +18,7 @@
             "output_size" : 1024,
             "model_args": {
                 "optim" : "baseline-latent",
-                "load_path" : "../pretrained/fixseg.model",
+                "load_path" : "../checkpoint/fixseg.model",
                 "seg_cfg": "mul-16",
                 "gpu" : 0
             }
