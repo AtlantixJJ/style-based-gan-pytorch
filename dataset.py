@@ -102,7 +102,7 @@ class CollectedDataset(torch.utils.data.Dataset):
         self.keys = keys
         self.dic = utils.list_collect_data(root, keys)
         self.normal_transform = transforms.Compose([
-            transforms.Resize(self.size),
+            transforms.Resize(self.size, Image.NEAREST),
             transforms.ToTensor()])
 
     def __str__(self):
