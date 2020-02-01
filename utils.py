@@ -15,6 +15,7 @@ import torch.nn.functional as F
 import torchvision.utils as vutils
 from torch.autograd import Variable
 import glob
+import cv2
 
 
 class MultiGPUTensor(object):
@@ -288,6 +289,56 @@ class PLComposite(object):
 ### Evaluation
 #########
 
+
+def fast_random_seed(mark, val=False, n_retry=1000):
+    h, w = mark.shape
+    for _ in range(n_retry):
+        x = np.random.randint(0, h)
+        y = np.random.randint(0, w)
+        if mark[x, y] == val:
+            return x, y
+    return -1, -1
+
+
+def slow_random_seed(mark, val=False):
+    xs, ys = np.where(mark == val)
+    index = np.random.randint(0, len(xs))
+    return xs[index], ys[index]
+
+
+def random_integrated_floodfill(image):
+    x = y = 0
+    H, W, _ = image.shape
+    label = 1 # 0 is ignored label
+    mask = np.zeros((H + 2, W + 2), dtype="uint8")
+    mark = np.zeros((H, W), dtype="bool")
+
+    mode = 0 # 0: fast; 1: medium; 2: complete
+
+    while not mark.all():
+        if mode == 0: # fast random seeding
+            x, y = fast_random_seed(mark)
+        elif mode == 1: # strict random seeding
+            x, y = slow_random_seed(mark)
+        # failed to find a seed
+        if mark[x, y] and mode == 0:
+            mode = 1
+            continue
+        # flood fill
+        mask.fill(0)
+        number, _, _, rect = cv2.floodFill(image, mask, (y, x), label, loDiff=0, upDiff=0)
+        p = [rect[1], rect[0], rect[1] + rect[3], rect[0] + rect[2]]
+        submask = mask[p[0]+1:p[2]+1,p[1]+1:p[3]+1].astype("bool")
+        # ignore small region
+        if number < 25:
+            # use bounding box to reduce memory access
+            image[p[0]:p[2],p[1]:p[3]][submask].fill(0)
+        else:
+            label += 1
+        # complete markings
+        mark[p[0]:p[2],p[1]:p[3]] |= submask
+    return image, label
+    
 
 class Timer(object):    
     def __enter__(self):
