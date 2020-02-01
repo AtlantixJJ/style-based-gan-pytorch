@@ -21,8 +21,7 @@ stroke = utils.pil_read(stroke_path).convert("RGB")
 mask_path = "/Users/jianjinxu/temp/data/20200201_134615_887466_image_mask.png"
 stroke_mask = utils.pil_read(mask_path).convert("L")
 
-image, label = utils.random_integrated_floodfill(image)
 stroke_mask = np.asarray(stroke_mask.resize(image.shape[:2]), dtype="bool")
 stroke = np.asarray(stroke.resize(image.shape[:2]))
-l = np.bincount(image[stroke_mask, 0]).argmax()
-cv2.imwrite("region.png", (image[:, :, 0] == l) * 255)
+region = utils.get_region(stroke_mask, image)
+cv2.imwrite("region.png", region * 255)

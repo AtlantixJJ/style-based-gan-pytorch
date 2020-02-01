@@ -53,7 +53,7 @@ class BaseConfig(object):
         self.parser.add_argument(
             "--load", default="checkpoint/karras2019stylegan-ffhq-1024x1024.for_g_all.pt", help="load weight from model")
         # Train data options
-        self.parser.add_argument("--batch_size", type=int, default=8)
+        self.parser.add_argument("--batch_size", type=int, default=1)
         # Loss options
 
     def parse(self):

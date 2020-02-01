@@ -338,7 +338,20 @@ def random_integrated_floodfill(image):
         # complete markings
         mark[p[0]:p[2],p[1]:p[3]] |= submask
     return image, label
-    
+
+
+"""
+Args:
+    stroke_mask: the mask ([H, W] np.array bool)
+    label: the visualized image ([H, W, 3] np.array uint8)
+Returns:
+    mask: a mask representing the region ([H, W] np.array bool)
+"""
+def get_region(stroke_mask, label):
+    region_map, n_region = random_integrated_floodfill(label.copy())
+    l = np.bincount(region_map[stroke_mask, 0]).argmax()
+    return region_map[:, :, 0] == l
+
 
 class Timer(object):    
     def __enter__(self):
