@@ -18,6 +18,9 @@ import glob
 import cv2
 
 
+CELEBA_COLORS = [(0, 0, 0),(128, 0, 0),(0, 128, 0),(128, 128, 0),(0, 0, 128),(128, 0, 128),(0, 128, 128),(128, 128, 128),(64, 0, 0),(192, 0, 0),(64, 128, 0),(192, 128, 0),(64, 0, 128),(192, 0, 128),(64, 128, 128),(192, 128, 128)]
+
+
 class MultiGPUTensor(object):
     def __init__(self, root, n_gpu):
         self.root = root
@@ -358,6 +361,13 @@ def color_mask(image, color):
     g = image[:, :, 1] == color[1]
     b = image[:, :, 2] == color[2]
     return r & g & b
+
+
+def celeba_rgb2label(image):
+    t = torch.zeros(image.shape[2:])
+    for i, c in enumerate(CELEBA_COLORS):
+        t[color_mask(x, c)] = i
+    return t
 
 
 def imresize(image, size):

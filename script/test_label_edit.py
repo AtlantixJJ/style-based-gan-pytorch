@@ -52,6 +52,8 @@ for ind, dic in enumerate(dl):
 
     latent_ = dic["origin_latent"][0]
     noises_ = utils.parse_noise(dic["origin_noise"][0])
+    label_stroke = dic["label_stroke"][0]
+    label_mask = dic["label_mask"][0]
 
     # get original images
     with torch.no_grad():
@@ -62,9 +64,12 @@ for ind, dic in enumerate(dl):
     orig_label = orig_seg.argmax(1)
     orig_label_viz = colorizer(orig_label[0]).unsqueeze(0) / 255.
     padding_image = torch.zeros_like(orig_image).fill_(-1)
-    image_stroke = orig_image * (1 - dic["image_mask"]) + dic["image_stroke"] * dic["image_mask"]
 
-    images = [orig_image, orig_label_viz, image_stroke, orig_label_viz]
+    size = orig_image.size(3)
+    
+    x = torch.from_numpy(utils.imresize(label_stroke, (size, size)))
+
+    images = [orig_image, orig_label_viz, label_stroke, orig_label_viz]
 
     image, label, latent, noises, record = optim.extended_latent_edit_label_stroke(
         model=generator,
