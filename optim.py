@@ -83,6 +83,7 @@ def extended_latent_edit_label_stroke(model, latent, noises, label_stroke, label
     target_label = target_label.long()
 
     for _ in tqdm(range(n_iter)):
+        latent = torch.cat(latents, dim=1)
         image, seg = model(latent)
         current_label = seg.argmax(1)
         diff_mask = (current_label != target_label).float()
