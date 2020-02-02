@@ -23,9 +23,45 @@ def mask_mse_loss(mask, x, y):
     return mseloss.sum() / mask.sum()
 
 
+def baseline_edit_label_stroke(model, latent, noises, label_stroke, label_mask,
+    n_iter=5, lr=1e-2):
+    latent = latent.detach().clone()
+    latent.requires_grad = True
+    optim = torch.optim.Adam([latent], lr=lr)
+    model.set_noise(noises)
+    record = {"mseloss": [], "celoss": [], "segdiff": [], "gradnorm": []}
+
+    orig_image, orig_seg = model(latent)
+    orig_image = orig_image.detach().clone()
+    orig_label = orig_seg.argmax(1)
+    target_label = orig_label * (1 - label_mask) + label_stroke * label_mask
+
+    for _ in tqdm(range(n_iter)):
+        image, seg = model(latent)
+        current_label = seg.argmax(1)
+        diff_mask = (current_label != target_label).float()
+        total_diff = diff_mask.sum()
+        mseloss = mask_mse_loss(diff_mask, image, orig_image)
+        celoss = mask_cross_entropy_loss(diff_mask, seg, target_label)
+        loss = mseloss + celoss
+        grad = torch.autograd.grad(loss, latent)[0]
+        grad_norm = torch.norm(grad[0], 2)
+        latent.grad = grad# + T(i) * grad.std() * torch.randn_like(grad)
+        optim.step()
+
+        record["segdiff"].append(utils.torch2numpy(total_diff))
+        record["celoss"].append(utils.torch2numpy(mseloss))
+        record["mseloss"].append(utils.torch2numpy(mseloss))
+        record["gradnorm"].append(utils.torch2numpy(grad_norm))
+
+    image, seg = model(latent)
+    image = (1 + image.clamp(-1, 1)) / 2
+    label = seg.argmax(1)
+    return image, label, latent, noises, record
+
+
 def baseline_edit_image_stroke(model, latent, noises, image_stroke, image_mask,
     n_iter=5, lr=1e-2):
-    T = Temperture()
     latent = latent.detach().clone()
     latent.requires_grad = True
     optim = torch.optim.Adam([latent], lr=lr)
@@ -120,6 +156,20 @@ def celossreg_external_edit_image_stroke(external_model, model, latent, noises, 
     image = (1 + image.clamp(-1, 1)) / 2
     label = seg.argmax(1)
     return image, label, latent, noises, record
+
+
+def get_optim_func(t):
+    if "baseline" in t:
+        func = baseline_edit_image_stroke
+    elif "external" in t and "slow" in t:
+        func = celossreg_external_edit_image_stroke_slow
+    elif "slow" in t:
+        func = celossreg_edit_image_stroke_slow
+    elif "external" in t:
+        func = celossreg_external_edit_image_stroke
+    elif "celoss" in t:
+        func = celossreg_edit_image_stroke
+    return func
 
 
 def get_optim(t, **kwargs):

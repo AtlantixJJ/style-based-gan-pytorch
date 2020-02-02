@@ -1,6 +1,6 @@
 import torch
 from home.stylegan import StyledGenerator
-from home.optim import get_optim_func
+from home.optim import get_optim_func, baseline_edit_label_stroke
 from home import utils
 
 class WrapedStyledGenerator(torch.nn.Module):
@@ -41,6 +41,21 @@ class WrapedStyledGenerator(torch.nn.Module):
 
         image, label, latent, noises, record = self.optim_func(
             model=self.model, latent=self.latent_param, noises=noises, image_stroke=image_stroke, image_mask=image_mask)
+        noise = torch.cat([n.view(-1) for n in noise])
+
+        image = utils.torch2numpy(image * 255).transpose(0, 2, 3, 1)
+        label = utils.torch2numpy(label)
+        latent = utils.torch2numpy(latent)
+        noise = utils.torch2numpy(noise)
+        return image.astype("uint8"), label, latent, noise, record
+
+
+    def generate_given_label_stroke(self, latent, noise, label_stroke, label_mask):
+        utils.copy_tensor(self.latent_param, latent)
+        noises = utils.parse_noise(noise)
+
+        image, label, latent, noises, record = baseline_edit_label_stroke(
+            model=self.model, latent=self.latent_param, noises=noises, label_stroke=label_stroke, label_mask=label_mask)
         noise = torch.cat([n.view(-1) for n in noise])
 
         image = utils.torch2numpy(image * 255).transpose(0, 2, 3, 1)

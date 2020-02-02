@@ -353,6 +353,17 @@ def get_region(stroke_mask, label):
     return region_map[:, :, 0] == l
 
 
+def color_mask(image, color):
+    r = image[:, :, 0] == color[0]
+    g = image[:, :, 1] == color[1]
+    b = image[:, :, 2] == color[2]
+    return r & g & b
+
+
+def imresize(image, size):
+    return np.array(Image.fromarray(image).resize(size))
+
+
 class Timer(object):    
     def __enter__(self):
         self.start = time.clock()

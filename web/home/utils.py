@@ -25,6 +25,13 @@ def requires_grad(model, flag=True):
         p.requires_grad = flag
         
 
+def color_mask(image, color):
+    r = image[:, :, 0] == color[0]
+    g = image[:, :, 1] == color[1]
+    b = image[:, :, 2] == color[2]
+    return r & g & b
+
+
 def preprocess_image(arr, size=(1024, 1024)):
     """
     arr in [0, 255], shape (H, W, C)
@@ -43,6 +50,10 @@ def preprocess_mask(mask, size=(1024, 1024)):
     t = t / 255.
     t = F.interpolate(t, size=size, mode="bilinear")
     return t
+
+
+def imresize(image, size):
+    return np.array(Image.fromarray(image).resize(size))
 
 
 def stroke2array(image, target_size=None):

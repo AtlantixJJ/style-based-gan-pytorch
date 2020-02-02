@@ -14,6 +14,7 @@ import torch
 from home.colorize import Colorize
 from home.utils import *
 
+CELEBA_COLORS = [(0, 0, 0),(128, 0, 0),(0, 128, 0),(128, 128, 0),(0, 0, 128),(128, 0, 128),(0, 128, 128),(128, 128, 128),(64, 0, 0),(192, 0, 0),(64, 128, 0),(192, 128, 0),(64, 0, 128),(192, 0, 128),(64, 128, 128),(192, 128, 128)]
 
 class ImageGenerationAPI(object):
     def update_config(self):
@@ -58,18 +59,31 @@ class ImageGenerationAPI(object):
         noise       = np.fromstring(noise, dtype=np.float32).reshape((-1,))
         save_npy_with_time(self.data_dir, latent, "origin_latent")
         save_npy_with_time(self.data_dir, noise, "origin_noise")
-
+        
+        size = self.models_config[model_name]["output_size"]
         model = self.models[model_name]
         device = model.device
         latent      = torch.from_numpy(latent).to(device)
         noise       = torch.from_numpy(noise).to(device)
         image_stroke= preprocess_image(image_stroke).to(device)
         image_mask  = preprocess_mask(image_mask).to(device)
-        label_stroke= preprocess_image(label_stroke).to(device)
-        label_mask  = preprocess_mask(label_mask).to(device)
+        x = torch.from_numpy(imresize(label_stroke, (size, size)))
+        t = torch.zeros(size, size)
+        for i, c in enumerate(CELEBA_COLORS):
+            t[color_mask(x, c)] = i
+        label_stroke = t.unsqueeze(0).to(device)
+        label_mask  = preprocess_mask(label_mask).squeeze(1).to(device)
         
-        image, label, latent, noise, record = model.generate_given_image_stroke(
-            latent, noise, image_stroke, image_mask)
+        res = 0
+        if label_mask.sum() < 1:
+            print("=> Generate given image stroke")
+            res = model.generate_given_image_stroke(
+                latent, noise, image_stroke, image_mask)
+        elif image_mask.sum() < 1:
+            print("=> Generate given label stroke")
+            res = model.generate_given_label_stroke(
+                latent, noise, label_stroke, label_mask)
+        image, label, latent, noise, record = res
         image = image[0]
         label = label[0]
         label_viz = self.colorizer[model_name](label)
