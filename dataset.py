@@ -129,8 +129,10 @@ class CollectedDataset(torch.utils.data.Dataset):
                     data = utils.celeba_rgb2label((img * 255).long())
                 elif "image_stroke" in name:
                     data = img * 2 - 1
-                elif "mask" in name:
+                elif "image_mask" in name:
                     data = img[0:1]
+                elif "label_mask" in name:
+                    data = img[0]
             data_dic[k] = data
         return data_dic
 
