@@ -71,7 +71,7 @@ def extended_latent_edit_label_stroke(model, latent, noises, label_stroke, label
     optim = torch.optim.Adam([latents[0]], lr=lr)
     clr = lr
     for l in latents[1:]:
-        clr *= 0.5
+        #clr *= 0.5
         optim.add_param_group({"params": l, "lr": clr})
     model.set_noise(noises)
     record = {"mseloss": [], "celoss": [], "segdiff": [], "gradnorm": []}
