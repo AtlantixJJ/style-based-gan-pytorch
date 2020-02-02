@@ -123,7 +123,6 @@ class CollectedDataset(torch.utils.data.Dataset):
                 data = torch.from_numpy(np.load(data_dic[k]))
                 if "latent" in name:
                     data = data[0]
-                print(data.shape)
             elif ".png" in name:
                 img = self.normal_transform(utils.pil_read(data_dic[k]))
                 if "label_stroke" in name:
