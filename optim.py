@@ -72,7 +72,7 @@ def extended_latent_edit_label_stroke(model, latent, noises, label_stroke, label
     clr = lr
     for i in range(1, len(latents)):
         #clr *= 0.5
-        optim.add_param_group({"params": latents[i], "lr": clr})
+        optim.add_param_group({"params": [latents[i]], "lr": clr})
     model.set_noise(noises)
     record = {"mseloss": [], "celoss": [], "segdiff": [], "gradnorm": []}
 
@@ -92,7 +92,6 @@ def extended_latent_edit_label_stroke(model, latent, noises, label_stroke, label
         loss = mseloss + celoss
         grad = torch.autograd.grad(loss, latent)[0]
         grad_norm = torch.norm(grad.view(-1), 2)
-        print("%.3f\t%.3f\t%.3f\t%.3f" % (celoss, grad_norm, grad.min(), grad.max()))
         for i in range(len(latents)):
             latents[i].grad = grad[:, i:i+1]
         optim.step()
