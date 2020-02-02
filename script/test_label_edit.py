@@ -68,6 +68,7 @@ for ind, dic in enumerate(dl):
     target_label_viz = colorizer(target_label[0]).unsqueeze(0) / 255.
     padding_image = torch.zeros_like(orig_image).fill_(-1)
     images = [orig_image, orig_label_viz, label_stroke_viz, target_label_viz]
+    record_ = {}
     for _ in range(4):
         image, label, latent, noises, record = optim.extended_latent_edit_label_stroke(
             model=generator,
@@ -77,6 +78,12 @@ for ind, dic in enumerate(dl):
             label_mask=label_mask,
             lr=args.lr,
             n_iter=args.n_iter)
+        
+        for k in record.keys():
+            if k not in record_.keys():
+                record_[k] = record[k]
+            else:
+                record_[k].extend(record[k])
 
         label_viz = colorizer(label[0]).unsqueeze(0) / 255.
         diff_image = (orig_image - image).abs().sum(1, keepdim=True)
@@ -87,8 +94,8 @@ for ind, dic in enumerate(dl):
         images.extend([image, label_viz, diff_image_viz, diff_label])
         for i in range(len(images)):
             images[i] = images[i].detach().cpu()
-        utils.plot_dic(record, "label", f"{args.output}/edit_{ind:02d}_label.png")
 
+    utils.plot_dic(record_, "label", f"{args.output}/edit_{ind:02d}_label.png")
     images = torch.cat(images)
     images = F.interpolate(images, (256, 256), mode="bilinear")
     vutils.save_image(images,f"{args.output}/edit_{ind:02d}_result.png", nrow=4)
