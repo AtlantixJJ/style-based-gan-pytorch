@@ -82,7 +82,7 @@ def extended_latent_edit_label_stroke(model, latent, noises, label_stroke, label
     target_label = orig_label * (1 - label_mask) + label_stroke * label_mask
     target_label = target_label.long()
 
-    for _ in tqdm(range(n_iter)):
+    for ind in tqdm(range(n_iter)):
         latent = torch.cat(latents, dim=1)
         image, seg = model(latent)
         current_label = seg.argmax(1)
@@ -92,6 +92,8 @@ def extended_latent_edit_label_stroke(model, latent, noises, label_stroke, label
         celoss = mask_cross_entropy_loss(diff_mask, seg, target_label)
         loss = mseloss + celoss
         grad = torch.autograd.grad(loss, latent)[0]
+        if ind < 2:
+            grad *= 0.1
         grad_norm = torch.norm(grad.view(-1), 2)
         for i in range(len(latents)):
             latents[i].grad = grad[:, i:i+1]
