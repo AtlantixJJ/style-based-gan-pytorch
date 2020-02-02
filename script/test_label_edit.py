@@ -83,7 +83,7 @@ for ind, dic in enumerate(dl):
     images.extend([image, label_viz, diff_image_viz, diff_label])
     for i in range(len(images)):
         images[i] = images[i].detach().cpu()
-    utils.plot_dic(record, t, f"{args.output}/edit_{ind:02d}_{t}.png")
+    utils.plot_dic(record, "label", f"{args.output}/edit_{ind:02d}_label.png")
 
     images = torch.cat(images)
     images = F.interpolate(images, (256, 256), mode="bilinear")

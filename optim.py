@@ -82,6 +82,8 @@ def extended_latent_edit_label_stroke(model, latent, noises, label_stroke, label
     target_label = orig_label * (1 - label_mask) + label_stroke * label_mask
     target_label = target_label.long()
 
+    print(label_stroke.shape, label_mask.shape, target_label.shape)
+
     for _ in tqdm(range(n_iter)):
         image, seg = model(latent)
         current_label = seg.argmax(1)
