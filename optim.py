@@ -64,10 +64,10 @@ def baseline_edit_label_stroke(model, latent, noises, label_stroke, label_mask,
 def extended_latent_edit_label_stroke(model, latent, noises, label_stroke, label_mask,
     n_iter=5, lr=1e-2):
     latents = latent.detach().split(1, dim=1)
-    print(latent.shape, latents[0].shape)
     # 18 x (1, 512)
     for l in latents:
         l.requires_grad = True
+    print(latent.shape, latents[0].shape, latent.shape, torch.stack(latents, dim=1).shape)
     latent = torch.stack(latents, dim=1)
     optim = torch.optim.Adam([latents[0]], lr=lr)
     clr = lr
