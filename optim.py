@@ -70,7 +70,7 @@ def extended_latent_edit_label_stroke(model, latent, noises, label_stroke, label
     latent = torch.cat(latents, dim=1)
     optim = torch.optim.Adam([latents[0]], lr=lr)
     clr = lr
-    for i in range(1, len(latents))
+    for i in range(1, len(latents)):
         #clr *= 0.5
         optim.add_param_group({"params": latents[i], "lr": clr})
     model.set_noise(noises)
