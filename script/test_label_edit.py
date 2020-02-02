@@ -34,7 +34,7 @@ args = parser.parse_args()
 
 # constants setup
 torch.manual_seed(args.seed)
-device = 'cpu'
+device = 'cuda'
 
 # build model
 generator = model.tfseg.StyledGenerator(semantic=args.seg_cfg).to(device)
