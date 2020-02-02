@@ -50,10 +50,10 @@ for ind, dic in enumerate(dl):
     for k in dic.keys():
         dic[k] = dic[k].to(device)
 
-    latent_ = dic["origin_latent"][0]
-    noises_ = utils.parse_noise(dic["origin_noise"][0])
-    label_stroke = dic["label_stroke"][0]
-    label_mask = dic["label_mask"][0]
+    latent_ = dic["origin_latent"]
+    noises_ = utils.parse_noise(dic["origin_noise"])
+    label_stroke = dic["label_stroke"]
+    label_mask = dic["label_mask"]
 
     # get original images
     with torch.no_grad():
