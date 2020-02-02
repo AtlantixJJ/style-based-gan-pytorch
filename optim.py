@@ -91,8 +91,8 @@ def extended_latent_edit_label_stroke(model, latent, noises, label_stroke, label
         celoss = mask_cross_entropy_loss(diff_mask, seg, target_label)
         loss = mseloss + celoss
         grad = torch.autograd.grad(loss, latent)[0]
-        print(grad.min(), grad.max())
-        grad_norm = torch.norm(grad, 2)
+        print(grad.shape, grad.min(), grad.max())
+        grad_norm = torch.norm(grad.view(-1), 2)
         for i in range(len(latents)):
             latents[i].grad = grad[:, i]
         optim.step()
