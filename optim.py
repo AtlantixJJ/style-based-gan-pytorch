@@ -42,7 +42,7 @@ def baseline_edit_label_stroke(model, latent, noises, label_stroke, label_mask,
         current_label = seg.argmax(1)
         diff_mask = (current_label != target_label).float()
         total_diff = diff_mask.sum()
-        mseloss = mask_mse_loss(diff_mask, image, orig_image)
+        mseloss = mask_mse_loss(1 - diff_mask, image, orig_image)
         celoss = mask_cross_entropy_loss(diff_mask, seg, target_label)
         loss = mseloss + celoss
         grad = torch.autograd.grad(loss, latent)[0]
@@ -92,7 +92,7 @@ def extended_latent_edit_label_stroke(model, latent, noises, label_stroke, label
         celoss = mask_cross_entropy_loss(diff_mask, seg, target_label)
         loss = mseloss + celoss
         grad = torch.autograd.grad(loss, latent)[0]
-        if ind < 2:
+        if ind < 5:
             grad *= 0.1
         grad_norm = torch.norm(grad.view(-1), 2)
         for i in range(len(latents)):
@@ -242,7 +242,15 @@ def get_optim(t, **kwargs):
     elif "celoss" in t:
         dic = {k:kwargs[k] for k in basic_keys}
         func = celossreg_edit_image_stroke
+    
     return func(**dic)
+
+
+def get_label_optim(t):
+    if "extended" in t:
+        return extended_latent_edit_label_stroke
+    else:
+        return baseline_edit_label_stroke
 
 
 def celossreg_external_edit_image_stroke_slow(external_model, model, latent, noises, image_stroke, image_mask, n_iter=5, lr=1e-2, n_reg=5):
