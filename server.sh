@@ -1,1 +1,1 @@
-tar cvfz - train model web lib script *.py | ssh sr "cd srgan/; tar xvfz -"
+tar cvfz - train model web lib script *.py | ssh img "cd srgan/; tar xvfz -"
