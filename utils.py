@@ -364,7 +364,8 @@ def color_mask(image, color):
 
 
 def celeba_rgb2label(image):
-    t = torch.zeros(image.shape[2:])
+    t = torch.zeros(image.shape[1:])
+    print(image.shape)
     for i, c in enumerate(CELEBA_COLORS):
         t[color_mask(image, c)] = i
     return t
