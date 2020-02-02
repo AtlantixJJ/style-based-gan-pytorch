@@ -82,6 +82,7 @@ for ind, dic in enumerate(dl):
         diff_label[:, i, :, :][label == orig_label] = 1
     images.extend([image, label_viz, diff_image_viz, diff_label])
     for i in range(len(images)):
+        print(images[i].shape)
         images[i] = images[i].detach().cpu()
     utils.plot_dic(record, "label", f"{args.output}/edit_{ind:02d}_label.png")
 
