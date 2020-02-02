@@ -363,11 +363,17 @@ def color_mask(image, color):
     return r & g & b
 
 
+def color_mask_tensor(image, color):
+    r = image[0, :, :] == color[0]
+    g = image[1, :, :] == color[1]
+    b = image[2, :, :] == color[2]
+    return r & g & b
+    
+
 def celeba_rgb2label(image):
     t = torch.zeros(image.shape[1:])
-    print(image.shape)
     for i, c in enumerate(CELEBA_COLORS):
-        t[color_mask(image, c)] = i
+        t[color_mask_tensor(image, c)] = i
     return t
 
 
