@@ -94,7 +94,7 @@ def extended_latent_edit_label_stroke(model, latent, noises, label_stroke, label
         print(grad.shape, grad.min(), grad.max())
         grad_norm = torch.norm(grad.view(-1), 2)
         for i in range(len(latents)):
-            latents[i].grad = grad[:, i]
+            latents[i].grad = grad[:, i:i+1]
         optim.step()
 
         record["segdiff"].append(utils.torch2numpy(total_diff))
