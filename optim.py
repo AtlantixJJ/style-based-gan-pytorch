@@ -87,12 +87,14 @@ def extended_latent_edit_label_stroke(model, latent, noises, label_stroke, label
         current_label = seg.argmax(1)
         diff_mask = (current_label != target_label).float()
         total_diff = diff_mask.sum()
-        mseloss = mask_mse_loss(diff_mask, image, orig_image)
+        mseloss = mask_mse_loss(1 - diff_mask, image, orig_image)
         celoss = mask_cross_entropy_loss(diff_mask, seg, target_label)
         loss = mseloss + celoss
-        grad = torch.autograd.grad(loss, latent)[0]
-        grad_norm = torch.norm(grad[0], 2)
-        latent.grad = grad# + T(i) * grad.std() * torch.randn_like(grad)
+        grads = torch.autograd.grad(loss, latents)
+        grad_vec = torch.cat([g.view(-1) for g in grads])
+        grad_norm = torch.norm(grad_vec, 2)
+        for l,g in zip(latents,grads):
+            l.grad = g
         optim.step()
 
         record["segdiff"].append(utils.torch2numpy(total_diff))
