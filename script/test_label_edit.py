@@ -26,7 +26,7 @@ parser.add_argument("--output", default="results")
 parser.add_argument("--data-dir", default="data")
 parser.add_argument("--seg-cfg", default="mul-16")
 parser.add_argument("--lr", default=1e-2, type=int)
-parser.add_argument("--n-iter", default=10, type=int)
+parser.add_argument("--n-iter", default=5, type=int)
 parser.add_argument("--n-reg", default=3, type=int)
 parser.add_argument("--seed", default=65537, type=int)
 args = parser.parse_args()
@@ -66,25 +66,26 @@ for ind, dic in enumerate(dl):
     label_stroke_viz = colorizer(label_stroke[0]).unsqueeze(0) / 255.
     padding_image = torch.zeros_like(orig_image).fill_(-1)
     images = [orig_image, orig_label_viz, label_stroke_viz, orig_label_viz]
-    image, label, latent, noises, record = optim.extended_latent_edit_label_stroke(
-        model=generator,
-        latent=extended_latent_,
-        noises=noises_,
-        label_stroke=label_stroke,
-        label_mask=label_mask,
-        lr=args.lr,
-        n_iter=args.n_iter)
+    for _ in range(4):
+        image, label, latent, noises, record = optim.extended_latent_edit_label_stroke(
+            model=generator,
+            latent=extended_latent_,
+            noises=noises_,
+            label_stroke=label_stroke,
+            label_mask=label_mask,
+            lr=args.lr,
+            n_iter=args.n_iter)
 
-    label_viz = colorizer(label[0]).unsqueeze(0) / 255.
-    diff_image = (orig_image - image).abs().sum(1, keepdim=True)
-    diff_image_viz = utils.heatmap_torch(diff_image / diff_image.max())
-    diff_label = label_viz.clone()
-    for i in range(3):
-        diff_label[:, i, :, :][label == orig_label] = 1
-    images.extend([image, label_viz, diff_image_viz, diff_label])
-    for i in range(len(images)):
-        images[i] = images[i].detach().cpu()
-    utils.plot_dic(record, "label", f"{args.output}/edit_{ind:02d}_label.png")
+        label_viz = colorizer(label[0]).unsqueeze(0) / 255.
+        diff_image = (orig_image - image).abs().sum(1, keepdim=True)
+        diff_image_viz = utils.heatmap_torch(diff_image / diff_image.max())
+        diff_label = label_viz.clone()
+        for i in range(3):
+            diff_label[:, i, :, :][label == orig_label] = 1
+        images.extend([image, label_viz, diff_image_viz, diff_label])
+        for i in range(len(images)):
+            images[i] = images[i].detach().cpu()
+        utils.plot_dic(record, "label", f"{args.output}/edit_{ind:02d}_label.png")
 
     images = torch.cat(images)
     images = F.interpolate(images, (256, 256), mode="bilinear")
