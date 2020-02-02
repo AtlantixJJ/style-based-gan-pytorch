@@ -119,7 +119,8 @@ class CollectedDataset(torch.utils.data.Dataset):
         data_dic = {k: v[idx] for k, v in self.dic.items()}
         for k in self.keys:
             if ".npy" in data_dic[k]:
-                data_dic[k] = torch.from_numpy(np.load(data_dic[k]))[0]
+                data_dic[k] = torch.from_numpy(np.load(data_dic[k]))
+                print(data_dic[k].shape)
             elif ".png" in data_dic[k]:
                 img = self.normal_transform(utils.pil_read(data_dic[k]))
                 if "label_stroke" in data_dic[k]:
