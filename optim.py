@@ -64,6 +64,7 @@ def baseline_edit_label_stroke(model, latent, noises, label_stroke, label_mask,
 def extended_latent_edit_label_stroke(model, latent, noises, label_stroke, label_mask,
     n_iter=5, lr=1e-2):
     latents = latent.detach().split(1, dim=1)
+    print(latent.shape)
     # 18 x (1, 512)
     for l in latents:
         l.requires_grad = True
