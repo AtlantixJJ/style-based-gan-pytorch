@@ -123,7 +123,7 @@ class CollectedDataset(torch.utils.data.Dataset):
             elif ".png" in data_dic[k]:
                 img = self.normal_transform(utils.pil_read(data_dic[k]))
                 if "label_stroke" in data_dic[k]:
-                    img = utils.celeba_rgb2label((img * 255).long)
+                    img = utils.celeba_rgb2label((img * 255).long())
                 if "image_stroke" in data_dic[k]:
                     img = img * 2 - 1
                 data_dic[k] = img
