@@ -15,8 +15,7 @@ class Temperture(object):
 
 def mask_cross_entropy_loss(mask, x, y): # requires more than editing need
     ce = F.cross_entropy(x, y, reduction="none")
-    print(mask.shape, ce.shape, mask.min(), mask.max(), ce.min(), ce.max())
-    return (mask * ce).mean()
+    return (mask * ce) / mask.sum()
 
 
 def mask_mse_loss(mask, x, y):
