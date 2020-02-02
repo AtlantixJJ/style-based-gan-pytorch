@@ -63,8 +63,9 @@ for ind, dic in enumerate(dl):
     orig_image = (1 + orig_image.clamp(-1, 1)) / 2
     orig_label = orig_seg.argmax(1)
     orig_label_viz = colorizer(orig_label[0]).unsqueeze(0) / 255.
+    label_stroke_viz = colorizer(label_stroke[0]).unsqueeze(0) / 255.
     padding_image = torch.zeros_like(orig_image).fill_(-1)
-    images = [orig_image, orig_label_viz, label_stroke, orig_label_viz]
+    images = [orig_image, orig_label_viz, label_stroke_viz, orig_label_viz]
     image, label, latent, noises, record = optim.extended_latent_edit_label_stroke(
         model=generator,
         latent=extended_latent_,
