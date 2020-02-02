@@ -120,19 +120,19 @@ class CollectedDataset(torch.utils.data.Dataset):
         for k in self.keys:
             name = data_dic[k]
             if ".npy" in name:
-                vec = torch.from_numpy(np.load(data_dic[k]))
+                data = torch.from_numpy(np.load(data_dic[k]))
                 if "latent" in name:
-                    vec = vec[0]
-                data_dic[k] = vec
+                    data = data[0]
+                print(data.shape)
             elif ".png" in name:
                 img = self.normal_transform(utils.pil_read(data_dic[k]))
                 if "label_stroke" in name:
-                    img = utils.celeba_rgb2label((img * 255).long())
-                if "image_stroke" in name:
-                    img = img * 2 - 1
-                if "mask" in name:
-                    img = img[0:1]
-                data_dic[k] = img
+                    data = utils.celeba_rgb2label((img * 255).long())
+                elif "image_stroke" in name:
+                    data = img * 2 - 1
+                elif "mask" in name:
+                    data = img[0:1]
+            data_dic[k] = data
         return data_dic
 
 class LatentSegmentationDataset(torch.utils.data.Dataset):
