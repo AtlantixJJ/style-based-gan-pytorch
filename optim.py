@@ -52,7 +52,7 @@ def baseline_edit_label_stroke(model, latent, noises, label_stroke, label_mask,
         optim.step()
 
         record["segdiff"].append(utils.torch2numpy(total_diff))
-        record["celoss"].append(utils.torch2numpy(mseloss))
+        record["celoss"].append(utils.torch2numpy(celoss))
         record["mseloss"].append(utils.torch2numpy(mseloss))
         record["gradnorm"].append(utils.torch2numpy(grad_norm))
 
@@ -99,7 +99,7 @@ def extended_latent_edit_label_stroke(model, latent, noises, label_stroke, label
         optim.step()
 
         record["segdiff"].append(utils.torch2numpy(total_diff))
-        record["celoss"].append(utils.torch2numpy(mseloss))
+        record["celoss"].append(utils.torch2numpy(celoss))
         record["mseloss"].append(utils.torch2numpy(mseloss))
         record["gradnorm"].append(utils.torch2numpy(grad_norm))
 
