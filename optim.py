@@ -67,8 +67,7 @@ def extended_latent_edit_label_stroke(model, latent, noises, label_stroke, label
     # 18 x (1, 512)
     for l in latents:
         l.requires_grad = True
-    print(latent.shape, latents[0].shape, latent.shape, torch.stack(latents, dim=1).shape)
-    latent = torch.stack(latents, dim=1)
+    latent = torch.cat(latents, dim=1)
     optim = torch.optim.Adam([latents[0]], lr=lr)
     clr = lr
     for l in latents[1:]:
