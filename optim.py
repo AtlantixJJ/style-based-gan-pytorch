@@ -15,6 +15,7 @@ class Temperture(object):
 
 def mask_cross_entropy_loss(mask, x, y): # requires more than editing need
     ce = F.cross_entropy(x, y, reduction="none")
+    print(mask.shape, ce.shape, mask.min(), mask.max(), ce.min(), ce.max())
     return (mask * ce).mean()
 
 
@@ -93,7 +94,7 @@ def extended_latent_edit_label_stroke(model, latent, noises, label_stroke, label
         grads = torch.autograd.grad(loss, latents)
         grad_vec = torch.cat([g.view(-1) for g in grads])
         grad_norm = torch.norm(grad_vec, 2)
-        for l,g in zip(latents,grads):
+        for l,g in zip(latents, grads):
             l.grad = g
         optim.step()
 
