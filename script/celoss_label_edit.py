@@ -65,7 +65,7 @@ for ind, dic in enumerate(dl):
         orig_image, orig_seg = generator(extended_latent_)
     orig_image = (1 + orig_image.clamp(-1, 1)) / 2
     orig_label = orig_seg.argmax(1)
-    target_label = orig_label * (1 - label_mask) + label_stroke * label_mask
+    target_label = orig_label.float() * (1 - label_mask) + label_stroke * label_mask
     orig_label_viz = colorizer(orig_label[0]).unsqueeze(0) / 255.
     label_stroke_viz = colorizer(label_stroke[0]).unsqueeze(0) / 255.
     target_label_viz = colorizer(target_label[0]).unsqueeze(0) / 255.
@@ -77,12 +77,14 @@ for ind, dic in enumerate(dl):
 
         if "extended-latent" in t:
             param = extended_latent_
+            func = optim.extended_latent_edit_label_stroke
         elif "generalized-latent" in t:
             param = generalized_latent_
         elif "latent" in t:
             param = latent_
+            func = optim.baseline_edit_label_stroke
 
-        image, label, latent, noises, record = optim.extended_latent_edit_label_stroke(
+        image, label, latent, noises, record = func(
             model=generator,
             latent=extended_latent_,
             noises=noises_,
@@ -103,8 +105,6 @@ for ind, dic in enumerate(dl):
     for i in range(len(images)):
         images[i] = images[i].detach().cpu()
 
-    
-    images = torch.cat(images)
-    images = F.interpolate(images, (256, 256), mode="bilinear")
+    images = F.interpolate(torch.cat(images), (256, 256), mode="bilinear")
     vutils.save_image(images,f"{args.output}/edit_{ind:02d}_result.png", nrow=4)
 

@@ -250,6 +250,9 @@ class G_mapping(nn.Sequential):
         ]
         super().__init__(OrderedDict(layers))
         
+    def simple_forward(self, x):
+        return super().forward(x)
+
     def forward(self, x):
         x = super().forward(x)
         # Broadcast
@@ -467,7 +470,10 @@ class StyledGenerator(nn.Module):
             self.noise_layers[i].noise = noises[i]
 
     def forward(self, x, seg=True, detach=False, ortho_bias=None):
-        if x.shape[1] == 512: # LL
+        if type(x) is list: # ML (1, 512)
+            ws = [self.g_mapping.simple_forward(z) for z in x]
+            x = torch.stack(ws, dim=1)
+        elif x.shape[1] == 512: # LL
             x = self.g_mapping(x)
         elif x.shape[1] == 1: # GL
             x = x.expand(-1, 18, -1)

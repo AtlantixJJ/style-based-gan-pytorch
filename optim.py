@@ -25,8 +25,6 @@ def mask_mse_loss(mask, x, y):
 
 def baseline_edit_label_stroke(model, latent, noises, label_stroke, label_mask,
     n_iter=5, lr=1e-2):
-    latent = latent.detach().clone()
-    latent.requires_grad = True
     optim = torch.optim.Adam([latent], lr=lr)
     model.set_noise(noises)
     record = {"mseloss": [], "celoss": [], "segdiff": [], "gradnorm": []}
@@ -34,7 +32,7 @@ def baseline_edit_label_stroke(model, latent, noises, label_stroke, label_mask,
     orig_image, orig_seg = model(latent)
     orig_image = orig_image.detach().clone()
     orig_label = orig_seg.argmax(1)
-    target_label = orig_label * (1 - label_mask) + label_stroke * label_mask
+    target_label = orig_label.float() * (1 - label_mask) + label_stroke * label_mask
     target_label = target_label.long()
 
     for _ in tqdm(range(n_iter)):
@@ -63,27 +61,17 @@ def baseline_edit_label_stroke(model, latent, noises, label_stroke, label_mask,
 
 def extended_latent_edit_label_stroke(model, latent, noises, label_stroke, label_mask,
     n_iter=5, lr=1e-2):
-    latents = latent.detach().split(1, dim=1)
-    # 18 x (1, 512)
-    for l in latents:
-        l.requires_grad = True
-    latent = torch.cat(latents, dim=1)
-    optim = torch.optim.Adam([latents[0]], lr=lr)
-    clr = lr
-    for i in range(1, len(latents)):
-        clr *= 0.5
-        optim.add_param_group({"params": [latents[i]], "lr": clr})
+    optim = torch.optim.Adam([latent], lr=lr)
     model.set_noise(noises)
     record = {"mseloss": [], "celoss": [], "segdiff": [], "gradnorm": []}
 
     orig_image, orig_seg = model(latent)
     orig_image = orig_image.detach().clone()
     orig_label = orig_seg.argmax(1)
-    target_label = orig_label * (1 - label_mask) + label_stroke * label_mask
+    target_label = orig_label.float() * (1 - label_mask) + label_stroke * label_mask
     target_label = target_label.long()
 
     for ind in tqdm(range(n_iter)):
-        latent = torch.cat(latents, dim=1)
         image, seg = model(latent)
         current_label = seg.argmax(1)
         diff_mask = (current_label != target_label).float()
@@ -92,11 +80,8 @@ def extended_latent_edit_label_stroke(model, latent, noises, label_stroke, label
         celoss = mask_cross_entropy_loss(diff_mask, seg, target_label)
         loss = mseloss + celoss
         grad = torch.autograd.grad(loss, latent)[0]
-        if ind < 5:
-            grad *= 0.1
         grad_norm = torch.norm(grad.view(-1), 2)
-        for i in range(len(latents)):
-            latents[i].grad = grad[:, i:i+1]
+        latent.grad = grad
         optim.step()
 
         record["segdiff"].append(utils.torch2numpy(total_diff))
@@ -112,8 +97,6 @@ def extended_latent_edit_label_stroke(model, latent, noises, label_stroke, label
 
 def baseline_edit_image_stroke(model, latent, noises, image_stroke, image_mask,
     n_iter=5, lr=1e-2):
-    latent = latent.detach().clone()
-    latent.requires_grad = True
     optim = torch.optim.Adam([latent], lr=lr)
     model.set_noise(noises)
     record = {"mseloss": [], "gradnorm": []}
@@ -138,9 +121,6 @@ def baseline_edit_image_stroke(model, latent, noises, image_stroke, image_mask,
 
 def celossreg_edit_image_stroke(model, latent, noises, image_stroke, image_mask,
     n_iter=5, lr=1e-2):
-    T = Temperture()
-    latent = latent.detach().clone()
-    latent.requires_grad = True
     optim = torch.optim.Adam([latent], lr=lr)
     model.set_noise(noises)
     orig_label = model(latent)[1].argmax(1)
@@ -172,11 +152,7 @@ def celossreg_edit_image_stroke(model, latent, noises, image_stroke, image_mask,
 
 
 def celossreg_external_edit_image_stroke(external_model, model, latent, noises, image_stroke, image_mask, n_iter=5, lr=1e-2):
-    T = Temperture()
-    latent = latent.detach().clone()
-    latent.requires_grad = True
     optim = torch.optim.Adam([latent], lr=lr)
-    logsoftmax = torch.nn.CrossEntropyLoss().to(latent.device)
     model.set_noise(noises)
     orig_label = model(latent)[1].argmax(1)
     record = {"mseloss": [], "celoss": [], "segdiff": [], "gradnorm": []}
@@ -254,8 +230,6 @@ def get_label_optim(t):
 
 
 def celossreg_external_edit_image_stroke_slow(external_model, model, latent, noises, image_stroke, image_mask, n_iter=5, lr=1e-2, n_reg=5):
-    latent = latent.detach().clone()
-    latent.requires_grad = True
     optim = torch.optim.Adam([latent], lr=lr)
     model.set_noise(noises)
     orig_label = model(latent)[1].argmax(1)
@@ -294,8 +268,6 @@ def celossreg_external_edit_image_stroke_slow(external_model, model, latent, noi
 
 def celossreg_edit_image_stroke_slow(model, latent, noises, image_stroke, image_mask,
     n_iter=5, lr=1e-2, n_reg=5):
-    latent = latent.detach().clone()
-    latent.requires_grad = True
     optim = torch.optim.Adam([latent], lr=lr)
     model.set_noise(noises)
     orig_label = model(latent)[1].argmax(1)
@@ -328,4 +300,3 @@ def celossreg_edit_image_stroke_slow(model, latent, noises, image_stroke, image_
     image = (1 + image.clamp(-1, 1)) / 2
     label = seg.argmax(1)
     return image, label, latent, noises, record
-

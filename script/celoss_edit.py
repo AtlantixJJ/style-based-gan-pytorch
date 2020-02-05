@@ -65,6 +65,7 @@ for ind, dic in enumerate(dl):
     # get original images
     with torch.no_grad():
         extended_latent_ = generator.g_mapping(latent_).detach()
+        mixed_latent_ = [latent_.clone() for _ in extended_latent_.shape[1]]
         generalized_latent_ = extended_latent_[:, 0:1, :].detach()
         orig_image, orig_seg = generator(extended_latent_)
         ext_seg = utils.diff_idmap(external_model(orig_image.clamp(-1, 1)))
@@ -81,12 +82,19 @@ for ind, dic in enumerate(dl):
     for t in optim_types:
         print("=> Optimization method %s" % t)
 
-        if "extended-latent" in t:
-            param = extended_latent_
+        if "mixed-latent" in t:
+            param = [l.clone() for l in mixed_latent_]
+            for p in param:
+                p.requires_grad = True
+        elif "extended-latent" in t:
+            param = extended_latent_.clone()
+            param.requires_grad = True
         elif "generalized-latent" in t:
-            param = generalized_latent_
+            param = generalized_latent_.clone()
+            param.requires_grad = True
         elif "latent" in t:
-            param = latent_
+            param = latent_.clone()
+            param.requires_grad = True
 
         image, label, latent, noises, record = optim.get_optim(t,
             external_model=external_model,

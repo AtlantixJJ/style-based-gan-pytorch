@@ -15,7 +15,10 @@ import torch.nn.functional as F
 import torchvision.utils as vutils
 from torch.autograd import Variable
 import glob
-import cv2
+try:
+    import cv2
+except:
+    print("!> No opencv2")
 
 
 CELEBA_COLORS = [(0, 0, 0),(128, 0, 0),(0, 128, 0),(128, 128, 0),(0, 0, 128),(128, 0, 128),(0, 128, 128),(128, 128, 128),(64, 0, 0),(192, 0, 0),(64, 128, 0),(192, 128, 0),(64, 0, 128),(192, 0, 128),(64, 128, 128),(192, 128, 128)]
@@ -371,7 +374,7 @@ def color_mask_tensor(image, color):
     
 
 def celeba_rgb2label(image):
-    t = torch.zeros(image.shape[1:])
+    t = torch.zeros(image.shape[1:]).float()
     for i, c in enumerate(CELEBA_COLORS):
         t[color_mask_tensor(image, c)] = i
     return t
