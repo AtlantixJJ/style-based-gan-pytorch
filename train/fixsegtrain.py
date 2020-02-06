@@ -58,15 +58,17 @@ trace_weight = 0
 trace_bias = 0
 if cfg.trace_weight:
 	conv_dim = sg.semantic_branch.weight.shape[1]
-	#bias_dim = sg.semantic_branch.bias.shape[0]
+	bias_dim = sg.semantic_branch.bias.shape[0]
 	trace_weight = np.zeros((cfg.n_iter, cfg.n_class, conv_dim), dtype="float16")
-	#trace_bias = np.zeros((cfg.n_iter, bias_dim, cfg.n_class), dtype="float16")
+	trace_bias = np.zeros((cfg.n_iter, bias_dim, cfg.n_class), dtype="float16")
+
+evaluator = utils.MaskCelebAEval()
 
 for ind in tqdm(range(cfg.n_iter)):
 	ind += 1
 	latent.normal_()
 
-	with torch.no_grad():
+	with torch.no_grad(): # fix main network
 		gen = sg(latent, seg=False).clamp(-1, 1)
 		gen = F.interpolate(gen, cfg.seg_net_imsize, mode="bilinear")
 		label = faceparser(gen).argmax(1)
@@ -82,12 +84,17 @@ for ind in tqdm(range(cfg.n_iter)):
 		seglosses.append(c * l)
 	segloss = cfg.seg_coef * sum(seglosses) / len(seglosses)
 
-	regloss = 1e-2 * l2loss(sg.semantic_branch.weight)
-	regloss+= 1e-2 * l2loss(sg.semantic_branch.bias)
+	regloss = 0
+	if "l2class" in cfg.semantic_config:
+		# the sum of a class is regularized
+		regloss = cfg.l2_lambda * l2loss(sg.semantic_branch.weight.abs().sum(1))
+		regloss+= cfg.l2_lambda * l2loss(sg.semantic_branch.bias.abs())
+	if "l2" in cfg.semantic_config:
+		regloss = cfg.l2_lambda * l2loss(sg.semantic_branch.weight)
+		regloss+= cfg.l2_lambda * l2loss(sg.semantic_branch.bias)
 
 	loss = segloss + regloss
-	with torch.autograd.detect_anomaly():
-		loss.backward()
+	loss.backward()
 
 	g_optim.step()
 	g_optim.zero_grad()
@@ -95,9 +102,17 @@ for ind in tqdm(range(cfg.n_iter)):
 	record['loss'].append(utils.torch2numpy(loss))
 	record['segloss'].append(utils.torch2numpy(segloss))
 	record['regloss'].append(utils.torch2numpy(regloss))
+
+	gen_label = F.interpolate(segs[-1], label.size(2), mode="bilinear").argmax(1)
+	gen_label_np = gen_label.cpu().numpy()
+	label_np = label.cpu().numpy()
+	for i in range(latent.shape[0]):
+		scores = evaluator.compute_score(gen_label_np[i], label_np[i])
+		evaluator.accumulate(scores)
+
 	if cfg.trace_weight:
 		trace_weight[ind - 1] = utils.torch2numpy(sg.semantic_branch.weight)[:, :, 0, 0]
-		#trace_bias[ind - 1] = utils.torch2numpy(sg.semantic_branch.bias)
+		trace_bias[ind - 1] = utils.torch2numpy(sg.semantic_branch.bias)
 
 	if cfg.debug:
 		print(record.keys())
@@ -108,10 +123,13 @@ for ind in tqdm(range(cfg.n_iter)):
 
 	if (ind % 1000 == 0 and ind > 0) or ind == cfg.n_iter:
 		print("=> Snapshot model %d" % ind)
+		evaluator.aggregate()
+		evaluator.summarize()
+		evaluator.save(cfg.expr_dir + "/training_evaluation.npy")
 		torch.save(sg.state_dict(), cfg.expr_dir + "/iter_%06d.model" % ind)
 		if cfg.trace_weight:
 			np.save(cfg.expr_dir + "/trace_weight.npy", trace_weight[:ind])
-			#np.save(cfg.expr_dir + "/trace_bias.npy", trace_bias[:ind])
+			np.save(cfg.expr_dir + "/trace_bias.npy", trace_bias[:ind])
 
 	if ind % 1000 == 0 or ind == cfg.n_iter or cfg.debug:
 		num = min(4, label.shape[0])

@@ -13,7 +13,7 @@ import utils, config
 from lib.face_parsing import unet
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--task", default="agreement", help="")
+parser.add_argument("--task", default="log,seg,fastagreement", help="")
 parser.add_argument("--model", default="")
 parser.add_argument("--gpu", default="0")
 parser.add_argument("--zero", type=int, default=0)
@@ -67,7 +67,6 @@ for i in range(18):
     size = 4 * 2 ** (i // 2)
     noise.append(torch.randn(1, 1, size, size, device=device))
 
-
 if args.zero:
     print("=> Use zero as noise")
     noise = [0] * 18
@@ -90,10 +89,54 @@ faceparser = faceparser.to(device)
 faceparser.eval()
 del state_dict
 
+if "fastagreement" in args.task:
+    LEN = 100
+else:
+    LEN = 1000
+
 if "log" in args.task:
     logfile = args.model + "/log.txt"
     dic = utils.parse_log(logfile)
     utils.plot_dic(dic, args.model, savepath + "_loss.png")
+
+if "evaluator" in args.task:
+    WINDOW = 100
+
+    recordfile = args.model + "/training_evaluation.npy"
+    dic = np.load(recordfile, allow_pickle=True)[()]
+    n_class = len(dic['class'])
+    number = len(dic["class_result"][0])
+    global_dic = {}
+    class_dic = {}
+    global_dic["pixelacc"] = np.cumsum(dic['result']) / np.arange(1, number + 1)
+    class_dic["AP"] = np.zeros((n_class, number))
+    class_dic["AR"] = np.zeros((n_class, number))
+    class_dic["IoU"] = np.zeros((n_class, number))
+
+    for i in range(n_class):
+        metrics = np.array(dic["class_result"][i])
+        for j, name in enumerate(["AP", "AR", "IoU"]):
+            mask = metrics[:, j] > -1
+            class_dic[name][i, mask] = metrics[mask, j]
+            if mask.shape[0] == 0:
+                class_dic[name][i, :] = 0
+            else:
+                windowsum = utils.window_sum(class_dic[name][i, :], size=WINDOW)
+                divider = utils.window_sum(mask.astype("float32"), size=WINDOW)
+                divider[divider < 1e-5] = 1e-5
+                class_dic[name][i, :] = windowsum / divider
+    
+    for j, name in enumerate(["AP", "AR", "IoU"]):
+        global_dic["m" + name] = class_dic[name].mean(0)
+
+    utils.plot_dic(global_dic, args.model, savepath + "_evaluator_global.png")
+    for i, name in enumerate(["AP", "AR", "IoU"]):
+        metric_dic = {dic['class'][j] : class_dic[name][j] for j in range(n_class)}
+        utils.plot_dic(
+            metric_dic,
+            f"{args.model}_evaluator_class_{name}",
+            f"{savepath}_evaluator_class_{name}.png")
+
 
 if "agreement" in args.task:
     latent = torch.randn(batch_size, latent_size, device=device)
@@ -108,7 +151,7 @@ if "agreement" in args.task:
         generator.eval()
 
         evaluator = utils.MaskCelebAEval(map_id=True)
-        for i in tqdm.tqdm(range(32 * 1000 // batch_size)):
+        for i in tqdm.tqdm(range(32 * LEN // batch_size)):
             gen, gen_seg_logit = generator(latent)
             gen_seg_logit = F.interpolate(gen_seg_logit, imsize, mode="bilinear")
             seg = gen_seg_logit.argmax(1)
@@ -126,6 +169,7 @@ if "agreement" in args.task:
                 score = evaluator.compute_score(seg[j], label[j])
                 evaluator.accumulate(score)
             latent.normal_()
+
         evaluator.aggregate()
         dics.append(evaluator.summarize())
 

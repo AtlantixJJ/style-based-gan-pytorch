@@ -6,18 +6,21 @@ WINDOW_SIZE = 40
 name = sys.argv[1] # fixseg_1.0_mul-16
 trace_path = f"expr/{name}/trace_weight.npy"
 
-trace = np.load(trace_path) # (N, 16, 960)
+trace = np.load(trace_path) # (N, 16, D)
 weight = trace[-1]
+weight_min, weight_max = weight.min(), weight.max()
 moving_avg_trace = np.zeros_like(trace)
 step_delta = np.zeros_like(trace)
 
-fig = plt.figure(figsize=(10, 10))
+# weight vector
+fig = plt.figure(figsize=(12, 12))
 maximum, minimum = weight.max(), weight.min()
 for j in range(16):
     ax = plt.subplot(4, 4, j + 1)
     ax.plot(weight[j])
     ax.axes.get_xaxis().set_visible(False)
-    ax.set_ylim([weight[j].min(), weight[j].max()])
+    #ax.set_ylim([weight[j].min(), weight[j].max()])
+    ax.set_ylim([weight_min, weight_max])
 fig.savefig(f"results/{name}_weight.png", bbox_inches='tight')
 plt.close()
 

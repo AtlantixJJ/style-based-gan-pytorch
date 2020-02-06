@@ -3,10 +3,14 @@ import os
 class FixSeg(object):
     def __init__(self):
         self.seg_cfgs = [
-            "1mul1-64-16"
+            "mul-16-l2class_bias_nearest",
+            "mul-16-none_nearest",
+            "mul-16-l2_nearest",
+            "mul-16-l2class_nearest",
+            "mul-16-l2_bias_nearest"
             ]
 
-        self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --gpu %s --batch_size 1 &"
+        self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --gpu %s --batch_size 8 --iter-num 1000 --trace 1 &"
     
     def args_gen(self, gpus):
         l = []
@@ -50,6 +54,6 @@ def direct_run(gpus):
         c = commands[i]
         yield index, c % gpu
 
-gpus = ["6", "7"]; assign_run(direct_run, gpus)
+#gpus = ["6", "7"]; assign_run(direct_run, gpus)
 #gpus = ["4", "5", "6", "7"]; assign_run(FixSeg().command, gpus)
-#gpus = ["0,2", "0,3"]; assign_run(TSSeg().command, gpus)
+gpus = ["0"]; assign_run(FixSeg().command, gpus)

@@ -8,6 +8,7 @@ try:
 except:
     import cPickle as pickle
 import datetime, time
+import math
 from PIL import Image
 import numpy as np
 import torch
@@ -435,6 +436,8 @@ class MaskCelebAEval(object):
         self.dic = {}
         self.raw_label = ['background', 'skin', 'nose', 'eye_g', 'l_eye', 'r_eye', 'l_brow', 'r_brow', 'l_ear', 'r_ear', 'mouth', 'u_lip', 'l_lip', 'hair', 'hat', 'ear_r', 'neck_l', 'neck', 'cloth']
         self.dic["class"] = ['background', 'skin', 'nose', 'eye_g', 'eye', 'brow', 'ear', 'mouth', 'u_lip', 'l_lip', 'hair', 'hat', 'ear_r', 'neck_l', 'neck', 'cloth']
+        self.face_indice = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 14]
+        self.other_indice = [11, 12, 13, 15]
         self.n_class = len(self.dic["class"])
         self.ignore_classes = [0]
         self.dic["result"] = []
@@ -518,6 +521,10 @@ class MaskCelebAEval(object):
             vals = [self.dic[name][i] for i in range(self.n_class)]
             vals = np.array(vals)
             self.dic["m" + name] = vals[vals > -1].mean()
+        
+        for t in ["face", "other"]:
+            vals = np.array(self.dic[name])[getattr(self, f"{t}_indice")]
+            self.dic[f"m{name}_{t}"] = vals[vals > -1].mean()
 
     def summarize(self):
         print("=> mAP  \t  mAR  \t  mIoU  \t  PixelAcc")
@@ -649,17 +656,31 @@ def format_test_result(dic):
 
 def plot_dic(dic, title="", file=None):
     n = len(dic.items())
-    fig = plt.figure(figsize=(3 * n, 3))
+    edge = int(math.sqrt(n))
+    if edge ** 2 < n:
+        edge += 1
+    fig = plt.figure(figsize=(3 * edge, 3 * edge))
     for i, (k, v) in enumerate(dic.items()):
-        ax = fig.add_subplot(1, n, i + 1)
+        ax = fig.add_subplot(edge, edge, i + 1)
         ax.plot(v)
         ax.legend([k])
     if len(title) > 0:
         plt.suptitle(title)
     if file is not None:
-        plt.savefig(file)
+        plt.savefig(file, bbox_inches='tight')
         plt.close()
         
+"""
+Args:
+    arr : 1D numpy array
+"""
+def window_sum(arr, size=10):
+    cumsum = np.cumsum(arr)
+    windowsum = np.zeros_like(cumsum)
+    windowsum[:size] = cumsum[:size]
+    windowsum[size:] = cumsum[size:] - cumsum[:-size]
+    return windowsum
+
 
 def parse_log(logfile):
     with open(logfile) as f:

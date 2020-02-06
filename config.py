@@ -23,7 +23,7 @@ def config_from_name(name):
             att_mtd = items[i+1]
             dics.update({"att": att, "att_mtd": att_mtd})
         if "seg" in items[i] or "sd" in items[i]:
-            segcfg = items[i+2]
+            segcfg = "_".join(items[i+2:])
             dics.update({"semantic": segcfg})
     return dics
 
@@ -255,12 +255,14 @@ class FixSegConfig(BaseConfig):
 
         self.parser.add_argument("--seg-net", default="checkpoint/faceparse_unet_512.pth", help="The load path of semantic segmentation network")
         self.parser.add_argument("--seg", default=1., type=float, help="Coefficient of segmentation loss")
-        self.parser.add_argument("--seg-cfg", default="mul-16", help="Configure of segmantic segmentation extractor")
+        self.parser.add_argument("--seg-cfg", default="mul-16-l2_assign_bias_bilinear", help="Configure of segmantic segmentation extractor")
+        self.parser.add_argument("--l2", type=int, default=0.005)
         self.parser.add_argument("--n-class", type=int, default=16, help="Class num")
         self.parser.add_argument("--trace", type=int, default=0, help="If to save the weight evolution of semantic branch")
 
     def parse(self):
         super(FixSegConfig, self).parse()
+        self.l2_lambda = self.args.l2
         self.n_class = self.args.n_class
         self.seg_coef = self.args.seg
         self.seg_net_path = self.args.seg_net
