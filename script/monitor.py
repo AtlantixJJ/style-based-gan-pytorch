@@ -5,10 +5,12 @@ import sys
 sys.path.insert(0, ".")
 import argparse, tqdm, glob, os
 import numpy as np
+import matplotlib.pyplot as plt
 import torch
 import torch.nn.functional as F
-from os.path import join as osj
 from torchvision import utils as vutils
+from os.path import join as osj
+
 import utils, config
 from lib.face_parsing import unet
 
@@ -16,7 +18,6 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--task", default="log,seg,fastagreement", help="")
 parser.add_argument("--model", default="")
 parser.add_argument("--gpu", default="0")
-parser.add_argument("--zero", type=int, default=0)
 args = parser.parse_args()
 
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
@@ -26,15 +27,15 @@ if args.model == "expr":
     files = os.listdir(args.model)
     files.sort()
     for f in files:
-        basecmd = "python script/monitor.py --task %s --model %s --gpu %s --zero %d"
-        basecmd = basecmd % (args.task, osj(args.model, f), args.gpu, args.zero)
+        basecmd = "python script/monitor.py --task %s --model %s --gpu %s"
+        basecmd = basecmd % (args.task, osj(args.model, f), args.gpu)
         os.system(basecmd)
     exit(0)
 
 savepath = args.model.replace("expr/", "results/")
 
 device = 'cuda' if int(args.gpu) > -1 else 'cpu'
-torch.manual_seed(1116)
+torch.manual_seed(65537)
 
 cfg = 0
 batch_size = 0
@@ -67,14 +68,6 @@ for i in range(18):
     size = 4 * 2 ** (i // 2)
     noise.append(torch.randn(1, 1, size, size, device=device))
 
-if args.zero:
-    print("=> Use zero as noise")
-    noise = [0] * 18
-    for k in range(18):
-        size = 4 * 2 ** (k // 2)
-        noise[k] = torch.zeros(1, 1, size, size).to(device)
-    generator.set_noise(noise)
-
 model_files = glob.glob(args.model + "/*.model")
 model_files = [m for m in model_files if "disc" not in m]
 model_files.sort()
@@ -99,7 +92,7 @@ if "log" in args.task:
     dic = utils.parse_log(logfile)
     utils.plot_dic(dic, args.model, savepath + "_loss.png")
 
-if "evaluator" in args.task:
+if "celeba-evaluator" in args.task:
     WINDOW = 100
 
     recordfile = args.model + "/training_evaluation.npy"
@@ -112,11 +105,46 @@ if "evaluator" in args.task:
 
     utils.plot_dic(global_dic, args.model, savepath + "_evaluator_global.png")
     for i, name in enumerate(["AP", "AR", "IoU"]):
-        metric_dic = {dic['class'][j] : class_dic[name][j] for j in range(n_class)}
+        metric_dic = {evaluator.dic['class'][j] : class_dic[name][j] for j in range(n_class)}
         utils.plot_dic(
             metric_dic,
             f"{args.model}_evaluator_class_{name}",
             f"{savepath}_evaluator_class_{name}.png")
+
+
+if "celeba-trace" in args.task:
+    trace_path = f"{args.model}/trace_weight.npy"
+    trace = np.load(trace_path) # (N, 16, D)
+    assert trace.shape[2] == segments[-1]
+    segments = np.cumsum([512, 512, 512, 512, 256, 128, 64, 32, 16])
+    weight = trace[-1]
+
+    # variance
+    weight_var = trace.std(0)
+    fig = plt.figure(figsize=(16, 16))
+    maximum, minimum = weight_var.max(), weight_var.min()
+    for j in range(16):
+        ax = plt.subplot(4, 4, j + 1)
+        ax.plot(weight_var[j])
+        for x in segments:
+            ax.axvline(x=x, color="r-")
+        ax.axes.get_xaxis().set_visible(False)
+        ax.set_ylim([minimum, maximum])
+    fig.savefig(f"{savepath}_trace_var.png", bbox_inches='tight')
+    plt.close()
+
+    # weight vector
+    fig = plt.figure(figsize=(16, 16))
+    maximum, minimum = weight.max(), weight.min()
+    for j in range(16):
+        ax = plt.subplot(4, 4, j + 1)
+        ax.plot(weight[j])
+        for x in segments:
+            ax.axvline(x=x, color="r-")
+        ax.axes.get_xaxis().set_visible(False)
+        ax.set_ylim([minimum, maximum])
+    fig.savefig(f"results/{savepath}_trace_weight.png", bbox_inches='tight')
+    plt.close()
 
 
 if "contribution" in args.task:

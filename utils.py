@@ -25,6 +25,11 @@ except:
 CELEBA_COLORS = [(0, 0, 0),(128, 0, 0),(0, 128, 0),(128, 128, 0),(0, 0, 128),(128, 0, 128),(0, 128, 128),(128, 128, 128),(64, 0, 0),(192, 0, 0),(64, 128, 0),(192, 128, 0),(64, 0, 128),(192, 0, 128),(64, 128, 128),(192, 128, 128)]
 
 
+CELEBA_FULL_CATEGORY = ['background', 'skin', 'nose', 'eye_g', 'l_eye', 'r_eye', 'l_brow', 'r_brow', 'l_ear', 'r_ear', 'mouth', 'u_lip', 'l_lip', 'hair', 'hat', 'ear_r', 'neck_l', 'neck', 'cloth']
+
+CELEBA_REDUCED_CATEGORY = ['background', 'skin', 'nose', 'eye_g', 'eye', 'brow', 'ear', 'mouth', 'u_lip', 'l_lip', 'hair', 'hat', 'ear_r', 'neck_l', 'neck', 'cloth']
+
+
 class MultiGPUTensor(object):
     def __init__(self, root, n_gpu):
         self.root = root
@@ -42,6 +47,44 @@ class MultiGPUTensor(object):
 
 
 ######
+## Tensor operations
+######
+
+
+def torch2numpy(x):
+    try:
+        return x.data.cpu().numpy()
+    except:
+        return x
+
+
+def lerp(a, b, x, y, i):
+    """
+    Args:
+        input from [a, b], output to [x, y], current position i
+    """
+    return (i - a) / (b - a) * (y - x) + x
+
+
+def onehot(x, n):
+    z = torch.zeros(x.shape[0], n, x.shape[2], x.shape[3])
+    return z.scatter_(1, x, 1)
+
+
+def onehot_logit(x):
+    label = x.argmax(1, keepdim=True)
+    z = torch.zeros_like(x)
+    return z.scatter_(1, label, 1)
+
+
+def adaptive_sumpooling(x, size):
+    h, w = x.shape[2:]
+    y = F.adaptive_avg_pool2d(x, size)
+    nh, nw = y.shape[2:]
+    return y * float(h) * w / nh / nw
+
+
+######
 ## Colorization
 ######
 
@@ -53,6 +96,7 @@ def heatmap_numpy(image):
     returns: (N, H, W, 3)
     """
     return HEATMAP_COLOR(image)[:, :, :, :3]
+
 
 def heatmap_torch(tensor):
     """
@@ -96,21 +140,6 @@ def uint82bin(n, count=8):
 
 
 def labelcolormap(N):
-    """
-    edge_num = int(np.ceil(np.power(N + , 1/3))) - 1
-    cmap = np.zeros((N, 3), dtype=np.uint8)
-    step_size = 255. / edge_num
-    cmap[0] = (0, 0, 0)
-    count = 1
-    for i in range(edge_num + 1):
-        for j in range(edge_num + 1):
-            for k in range(edge_num + 1):
-                if count >= N or (i == j and j == k):
-                    continue
-                cmap[count] = [int(step_size * n) for n in [i, j, k]]
-                count += 1
-    """
-
     cmap = np.zeros((N, 3), dtype=np.uint8)
     for i in range(N):
         r, g, b = 0, 0, 0
@@ -167,37 +196,19 @@ def pil_read(fpath):
     return img
     
 
+def imresize(image, size):
+    return np.array(Image.fromarray(image).resize(size))
+
+
+# clip and normalize from [-1, 1] to [0, 1]
 def normalize_image(img):
     img[img < -1] = -1
     img[img > 1] = 1
     return (img+1)/2
 
 
-def set_lerp_val(progression, lerp_val):
-    for p in progression:
-        p.lerp = lerp_val
-
-
-def get_generator_blockconv_lr(g, lr):
-    dic = []
-    for i, blk in enumerate(g.progression):
-        dic.append({"params": blk.conv1.parameters(), "lr": lr})
-        dic.append({"params": blk.conv2.parameters(), "lr": lr})
-        dic.append({"params": blk.noise1.parameters(), "lr": lr})
-        dic.append({"params": blk.noise2.parameters(), "lr": lr})
-    return dic
-
-
-def get_generator_extractor_lr(g, lr):
-    dic = []
-    for i, blk in enumerate(g.progression):
-        if "conv" in blk.segcfg:
-            dic.append({"params": blk.extractor.parameters(), "lr": lr})
-    return dic
-
-
 ######
-## Others
+## Network helper function
 ######
 
 
@@ -212,33 +223,6 @@ def parse_noise(vec):
         noise.append(vec[prev : prev + size ** 2].view(1, 1, size, size))
         prev += size ** 2
     return noise
-
-
-def list_collect_data(data_dir, keys=["origin_latent", "origin_noise", "image_stroke", "image_mask", "label_stroke", "label_mask"]):
-    dic = {}
-    for key in keys:
-        keyfiles = glob.glob(f"{data_dir}/*{key}*")
-        keyfiles.sort()
-        dic[key] = keyfiles
-    return dic
-
-
-def onehot(x, n):
-    z = torch.zeros(x.shape[0], n, x.shape[2], x.shape[3])
-    return z.scatter_(1, x, 1)
-
-
-def onehot_logit(x):
-    label = x.argmax(1, keepdim=True)
-    z = torch.zeros_like(x)
-    return z.scatter_(1, label, 1)
-
-
-def adaptive_sumpooling(x, size):
-    h, w = x.shape[2:]
-    y = F.adaptive_avg_pool2d(x, size)
-    nh, nw = y.shape[2:]
-    return y * float(h) * w / nh / nw
 
 
 def requires_grad(model, flag=True):
@@ -261,21 +245,6 @@ def set_seed(seed):
     np.random.seed(seed)
     torch.backends.cudnn.enabled = False
     torch.manual_seed(seed)
-
-
-def torch2numpy(x):
-    try:
-        return x.data.cpu().numpy()
-    except:
-        return x
-
-
-def lerp(a, b, x, y, i):
-    """
-    Args:
-        input from [a, b], output to [x, y], current position i
-    """
-    return (i - a) / (b - a) * (y - x) + x
 
 
 class PLComposite(object):
@@ -388,10 +357,6 @@ def celeba_rgb2label(image):
     return t
 
 
-def imresize(image, size):
-    return np.array(Image.fromarray(image).resize(size))
-
-
 class Timer(object):    
     def __enter__(self):
         self.start = time.clock()
@@ -441,8 +406,8 @@ def diff_idmap(x):
 class MaskCelebAEval(object):
     def __init__(self, resdic=None, map_id=True):
         self.dic = {}
-        self.raw_label = ['background', 'skin', 'nose', 'eye_g', 'l_eye', 'r_eye', 'l_brow', 'r_brow', 'l_ear', 'r_ear', 'mouth', 'u_lip', 'l_lip', 'hair', 'hat', 'ear_r', 'neck_l', 'neck', 'cloth']
-        self.dic["class"] = ['background', 'skin', 'nose', 'eye_g', 'eye', 'brow', 'ear', 'mouth', 'u_lip', 'l_lip', 'hair', 'hat', 'ear_r', 'neck_l', 'neck', 'cloth']
+        self.raw_label = CELEBA_FULL_CATEGORY
+        self.dic["class"] = CELEBA_REDUCED_CATEGORY
         self.face_indice = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 14]
         self.other_indice = [11, 12, 13, 15]
         self.n_class = len(self.dic["class"])
@@ -596,6 +561,15 @@ class MaskCelebAEval(object):
 ## Logging related functions
 #########
 
+def list_collect_data(data_dir, keys=["origin_latent", "origin_noise", "image_stroke", "image_mask", "label_stroke", "label_mask"]):
+    dic = {}
+    for key in keys:
+        keyfiles = glob.glob(f"{data_dir}/*{key}*")
+        keyfiles.sort()
+        dic[key] = keyfiles
+    return dic
+    
+
 def str_num(n):
     return ("%.3f" % n).replace(".000", "")
 
@@ -631,7 +605,7 @@ def str_csv_table(strs):
 
 
 def format_agreement_result(dic):
-    label_list = ['skin', 'nose', 'eye_g', 'eye', 'brow', 'ear', 'mouth', 'u_lip', 'l_lip', 'hair', 'hat', 'ear_r', 'neck_l', 'neck', 'cloth']
+    label_list = CELEBA_REDUCED_CATEGORY
 
     global_metrics = ["pixelacc", "mAP", "mAR", "mIoU"]
     class_metrics = ["AP", "AR", "IoU"]
@@ -706,7 +680,7 @@ def plot_dic(dic, title="", file=None):
     for i, (k, v) in enumerate(dic.items()):
         ax = fig.add_subplot(edge, edge, i + 1)
         ax.plot(v)
-        ax.legend([k])
+        ax.set_title(k)
     if len(title) > 0:
         plt.suptitle(title)
     if file is not None:
@@ -723,19 +697,6 @@ def window_sum(arr, size=10):
     windowsum[:size] = cumsum[:size]
     windowsum[size:] = cumsum[size:] - cumsum[:-size]
     return windowsum
-
-
-def parse_log(logfile):
-    with open(logfile) as f:
-        head = f.readline().strip().split(" ")
-        dic = {h: [] for h in head}
-        lines = f.readlines()
-
-    for l in lines:
-        items = l.strip().split(" ")
-        for h, v in zip(head, items):
-            dic[h].append(float(v))
-    return dic
 
 
 """
@@ -759,11 +720,47 @@ def write_log(expr_dir, record):
             f.write("\n")
 
 
+def parse_log(logfile):
+    with open(logfile) as f:
+        head = f.readline().strip().split(" ")
+        dic = {h: [] for h in head}
+        lines = f.readlines()
+
+    for l in lines:
+        items = l.strip().split(" ")
+        for h, v in zip(head, items):
+            dic[h].append(float(v))
+    return dic
+
+
 
 
 
 
 """ Deprecated
+def set_lerp_val(progression, lerp_val):
+    for p in progression:
+        p.lerp = lerp_val
+
+
+def get_generator_blockconv_lr(g, lr):
+    dic = []
+    for i, blk in enumerate(g.progression):
+        dic.append({"params": blk.conv1.parameters(), "lr": lr})
+        dic.append({"params": blk.conv2.parameters(), "lr": lr})
+        dic.append({"params": blk.noise1.parameters(), "lr": lr})
+        dic.append({"params": blk.noise2.parameters(), "lr": lr})
+    return dic
+
+
+def get_generator_extractor_lr(g, lr):
+    dic = []
+    for i, blk in enumerate(g.progression):
+        if "conv" in blk.segcfg:
+            dic.append({"params": blk.extractor.parameters(), "lr": lr})
+    return dic
+
+
 def permute_masks(masks):
     def permute_(t):
         tmp = t[0]

@@ -3,11 +3,14 @@ import os
 class FixSeg(object):
     def __init__(self):
         self.seg_cfgs = [
-            "mul-16-none_ortho_nearest",
-            "mul-16-l2_ortho_nearest",
-            "mul-16-none_nearest",
-            "mul-16-l2_nearest",
-            "mul-16-l2class_nearest",
+            #"mul-16-l1_ortho_nearest",
+            #"mul-16-none_ortho_nearest",
+            #"mul-16-none_nearest",
+            #"mul-16-l1_nearest",
+            "mul-16-l1_ortho_bilinear",
+            "mul-16-none_ortho_bilinear",
+            "mul-16-none_bilinear",
+            "mul-16-l1_bilinear",
             ]
 
         self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --gpu %s --batch_size 8 --iter-num 1000 --trace 1 &"

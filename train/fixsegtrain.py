@@ -17,6 +17,9 @@ import model
 def l2loss(x):
 	return (x ** 2).sum()
 
+def l1loss(x):
+	return x.abs().sum()
+
 cfg = config.FixSegConfig()
 cfg.parse()
 cfg.print_info()
@@ -85,13 +88,10 @@ for ind in tqdm(range(cfg.n_iter)):
 	segloss = cfg.seg_coef * sum(seglosses) / len(seglosses)
 
 	regloss = 0
-	if "l2class" in cfg.semantic_config:
-		# the sum of a class is regularized
-		regloss = cfg.l2_lambda * l2loss(sg.semantic_branch.weight.abs().sum(1))
-		regloss+= cfg.l2_lambda * l2loss(sg.semantic_branch.bias)
-	elif "l2" in cfg.semantic_config:
-		regloss = cfg.l2_lambda * l2loss(sg.semantic_branch.weight)
-		regloss+= cfg.l2_lambda * l2loss(sg.semantic_branch.bias)
+	
+	if "l1" in cfg.semantic_config:
+		regloss += cfg.reg_coef * l1loss(sg.semantic_branch.weight)
+		regloss += cfg.reg_coef * l1loss(sg.semantic_branch.bias)
 
 	if "ortho" in cfg.semantic_config:
 		w = sg.semantic_branch.weight[:, :, 0, 0]
