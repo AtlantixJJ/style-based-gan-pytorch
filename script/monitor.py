@@ -89,8 +89,8 @@ faceparser = faceparser.to(device)
 faceparser.eval()
 del state_dict
 
-if "fastagreement" in args.task:
-    LEN = 100
+if "fast" in args.task:
+    LEN = 50
 else:
     LEN = 1000
 
@@ -103,31 +103,12 @@ if "evaluator" in args.task:
     WINDOW = 100
 
     recordfile = args.model + "/training_evaluation.npy"
-    dic = np.load(recordfile, allow_pickle=True)[()]
-    n_class = len(dic['class'])
-    number = len(dic["class_result"][0])
-    global_dic = {}
-    class_dic = {}
-    global_dic["pixelacc"] = np.cumsum(dic['result']) / np.arange(1, number + 1)
-    class_dic["AP"] = np.zeros((n_class, number))
-    class_dic["AR"] = np.zeros((n_class, number))
-    class_dic["IoU"] = np.zeros((n_class, number))
-
-    for i in range(n_class):
-        metrics = np.array(dic["class_result"][i])
-        for j, name in enumerate(["AP", "AR", "IoU"]):
-            mask = metrics[:, j] > -1
-            class_dic[name][i, mask] = metrics[mask, j]
-            if mask.shape[0] == 0:
-                class_dic[name][i, :] = 0
-            else:
-                windowsum = utils.window_sum(class_dic[name][i, :], size=WINDOW)
-                divider = utils.window_sum(mask.astype("float32"), size=WINDOW)
-                divider[divider < 1e-5] = 1e-5
-                class_dic[name][i, :] = windowsum / divider
-    
-    for j, name in enumerate(["AP", "AR", "IoU"]):
-        global_dic["m" + name] = class_dic[name].mean(0)
+    evaluator = utils.MaskCelebAEval()
+    evaluator.load(recordfile)
+    evaluator.aggregate_process()
+    global_dic = evaluator.dic["global_process"]
+    class_dic = evaluator.dic["class_process"]
+    n_class = class_dic["AP"].shape[0]
 
     utils.plot_dic(global_dic, args.model, savepath + "_evaluator_global.png")
     for i, name in enumerate(["AP", "AR", "IoU"]):
@@ -136,6 +117,41 @@ if "evaluator" in args.task:
             metric_dic,
             f"{args.model}_evaluator_class_{name}",
             f"{savepath}_evaluator_class_{name}.png")
+
+
+if "contribution" in args.task:
+    latent = torch.randn(1, latent_size, device=device)
+    for i, model_file in enumerate(model_files):
+        print("=> Load from %s" % model_file)
+        state_dict = torch.load(model_file, map_location='cpu')
+        missed = generator.load_state_dict(state_dict, strict=False)
+        if len(missed.missing_keys) > 1:
+            print(missed)
+            exit()
+        generator.eval()
+        w = generator.semantic_branch.weight[:, :, 0, 0]
+        segments = generator.semantic_branch.segments
+        contrib = torch.zeros(LEN, w.shape[0], w.shape[1])
+
+        for i in tqdm.tqdm(range(LEN)):
+            latent.normal_()
+            _, gen_seg_logit = generator(latent, detach=True)
+            onehot_label = utils.onehot_logit(gen_seg_logit)
+            for j in range(onehot_label.shape[1]):
+                for s, (bg,ed) in zip(generator.stage, segments):
+                    if onehot_label[:, j:j+1].sum() < 1:
+                        continue
+                    # (1, 1, h, w)
+                    weight = utils.adaptive_sumpooling(onehot_label[:, j:j+1], s.shape[3])
+                    weight = weight[0, 0].long()
+                    mask = weight > 0
+                    weight = weight.float() / weight.sum()
+                    # (C, N) * (1, N)
+                    data_mean = (s[0, :, mask] * weight[mask].unsqueeze(0)).sum(1)
+                    contrib[i, j, bg:ed] = (data_mean * w[j, bg:ed]).detach()
+        contrib /= 1e-5 + contrib.sum(2, keepdim=True)
+
+    np.save(savepath + "_contrib", contrib.detach().cpu().numpy())
 
 
 if "agreement" in args.task:

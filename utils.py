@@ -228,10 +228,17 @@ def onehot(x, n):
     return z.scatter_(1, x, 1)
 
 
-def onehot_logit(x, n):
-    x = x.argmax(1, keepdim=True)
-    z = torch.zeros(x.shape[0], n, x.shape[2], x.shape[3])
-    return z.scatter_(1, x, 1)
+def onehot_logit(x):
+    label = x.argmax(1, keepdim=True)
+    z = torch.zeros_like(x)
+    return z.scatter_(1, label, 1)
+
+
+def adaptive_sumpooling(x, size):
+    h, w = x.shape[2:]
+    y = F.adaptive_avg_pool2d(x, size)
+    nh, nw = y.shape[2:]
+    return y * float(h) * w / nh / nw
 
 
 def requires_grad(model, flag=True):
@@ -501,6 +508,39 @@ class MaskCelebAEval(object):
         for i, s in enumerate(metrics):
             self.dic["class_result"][i].append(s)
 
+    def aggregate_process(self, winsize=100):
+        n_class = len(self.dic['class'])
+        number = len(self.dic["class_result"][0])
+        global_dic = {}
+        class_dic = {}
+        global_dic["pixelacc"] = np.cumsum(self.dic['result']) / np.arange(1, number + 1)
+        class_dic["AP"] = np.zeros((n_class, number))
+        class_dic["AR"] = np.zeros((n_class, number))
+        class_dic["IoU"] = np.zeros((n_class, number))
+
+        for i in range(n_class):
+            metrics = np.array(self.dic["class_result"][i])
+            for j, name in enumerate(["AP", "AR", "IoU"]):
+                mask = metrics[:, j] > -1
+                class_dic[name][i, mask] = metrics[mask, j]
+                if mask.shape[0] == 0:
+                    class_dic[name][i, :] = 0
+                else:
+                    windowsum = window_sum(class_dic[name][i, :], size=winsize)
+                    divider = window_sum(mask.astype("float32"), size=winsize)
+                    divider[divider < 1e-5] = 1e-5
+                    class_dic[name][i, :] = windowsum / divider
+        
+        for j, name in enumerate(["AP", "AR", "IoU"]):
+            global_dic[f"m{name}"] = class_dic[name].mean(0)
+            for t in ["face", "other"]:
+                arr = class_dic[name][getattr(self, f"{t}_indice"), :]
+                global_dic[f"m{name}_{t}"] = arr[arr > -1].mean(0)
+        
+        self.dic["global_process"] = global_dic
+        self.dic["class_process"] = class_dic
+        return global_dic, class_dic
+
     def aggregate(self):
         arr = self.dic["result"]
         self.dic["pixelacc"] = float(sum(arr)) / len(arr)
@@ -548,6 +588,9 @@ class MaskCelebAEval(object):
 
     def save(self, fpath):
         np.save(fpath, self.dic)
+
+    def load(self, fpath):
+        self.dic = np.load(fpath, allow_pickle=True)[()]
 
 #########
 ## Logging related functions

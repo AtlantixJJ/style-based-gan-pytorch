@@ -88,10 +88,18 @@ for ind in tqdm(range(cfg.n_iter)):
 	if "l2class" in cfg.semantic_config:
 		# the sum of a class is regularized
 		regloss = cfg.l2_lambda * l2loss(sg.semantic_branch.weight.abs().sum(1))
-		regloss+= cfg.l2_lambda * l2loss(sg.semantic_branch.bias.abs())
-	if "l2" in cfg.semantic_config:
+		regloss+= cfg.l2_lambda * l2loss(sg.semantic_branch.bias)
+	elif "l2" in cfg.semantic_config:
 		regloss = cfg.l2_lambda * l2loss(sg.semantic_branch.weight)
 		regloss+= cfg.l2_lambda * l2loss(sg.semantic_branch.bias)
+
+	if "ortho" in cfg.semantic_config:
+		w = sg.semantic_branch.weight[:, :, 0, 0]
+		ww = torch.matmul(w, w.permute(1, 0))
+		target = torch.eye(ww.shape[0], device=ww.device)
+		#target = torch.diag(torch.diag(ww)).detach()
+		#print(torch.diag(ww).detach().cpu().numpy())
+		regloss += F.mse_loss(ww, target)
 
 	loss = segloss + regloss
 	loss.backward()
@@ -121,17 +129,9 @@ for ind in tqdm(range(cfg.n_iter)):
 			l.append(record[k][-1])
 		print(l)
 
-	if (ind % 1000 == 0 and ind > 0) or ind == cfg.n_iter:
-		print("=> Snapshot model %d" % ind)
+	if ind % 100 == 0 or ind == cfg.n_iter or cfg.debug:
 		evaluator.aggregate()
 		evaluator.summarize()
-		evaluator.save(cfg.expr_dir + "/training_evaluation.npy")
-		torch.save(sg.state_dict(), cfg.expr_dir + "/iter_%06d.model" % ind)
-		if cfg.trace_weight:
-			np.save(cfg.expr_dir + "/trace_weight.npy", trace_weight[:ind])
-			np.save(cfg.expr_dir + "/trace_bias.npy", trace_bias[:ind])
-
-	if ind % 1000 == 0 or ind == cfg.n_iter or cfg.debug:
 		num = min(4, label.shape[0])
 		res = []
 		for i in range(num):
@@ -144,3 +144,11 @@ for ind in tqdm(range(cfg.n_iter)):
 		vutils.save_image(res, cfg.expr_dir + "/%05d.png" % ind, nrow=3)
 		utils.write_log(cfg.expr_dir, record)
 		utils.plot_dic(record, "loss", cfg.expr_dir + "/loss.png")
+
+	if (ind % 1000 == 0 and ind > 0) or ind == cfg.n_iter:
+		print("=> Snapshot model %d" % ind)
+		evaluator.save(cfg.expr_dir + "/training_evaluation.npy")
+		torch.save(sg.state_dict(), cfg.expr_dir + "/iter_%06d.model" % ind)
+		if cfg.trace_weight:
+			np.save(cfg.expr_dir + "/trace_weight.npy", trace_weight[:ind])
+			np.save(cfg.expr_dir + "/trace_bias.npy", trace_bias[:ind])
