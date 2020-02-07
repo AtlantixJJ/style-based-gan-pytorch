@@ -576,7 +576,7 @@ def str_num(n):
 
 def str_latex_table(strs):
     for i in range(len(strs)):
-        for j in range(len(strs[0])):
+        for j in range(len(strs[i])):
             if "_" in strs[i][j]:
                 strs[i][j] = strs[i][j].replace("_", "\\_")
 
@@ -590,7 +590,7 @@ def str_latex_table(strs):
     s.append("\\end{tabular}")
 
     for i in range(len(strs)):
-        for j in range(len(strs[0])):
+        for j in range(len(strs[i])):
             if "_" in strs[i][j]:
                 strs[i][j] = strs[i][j].replace("\\_", "_")
 
@@ -618,9 +618,9 @@ def format_agreement_result(dic):
     strs = [["step"] + global_metrics]
     for i in range(n_model):
         strs.append([str_num(n) for n in numbers[i]])
-    # print latex table
-    print(str_latex_table(strs))
-    print(str_csv_table(strs))
+
+    model_global_latex = str_latex_table(strs)
+    model_global_csv = str_csv_table(strs)
 
     # table 2: classwise accuracy
     best_ind = np.argmax(dic["mIoU"])
@@ -635,8 +635,10 @@ def format_agreement_result(dic):
     for i in range(1, len(strs)):
         strs[i] = [class_metrics[i - 1]] + strs[i]
     # print latex table
-    print(str_latex_table(strs))
-    print(str_csv_table(strs))
+    class_latex = str_latex_table(strs)
+    class_csv = str_csv_table(strs)
+
+    return model_global_latex, class_latex, model_global_csv, class_csv, best_ind
 
 
 def format_test_result(dic):

@@ -6,6 +6,8 @@ segments = np.cumsum([512, 512, 512, 512, 256, 128, 64, 32, 16])
 
 WINDOW_SIZE = 100
 file_path = sys.argv[1] # fixseg_1.0_mul-16
+ind = file_path.rfind("/")
+name = file_path[ind + 1:].replace("fixseg_1.0_", "").replace("_contrib.npy", "")
 
 # data
 data = np.load(file_path) # (N, 16, D)
@@ -22,7 +24,7 @@ for j in range(16):
     ax.axes.get_xaxis().set_visible(False)
     #ax.set_ylim([weight[j].min(), weight[j].max()])
     ax.set_ylim([minimum, maximum])
-fig.savefig(f"results/contrib_var.png", bbox_inches='tight')
+fig.savefig(f"results/{name}_contrib_var.png", bbox_inches='tight')
 plt.close()
 
 
@@ -37,5 +39,5 @@ for j in range(16):
         ax.axvline(x=x)
     ax.axes.get_xaxis().set_visible(False)
     ax.set_ylim([minimum, maximum])
-fig.savefig(f"results/contrib_mean.png", bbox_inches='tight')
+fig.savefig(f"results/{name}_contrib_mean.png", bbox_inches='tight')
 plt.close()
