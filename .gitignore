@@ -1,17 +1,17 @@
-# temp files
+# data files
 *.npy
 *.pkl
-datasets
-results
-expr
 *.png
 *.mp4
 *.tar.gz
 datasets
+results
+expr
+datasets
 checkpoint
-pretrained
-*.sqlite3
-*.DS_Store
+complex
+simple
+data
 web/collect_data
 
 # Byte-compiled / optimized / DLL files
@@ -98,6 +98,9 @@ celerybeat-schedule
 *.sage.py
 
 # Environments
+*.sqlite3
+*.DS_Store
+.vscode
 .env
 .venv
 env/

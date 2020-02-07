@@ -156,7 +156,7 @@ class MultiResolutionConvolution(nn.Module):
         kernel_size=1, args="l2_bias"):
         super(MultiResolutionConvolution, self).__init__()
         self.args = args
-        self.convs = nn.ModuleList()
+        self.mode = "nearest" if "nearest" in self.args else "bilinear"
         self.ksize = kernel_size
         self.in_dims = in_dims
         self.segments = []
@@ -205,13 +205,7 @@ class MultiResolutionConvolution(nn.Module):
         
         size = max([out.size(3) for out in outs])
 
-        mode = 0
-        if "bilinear" in self.args:
-            mode = "bilinear"
-        elif "nearest" in self.args:
-            mode = "nearest"
-
-        return sum([F.interpolate(out, size, mode=mode) for out in outs])
+        return sum([F.interpolate(out, size, mode=self.mode) for out in outs])
 
 class NoiseLayer(nn.Module):
     """adds noise. noise is per pixel (constant over channels) with per-channel weight"""
@@ -525,12 +519,15 @@ class StyledGenerator(nn.Module):
         elif "cat" in self.segcfg:
             self.build_cat_extractor()
         elif "mul" in self.segcfg:
+            ind = self.args.find("sl") # staring layer
+            self.full_dims = [512, 512, 512, 512, 256, 128, 64, 32, 16]
+            self.mul_start_layer = int(self.args[ind + 2])
             self.build_multi_extractor()
 
     def build_multi_extractor(self):
         self.semantic_branch = MultiResolutionConvolution(
             #        4      8   16  32   64   128 256 512 1024
-            in_dims=[512, 512, 512, 512, 256, 128, 64, 32, 16],
+            in_dims=self.full_dims[self.mul_start_layer:],
             out_dim=self.n_class,
             kernel_size=self.ksize,
             args=self.args
@@ -756,7 +753,7 @@ class StyledGenerator(nn.Module):
         #for ind in range(len(stage)):
         #    if stage[ind].size(2) >= 16:
         #        break
-        return [self.semantic_branch(stage)]
+        return [self.semantic_branch(stage[self.mul_start_layer:])]
 
     def freeze(self, train=False):
         self.freeze_g_mapping(train)

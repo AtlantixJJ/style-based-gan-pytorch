@@ -105,7 +105,10 @@ if "celeba-evaluator" in args.task:
 
     utils.plot_dic(global_dic, args.model, savepath + "_evaluator_global.png")
     for i, name in enumerate(["AP", "AR", "IoU"]):
-        metric_dic = {evaluator.dic['class'][j] : class_dic[name][j] for j in range(n_class)}
+        metric_dic = {
+            evaluator.dic['class'][j] : class_dic[name][j]
+                for j in range(n_class)
+            }
         utils.plot_dic(
             metric_dic,
             f"{args.model}_evaluator_class_{name}",
@@ -115,7 +118,11 @@ if "celeba-evaluator" in args.task:
 if "celeba-trace" in args.task:
     trace_path = f"{args.model}/trace_weight.npy"
     trace = np.load(trace_path) # (N, 16, D)
-    segments = np.cumsum([512, 512, 512, 512, 256, 128, 64, 32, 16])
+    segments = [512, 512, 512, 512, 256, 128, 64, 32, 16]
+    dims = np.cumsum(segments[::-1])
+    ind = dims.searchsorted(trace.shape[2])
+    ind = len(segments) - ind - 1
+    segments = np.cumsum(segments[ind:])
     assert trace.shape[2] == segments[-1]
     weight = trace[-1]
 

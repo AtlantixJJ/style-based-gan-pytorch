@@ -606,7 +606,6 @@ def str_csv_table(strs):
 
 def format_agreement_result(dic):
     label_list = CELEBA_REDUCED_CATEGORY
-
     global_metrics = ["pixelacc", "mAP", "mAR", "mIoU"]
     class_metrics = ["AP", "AR", "IoU"]
 
@@ -641,8 +640,7 @@ def format_agreement_result(dic):
 
 
 def format_test_result(dic):
-    label_list = ['skin', 'nose', 'eye_g', 'eye', 'brow', 'ear', 'mouth', 'u_lip', 'l_lip', 'hair', 'hat', 'ear_r', 'neck_l', 'neck', 'cloth']
-
+    label_list = CELEBA_REDUCED_CATEGORY
     global_metrics = ["pixelacc", "mAP", "mAR", "mIoU"]
     class_metrics = ["AP", "AR", "IoU"]
     
