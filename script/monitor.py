@@ -115,8 +115,8 @@ if "celeba-evaluator" in args.task:
 if "celeba-trace" in args.task:
     trace_path = f"{args.model}/trace_weight.npy"
     trace = np.load(trace_path) # (N, 16, D)
-    assert trace.shape[2] == segments[-1]
     segments = np.cumsum([512, 512, 512, 512, 256, 128, 64, 32, 16])
+    assert trace.shape[2] == segments[-1]
     weight = trace[-1]
 
     # variance
@@ -127,7 +127,7 @@ if "celeba-trace" in args.task:
         ax = plt.subplot(4, 4, j + 1)
         ax.plot(weight_var[j])
         for x in segments:
-            ax.axvline(x=x, color="r-")
+            ax.axvline(x=x, c="red", ls="-")
         ax.axes.get_xaxis().set_visible(False)
         ax.set_ylim([minimum, maximum])
     fig.savefig(f"{savepath}_trace_var.png", bbox_inches='tight')
@@ -140,10 +140,10 @@ if "celeba-trace" in args.task:
         ax = plt.subplot(4, 4, j + 1)
         ax.plot(weight[j])
         for x in segments:
-            ax.axvline(x=x, color="r-")
+            ax.axvline(x=x, c="red", ls="-")
         ax.axes.get_xaxis().set_visible(False)
         ax.set_ylim([minimum, maximum])
-    fig.savefig(f"results/{savepath}_trace_weight.png", bbox_inches='tight')
+    fig.savefig(f"{savepath}_trace_weight.png", bbox_inches='tight')
     plt.close()
 
 

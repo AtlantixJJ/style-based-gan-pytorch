@@ -3,17 +3,24 @@ import os
 class FixSeg(object):
     def __init__(self):
         self.seg_cfgs = [
-            #"mul-16-l1_ortho_nearest",
-            #"mul-16-none_ortho_nearest",
-            #"mul-16-none_nearest",
-            #"mul-16-l1_nearest",
+            ## nearest
+            "mul-16-l1_ortho_nearest",
+            "mul-16-none_ortho_nearest",
+            "mul-16-none_nearest",
+            "mul-16-l1_nearest",
+            ## bilinear
             "mul-16-l1_ortho_bilinear",
             "mul-16-none_ortho_bilinear",
             "mul-16-none_bilinear",
             "mul-16-l1_bilinear",
+            ## complex
+            #"gen-16-bilinear",
+            #"gen-16-nearest",
+            #"cas-16-bilinear",
+            #"cas-16-nearest"
             ]
 
-        self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --gpu %s --batch_size 8 --iter-num 1000 --trace 1 &"
+        self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --gpu %s --batch_size %d --iter-num %d --trace %d &"
     
     def args_gen(self, gpus):
         l = []
@@ -21,7 +28,18 @@ class FixSeg(object):
  
         for segcfg in self.seg_cfgs:
             gpu = gpus[count]
-            l.append((count, (segcfg, gpu)))
+
+            trace = batch_size = iter_num = 0
+            if "mul" in segcfg:
+                trace = 1
+                batch_size = 8
+                iter_num = 4000
+            else:
+                trace = 0
+                batch_size = 4
+                iter_num = 8000
+
+            l.append((count, (segcfg, gpu, batch_size, iter_num, trace)))
             count = (count + 1) % len(gpus)
         return l
     
@@ -59,4 +77,4 @@ def direct_run(gpus):
 
 #gpus = ["6", "7"]; assign_run(direct_run, gpus)
 #gpus = ["4", "5", "6", "7"]; assign_run(FixSeg().command, gpus)
-gpus = ["0"]; assign_run(FixSeg().command, gpus)
+gpus = ["5", "6"]; assign_run(FixSeg().command, gpus)
