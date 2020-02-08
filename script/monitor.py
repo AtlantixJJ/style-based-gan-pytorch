@@ -115,7 +115,7 @@ if "celeba-evaluator" in args.task:
     utils.plot_dic(global_dic, args.model, savepath + "_evaluator_global.png")
     for i, name in enumerate(["AP", "AR", "IoU"]):
         metric_dic = {
-            evaluator.dic['class'][j] : global_dic[name][j]
+            evaluator.dic['class'][j] : class_dic[name][j]
                 for j in range(n_class)
             }
         utils.plot_dic(
