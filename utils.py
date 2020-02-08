@@ -500,7 +500,7 @@ class MaskCelebAEval(object):
             global_dic[f"m{name}"] = class_dic[name].mean(0)
             for t in ["face", "other"]:
                 arr = class_dic[name][getattr(self, f"{t}_indice"), :]
-                global_dic[f"m{name}_{t}"] = arr[arr > -1].mean(0)
+                global_dic[f"m{name}_{t}"] = arr.mean(0)
         
         self.dic["global_process"] = global_dic
         self.dic["class_process"] = class_dic
@@ -534,6 +534,12 @@ class MaskCelebAEval(object):
     def summarize(self):
         print("=> mAP  \t  mAR  \t  mIoU  \t  PixelAcc")
         print("=> %.3f\t%.3f\t%.3f\t%.3f" % (self.dic["mAP"], self.dic["mAR"], self.dic["mIoU"], self.dic["pixelacc"]))
+        print("=> Face accuracy:")
+        print("=> mAP  \t  mAR  \t  mIoU")
+        print("=> %.3f\t%.3f\t%.3f\t%.3f" % (self.dic["mAP_face"], self.dic["mAR_face"], self.dic["mIoU_face"]))
+        print("=> Other accuracy:")
+        print("=> mAP  \t  mAR  \t  mIoU")
+        print("=> %.3f\t%.3f\t%.3f\t%.3f" % (self.dic["mAP_other"], self.dic["mAR_other"], self.dic["mIoU_other"]))
         print("=> Class wise metrics:")
         
         self.clean_dic = {}

@@ -114,7 +114,7 @@ if "celeba-evaluator" in args.task:
     utils.plot_dic(global_dic, args.model, savepath + "_evaluator_global.png")
     for i, name in enumerate(["AP", "AR", "IoU"]):
         metric_dic = {
-            evaluator.dic['class'][j] : class_dic[name][j]
+            evaluator.dic['class'][j] : global_dic[name][j]
                 for j in range(n_class)
             }
         utils.plot_dic(
@@ -203,10 +203,7 @@ if "agreement" in args.task:
     for i, model_file in enumerate(model_files):
         print("=> Load from %s" % model_file)
         state_dict = torch.load(model_file, map_location='cpu')
-        missed = generator.load_state_dict(state_dict, strict=False)
-        if len(missed.missing_keys) > 1:
-            print(missed)
-            exit()
+        missed = generator.load_state_dict(state_dict)
         generator.eval()
 
         evaluator = utils.MaskCelebAEval(map_id=True)
