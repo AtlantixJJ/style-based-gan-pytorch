@@ -22,14 +22,22 @@ args = parser.parse_args()
 
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
-if args.model == "expr":
+if "," in args.gpu:
     # This is root, run for all the expr directory
     files = os.listdir(args.model)
+    files = [f for f in files if os.path.isdir(f"{args.model}/{f}")]
     files.sort()
-    for f in files:
+    gpus = args.gpu.split(",")
+    slots = [[] for _ in gpus]
+    for i, f in enumerate(files):
         basecmd = "python script/monitor.py --task %s --model %s --gpu %s"
-        basecmd = basecmd % (args.task, osj(args.model, f), args.gpu)
-        os.system(basecmd)
+        basecmd = basecmd % (args.task, osj(args.model, f), gpus[i % len(gpus)])
+        slots[i % len(gpus)].append(basecmd)
+    
+    for s in slots:
+        cmd = " && ".join(s) + " &"
+        print(cmd)
+        os.system(cmd)
     exit(0)
 
 savepath = args.model.replace("expr/", "results/")
