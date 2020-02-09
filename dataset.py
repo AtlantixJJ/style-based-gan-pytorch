@@ -38,12 +38,13 @@ class ImageSegmentationDataset(torch.utils.data.Dataset):
     """
     Image and segmentation pair dataset
     """
-    def __init__(self, root, size=(1024, 1024), image_dir="train", label_dir="label", idmap=None):
+    def __init__(self, root, size=(1024, 1024), image_dir="train", label_dir="label", idmap=None, random_flip=True):
         if type(size) is int:
             self.size = (size, size)
         elif type(size) is tuple or type(size) is list:
             self.size = size
         self.root = root
+        self.flip = random_flip
         self.image_dir = osj(root, image_dir)
         self.label_dir = osj(root, label_dir)
         self.idmap = idmap
@@ -67,11 +68,11 @@ class ImageSegmentationDataset(torch.utils.data.Dataset):
 
     def transform(self, image, label):
         image_t = self.normal_transform(image)
-        label = np.asarray(label.resize(self.size)).copy()
+        label = np.asarray(label.resize(self.size, Image.NEAREST)).copy()
         if self.idmap is not None:
             label = self.idmap(label)
         label_t = torch.from_numpy(label).long().unsqueeze(0)
-        if torch.rand(1).numpy()[0] > 0.5:
+        if self.flip and torch.rand(1).numpy()[0] > 0.5:
             image_t = torch.flip(image_t, (2,))
             label_t = torch.flip(label_t, (2,))
         return image_t, label_t

@@ -53,9 +53,14 @@ class MultiGPUTensor(object):
 
 def torch2numpy(x):
     try:
-        return x.data.cpu().numpy()
+        return x.detach().cpu().numpy()
     except:
         return x
+
+
+def tensor2image(x):
+    x = torch2numpy(x)[0].transpose(1, 2, 0)
+    return ((x + 1) * 127.5).astype("uint8")
 
 
 def lerp(a, b, x, y, i):
@@ -374,6 +379,7 @@ def compute_score(y_pred, y_true):
     fp = n_pred - tp
     fn = n_true - tp
     return tp, fp, fn
+
 
 def idmap(x):
     id2cid = {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 4, 6: 5, 7: 5, 8: 6, 9: 6, 10: 7, 11: 8, 12: 9, 13: 10, 14: 11, 15: 12, 16: 13, 17: 14, 18: 15}
