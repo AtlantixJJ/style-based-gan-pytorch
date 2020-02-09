@@ -96,6 +96,29 @@ class ImageSegmentationDataset(torch.utils.data.Dataset):
         return strs
 
 
+class ImageSegmentationPartDataset(torch.utils.data.Dataset):
+    def __init__(self, ds):
+        self.ds = ds
+        self.transform = transforms.Compose([
+            transforms.Resize((299, 299)),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+            ])
+    
+    def __len__(self):
+        return len(self.ds)
+
+    def __getitem__(self, idx):
+        image, label = self.ds[idx]
+        image = utils.tensor2image(image.unsqueeze(0))
+        label = utils.torch2numpy(label)[0].astype("uint8")
+        parts = utils.image2part_catetory(image, label)
+        # preprocessing: numpy uint8 -> torch
+        for i in range(len(parts)):
+            parts[i][1] = self.transform(Image.fromarray(parts[i][1]))
+        return parts
+
+
 class CollectedDataset(torch.utils.data.Dataset):
     def __init__(self, root, size=(1024, 1024), keys=["origin_latent", "origin_noise", "image_stroke", "image_mask", "label_stroke", "label_mask"]):
         self.root = root

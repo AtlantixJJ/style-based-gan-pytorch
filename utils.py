@@ -1,21 +1,14 @@
 from __future__ import print_function
+import datetime, time, math, glob, os
 import matplotlib.pyplot as plt
 from matplotlib import cm
-import os
 from os.path import join as osj
-try:
-    import pickle
-except:
-    import cPickle as pickle
-import datetime, time
-import math
 from PIL import Image
 import numpy as np
 import torch
 import torch.nn.functional as F
 import torchvision.utils as vutils
-from torch.autograd import Variable
-import glob
+from skimage import morphology
 try:
     import cv2
 except:
@@ -278,6 +271,89 @@ class PLComposite(object):
 #########
 
 
+def get_square_mask(mask, pad_box=0):
+    w = np.where(mask.max(0))[0]
+    h = np.where(mask.max(1))[0]
+    xmin, xmax = w.min(), w.max() + 1
+    ymin, ymax = h.min(), h.max() + 1
+    cx = (xmin + xmax) / 2.; cy = (ymin + ymax) / 2.
+    dw = xmax - xmin; dh = ymax - ymin
+    dd = max(dw, dh)
+    dd = min(mask.shape[0], dd + pad_box * 2)
+    d = dd / 2.
+    xmin, xmax = int(cx - d), int(cx + d)
+    ymin, ymax = int(cy - d), int(cy + d)
+    dx = dy = 0
+    if xmin < 0:
+        dx = -xmin
+    elif xmax > mask.shape[1]:
+        dx = mask.shape[1] - xmax # negative
+    if ymin < 0:
+        dy = -ymin
+    elif ymax > mask.shape[0]:
+        dy = mask.shape[0] - ymax # negative
+    xmin += dx; xmax += dx; ymin += dy; ymax += dy
+    return xmin, ymin, xmax, ymax
+
+
+def image2part_catetory(image, label, n_class=16, MIN_AREA=255, pad_box=20, ignore_label=0):
+    parts = []
+    for i in range(n_class): # for each connected component
+        if i == ignore_label:
+            continue
+        mask = label == i
+        size = mask.sum()
+        # ignore background
+        # ignore image patch smaller than 15x15
+        if size < MIN_AREA: 
+            continue
+
+        xmin, ymin, xmax, ymax = get_square_mask(mask, pad_box)
+        
+        dst_img = image[ymin:ymax, xmin:xmax].copy()
+        src_img = image[ymin:ymax, xmin:xmax].copy()
+        cx = dst_img.shape[1] // 2
+        cy = dst_img.shape[0] // 2
+        submask = ~mask[ymin:ymax, xmin:xmax]
+        outside_mean = src_img[submask].mean(0).astype("uint8")
+        src_img[:, :] = outside_mean
+
+        dst_img = cv2.seamlessClone(src_img, dst_img, 255 * submask.astype("uint8"), (cx, cy), cv2.NORMAL_CLONE)
+        parts.append([i, dst_img])
+
+    # returns numpy uint8
+    return parts
+
+
+def image2part_connected(image, label, MIN_AREA=255, ignore_label=0):
+    conn_label, conn_number = morphology.label(label, connectivity=2, return_num=True)
+    parts = []
+    for i in range(conn_number): # for each connected component
+        mask = conn_label == i
+        size = mask.sum()
+        c = label[mask][0]
+        # ignore background
+        # ignore image patch smaller than 15x15
+        if size < MIN_AREA or c == ignore_label: 
+            continue
+
+        xmin, ymin, xmax, ymax = get_square_mask(mask)
+        
+        dst_img = image[ymin:ymax, xmin:xmax].copy()
+        src_img = image[ymin:ymax, xmin:xmax].copy()
+        cx = dst_img.shape[1] // 2
+        cy = dst_img.shape[0] // 2
+        submask = ~mask[ymin:ymax, xmin:xmax]
+        outside_mean = src_img[submask].mean(0).astype("uint8")
+        src_img[:, :] = outside_mean
+
+        dst_img = cv2.seamlessClone(src_img, dst_img, 255 * submask.astype("uint8"), (cx, cy), cv2.NORMAL_CLONE)
+        parts.append([c, dst_img])
+
+    # returns numpy uint8
+    return parts
+
+
 def fast_random_seed(mark, val=False, n_retry=1000):
     h, w = mark.shape
     for _ in range(n_retry):
@@ -532,20 +608,21 @@ class MaskCelebAEval(object):
             vals = [self.dic[name][i] for i in range(self.n_class)]
             vals = np.array(vals)
             self.dic["m" + name] = vals[vals > -1].mean()
-        
-        for t in ["face", "other"]:
-            vals = np.array(self.dic[name])[getattr(self, f"{t}_indice")]
-            self.dic[f"m{name}_{t}"] = vals[vals > -1].mean()
+
+        for name in ["AP", "AR", "IoU"]:
+            for t in ["face", "other"]:
+                vals = np.array(self.dic[name])[getattr(self, f"{t}_indice")]
+                self.dic[f"m{name}_{t}"] = vals[vals > -1].mean()
 
     def summarize(self):
         print("=> mAP  \t  mAR  \t  mIoU  \t  PixelAcc")
         print("=> %.3f\t%.3f\t%.3f\t%.3f" % (self.dic["mAP"], self.dic["mAR"], self.dic["mIoU"], self.dic["pixelacc"]))
         print("=> Face accuracy:")
         print("=> mAP  \t  mAR  \t  mIoU")
-        print("=> %.3f\t%.3f\t%.3f\t%.3f" % (self.dic["mAP_face"], self.dic["mAR_face"], self.dic["mIoU_face"]))
+        print("=> %.3f\t%.3f\t%.3f" % (self.dic["mAP_face"], self.dic["mAR_face"], self.dic["mIoU_face"]))
         print("=> Other accuracy:")
         print("=> mAP  \t  mAR  \t  mIoU")
-        print("=> %.3f\t%.3f\t%.3f\t%.3f" % (self.dic["mAP_other"], self.dic["mAR_other"], self.dic["mIoU_other"]))
+        print("=> %.3f\t%.3f\t%.3f" % (self.dic["mAP_other"], self.dic["mAR_other"], self.dic["mIoU_other"]))
         print("=> Class wise metrics:")
         
         self.clean_dic = {}

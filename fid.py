@@ -9,7 +9,7 @@ from torchvision import utils as vutils
 from scipy import linalg
 from torch.nn.functional import adaptive_avg_pool2d
 from PIL import Image
-
+from copy import deepcopy
 try:
     from tqdm import tqdm
 except ImportError:
@@ -135,7 +135,7 @@ class GeneratorIterator(object):
                     z = torch.Tensor(bs, self.dim).cuda()
             z = z.normal_()
             t = self.model(z)
-            if type(t) is list:
+            if type(t) is tuple:
                 t = t[0]
             t = t.clamp(-1, 1)
 
@@ -143,12 +143,35 @@ class GeneratorIterator(object):
                 for idx in range(t.shape[0]):
                     gidx = idx+i*self.batch_size
                     vutils.save_image(
-                        t[idx:idx+1],
+                        (t[idx:idx+1] + 1)/ 2,
                         f"{save_path}/{gidx}.jpg")
 
             yield pil_bilinear_interpolation(t)
 
 
+class IterableDataset(torch.utils.data.IterableDataset):
+    def __init__(self, iterable, pre):
+        super(IterableDataset, self).__init__()
+        self.iterable = iterable
+        self.pre = pre
+    
+    def __iter__(self):
+        #start = 0
+        for sample in self.iterable:
+            #start += 1
+            #vutils.save_image((1 + sample) / 2, f"test/{self.pre}_{start}.png")
+            yield sample
+
+
+class IteratorDataset(torch.utils.data.IterableDataset):
+    def __init__(self, iterator):
+        super(IteratorDataset, self).__init__()
+        self.iterator = iterator
+    
+    def __iter__(self):
+        return self.iterator
+
+        
 class PartFIDEvaluator(object):
     def __init__(self, n_class=16):
         self.n_class = n_class
@@ -160,14 +183,65 @@ class PartFIDEvaluator(object):
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
-    def calculate_statistics_given_iterator(self, iterator):
-        part_features = [[] for _ in range(self.n_class)]
-        for data_list in iterator:
-            for label, image in data_list:
-                pass
+    def calc_share_feature(self, idx):
+        for i in range(self.n_class):
+            if len(self.part_features[i]) == 0:
+                continue
+            ds = IterableDataset(self.part_features[i], str(i))
+            dl = torch.utils.data.DataLoader(ds,
+                batch_size=50, shuffle=False, num_workers=1, pin_memory=True, drop_last=False)
+            feature = get_feature(self.model, dl)
+            np.save(f"{save_path}/share_s{idx:02d}_c{i:02d}.npy", feature.astype("float32"))
+        del self.part_features
+        self.part_features = [[] for _ in range(self.n_class)]
 
-        m2, s2 = calculate_statistics_given_iterator(
-            self.model, iterator, 'cuda')
+    def large_calc_statistic(self, iterator, save_path):
+        self.part_features = [[] for _ in range(self.n_class)]
+        # every 500 iteration cost 15G memory
+        self.n_share = 0
+        for index, data_list in enumerate(tqdm(iterator)):
+            for label, image in data_list:
+                image_copy = deepcopy(image)
+                if image_copy.shape[0] == 1:
+                    image_copy = image_copy[0]
+                self.part_features[label].append(image_copy)
+                del image
+            
+            if (index + 1) % 1000 == 0:
+                print("=> Calculate share %d of feature." % self.n_share)
+                self.calc_share_feature(self.n_share)
+                self.n_share += 1
+        
+        class_number = [len(p) for p in self.part_features]
+        if sum(class_number) > 0:
+            self.calc_share_feature(self.n_share)
+            self.n_share += 1
+
+    def small_calculate_statistics_given_iterator(self, iterator, save_path=None):
+        part_features = [[] for _ in range(self.n_class)]
+        # every 500 iteration cost 15G memory
+        for index, data_list in enumerate(tqdm(iterator)):
+            for label, image in data_list:
+                if image.shape[0] == 1:
+                    image = image[0]
+                part_features[label].append(image)
+
+        # instance number
+        self.class_length = [len(p) for p in part_features]
+        self.class_mu = []
+        self.class_sigma = []
+
+        for i in range(self.n_class):
+            if len(part_features[i]) == 0:
+                continue
+            ds = IterableDataset(part_features[i], str(i))
+            dl = torch.utils.data.DataLoader(ds,
+                batch_size=50, shuffle=False, num_workers=1, pin_memory=True, drop_last=False)
+            feature = get_feature(self.model, dl)
+            mu = np.mean(feature, axis=0)
+            sigma = np.cov(feature, rowvar=False)
+            if save_path:
+                np.save(f"{save_path}/c{i}_mu_sigma.npy", {"mu": mu, "sigma": sigma})
 
             
 class FIDEvaluator(object):
@@ -184,9 +258,9 @@ class FIDEvaluator(object):
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
     def calculate_statistics_given_path(self, path, save_npy=True):
-        npylist = glob.glob(path + "*.npy")
-        if len(npylist) > 0:
-            path = npylist[0]
+        npy_path = path + "_mu_sigma.npy"
+        if os.path.exists(npy_path):
+            path = npy_path
             print("=> Use npy file %s" % path)
             f = np.load(path, allow_pickle=True).tolist()
             m, s = f['mu'][:], f['sigma'][:]
@@ -215,15 +289,18 @@ class FIDEvaluator(object):
 if __name__ == '__main__':
     import model
 
-    stylegan_path = "checkpoint/karras2019stylegan-ffhq-1024x1024.for_g_all.pt"
-    celeba_path = "../datasets/CelebAMask-HQ/CelebA-HQ-img"
-    save_path = "../datasets/CelebAMask-HQ/whole_gen"
+    name = sys.argv[1]
 
+    stylegan_path = f"checkpoint/karras2019stylegan-{name}-1024x1024.for_g_all.pt"
+    celeba_path = "../datasets/CelebAMask-HQ/CelebA-HQ-img"
+    save_path = f"../datasets/CelebAMask-HQ/whole_gen_{name}"
+
+    #generator = model.tfseg.StyledGenerator(semantic="mul-16-none_sl0")
     generator = model.tf.StyledGenerator()
-    generator.load_state_dict(torch.load(stylegan_path))
+    generator.load_state_dict(torch.load(stylegan_path), strict=False)
     generator.cuda()
 
     evaluator = FIDEvaluator(celeba_path, save_path)
     fid_value = evaluator(GeneratorIterator(generator,
-        batch_size=2, tot_num=30000, dim=512), save_path)
+        batch_size=1, tot_num=30000, dim=512), save_path)
     print('FID: ', fid_value)

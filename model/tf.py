@@ -343,14 +343,11 @@ class G_synthesis(nn.Module):
             last_channels = channels
             #if res != resolution_log2:
             #    self.torgbs.append(MyConv2d(channels, num_channels, 1, gain=1, use_wscale=use_wscale))
-        self.torgb = nn.Conv2d(channels, num_channels, 1)
+        self.torgb = MyConv2d(channels, num_channels, 1, gain=1, use_wscale=use_wscale)
         #self.torgbs.append(self.torgb)
         self.blocks = nn.ModuleDict(OrderedDict(blocks))
         
-    def forward(self, dlatents_in, step):
-        # Input: Disentangled latents (W) [minibatch, num_layers, dlatent_size].
-        # lod_in = tf.cast(tf.get_variable('lod', initializer=np.float32(0), trainable=False), dtype)
-        batch_size = dlatents_in.size(0)       
+    def forward(self, dlatents_in, orthogonal=None, ortho_bias=0):
         for i, m in enumerate(self.blocks.values()):
             if i == 0:
                 x = m(dlatents_in[:, 2*i:2*i+2])
@@ -358,17 +355,6 @@ class G_synthesis(nn.Module):
                 x = m(x, dlatents_in[:, 2*i:2*i+2])
         rgb = self.torgb(x)
         return rgb
-    
-    def all_layer_forward(self, dlatents_in):
-        outputs = []
-        batch_size = dlatents_in.size(0)      
-        for i, m in enumerate(self.blocks.values()):
-            if i == 0:
-                x = m(dlatents_in[:, 2*i:2*i+2])
-            else:
-                x = m(x, dlatents_in[:, 2*i:2*i+2])
-            outputs.append(self.torgbs[i](x))
-        return outputs
 
 
 class StyledGenerator(nn.Module):
@@ -377,11 +363,8 @@ class StyledGenerator(nn.Module):
         self.g_mapping = G_mapping()
         self.g_synthesis = G_synthesis()
 
-    def forward(self, x, step=8):
-        return self.g_synthesis(self.g_mapping(x), step)
-
-    def all_layer_forward(self, x):
-        return self.g_synthesis.all_layer_forward(self.g_mapping(x))
+    def forward(self, x,):
+        return self.g_synthesis(self.g_mapping(x))
 
     def set_noise(self, noises):
         if not hasattr(self, "noise_layers"):
@@ -396,23 +379,22 @@ class StyledGenerator(nn.Module):
             self.noise_layers[i].noise = noises[i]
 
 
-"""
-g_all = nn.Sequential(OrderedDict([
-    ('g_mapping', G_mapping()),
-    #('truncation', Truncation(avg_latent)),
-    ('g_synthesis', G_synthesis())    
-]))
-
 if 0:
     # this can be run to get the weights, but you need the reference implementation and weights
     import dnnlib, dnnlib.tflib, pickle, torch, collections
     dnnlib.tflib.init_tf()
-    weights = pickle.load(open('./karras2019stylegan-ffhq-1024x1024.pkl','rb'))
+    weights = pickle.load(open('./karras2019stylegan-celebahq-1024x1024.pkl','rb'))
     weights_pt = [collections.OrderedDict([(k, torch.from_numpy(v.value().eval())) for k,v in w.trainables.items()]) for w in weights]
-    torch.save(weights_pt, './karras2019stylegan-ffhq-1024x1024.pt')
-if 0:
+    torch.save(weights_pt, './karras2019stylegan-celebahq-1024x1024.pt')
+
+if __name__ == "__main__":
+    g_all = torch.nn.Sequential(OrderedDict([
+        ('g_mapping', G_mapping()),
+        #('truncation', Truncation(avg_latent)),
+        ('g_synthesis', G_synthesis())    
+    ]))
     # then on the PyTorch side run
-    state_G, state_D, state_Gs = torch.load('./karras2019stylegan-ffhq-1024x1024.pt')
+    state_G, state_D, state_Gs = torch.load('checkpoint/karras2019stylegan-celebahq-1024x1024.pt')
     def key_translate(k):
         k = k.lower().split('/')
         if k[0] == 'g_synthesis':
@@ -420,14 +402,14 @@ if 0:
                 k.insert(1, 'blocks')
             k = '.'.join(k)
             k = (k.replace('const.const','const').replace('const.bias','bias').replace('const.stylemod','epi1.style_mod.lin')
-                  .replace('const.noise.weight','epi1.top_epi.noise.weight')
-                  .replace('conv.noise.weight','epi2.top_epi.noise.weight')
-                  .replace('conv.stylemod','epi2.style_mod.lin')
-                  .replace('conv0_up.noise.weight', 'epi1.top_epi.noise.weight')
-                  .replace('conv0_up.stylemod','epi1.style_mod.lin')
-                  .replace('conv1.noise.weight', 'epi2.top_epi.noise.weight')
-                  .replace('conv1.stylemod','epi2.style_mod.lin')
-                  .replace('torgb_lod0','torgb'))
+                    .replace('const.noise.weight','epi1.top_epi.noise.weight')
+                    .replace('conv.noise.weight','epi2.top_epi.noise.weight')
+                    .replace('conv.stylemod','epi2.style_mod.lin')
+                    .replace('conv0_up.noise.weight', 'epi1.top_epi.noise.weight')
+                    .replace('conv0_up.stylemod','epi1.style_mod.lin')
+                    .replace('conv1.noise.weight', 'epi2.top_epi.noise.weight')
+                    .replace('conv1.stylemod','epi2.style_mod.lin')
+                    .replace('torgb_lod0','torgb'))
         else:
             k = '.'.join(k)
         return k
@@ -461,6 +443,4 @@ if 0:
                 print ("mismatch!", k, pds, sds)
 
     g_all.load_state_dict(param_dict, strict=False) # needed for the blur kernels
-    torch.save(g_all.state_dict(), './karras2019stylegan-ffhq-1024x1024.for_g_all.pt')
-g_all.load_state_dict(torch.load('./karras2019stylegan-ffhq-1024x1024.for_g_all.pt'))
-"""
+    torch.save(g_all.state_dict(), 'checkpoint/karras2019stylegan-celebahq-1024x1024.for_g_all.pt')

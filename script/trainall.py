@@ -3,22 +3,26 @@ import os
 class FixSeg(object):
     def __init__(self):
         self.seg_cfgs = [
-            "mul-16-l1_nearest_sl1",
-            "mul-16-none_nearest_sl1",
-            "mul-16-l1_bilinear_sl1",
-            "mul-16-none_bilinear_sl1",
-            "mul-16-l1_nearest_sl2",
-            "mul-16-none_nearest_sl2",
-            "mul-16-l1_bilinear_sl2",
-            "mul-16-none_bilinear_sl2",
+            "mul-16-l1_nearest_sl0",
+            "mul-16-none_nearest_sl0",
+            "mul-16-l1_bilinear_sl0",
+            "mul-16-none_bilinear_sl0",
+            #"mul-16-l1_nearest_sl1",
+            #"mul-16-none_nearest_sl1",
+            #"mul-16-l1_bilinear_sl1",
+            #"mul-16-none_bilinear_sl1",
+            #"mul-16-l1_nearest_sl2",
+            #"mul-16-none_nearest_sl2",
+            #"mul-16-l1_bilinear_sl2",
+            #"mul-16-none_bilinear_sl2",
             ## complex
-            #"gen-16-bilinear",
-            #"gen-16-nearest",
-            #"cas-16-bilinear",
-            #"cas-16-nearest"
+            "gen-16-bilinear",
+            "gen-16-nearest",
+            "cas-16-bilinear",
+            "cas-16-nearest"
             ]
 
-        self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --gpu %s --batch_size %d --iter-num %d --trace %d &"
+        self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --gpu %s --batch_size %d --iter-num %d --trace %d --load checkpoint/karras2019stylegan-celebahq-1024x1024.for_g_all.pt &"
     
     def args_gen(self, gpus):
         l = []
