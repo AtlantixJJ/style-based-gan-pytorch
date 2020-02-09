@@ -3,8 +3,10 @@ import os
 from os.path import join as osj
 from PIL import Image
 from torchvision import transforms
+import torchvision.utils as vutils
 import numpy as np
 import utils
+import math
 
 
 class SimpleDataset(torch.utils.data.Dataset):
@@ -110,13 +112,60 @@ class ImageSegmentationPartDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         image, label = self.ds[idx]
-        image = utils.tensor2image(image.unsqueeze(0))
+        if image.shape[0] != 1:
+            image = image.unsqueeze(0)
+        image = utils.tensor2image(image)
         label = utils.torch2numpy(label)[0].astype("uint8")
         parts = utils.image2part_catetory(image, label)
         # preprocessing: numpy uint8 -> torch
         for i in range(len(parts)):
             parts[i][1] = self.transform(Image.fromarray(parts[i][1]))
         return parts
+
+
+
+class SegGANDataset(torch.utils.data.Dataset):
+    def __init__(self, model, dim=512, tot_num=30000, batch_size=1, save_path=None, device='cuda'):
+        self.model = model
+        self.dim = dim
+        self.tot_num = tot_num
+        self.batch_size = batch_size
+        self.save_path = save_path
+        self.device = device
+        self.num_iter = math.ceil(float(self.tot_num) / self.batch_size)
+
+        self.z = torch.Tensor(self.batch_size, self.dim).to(device)
+        if self.save_path is not None and not os.path.exists(self.save_path):
+            os.system("mkdir %s" % self.save_path)
+            os.system("mkdir %s/image" % self.save_path)
+            os.system("mkdir %s/label" % self.save_path)
+
+    def __len__(self):
+        return self.num_iter
+
+    def save(self, gidx, image, label):
+        for i in range(image.shape[0]):
+            vutils.save_image((1 + image[i:i+1]) / 2,
+                f"{self.save_path}/image/{gidx+i}.jpg")
+            utils.imwrite(
+                f"{self.save_path}/label/{gidx+i}.png", utils.torch2numpy(label[i]))
+
+    def __getitem__(self, idx):
+        z = self.z
+        if idx == self.num_iter - 1:
+            bs = self.tot_num - self.batch_size * idx
+            if bs < self.batch_size:
+                z = torch.Tensor(bs, self.dim, device=self.device)
+        z.normal_()
+
+        image, seg = self.model(z)
+        label = seg.argmax(1)
+        image = image.clamp(-1, 1)
+
+        if self.save_path is not None:
+            self.save(idx * self.batch_size, image, label)
+
+        return image, label
 
 
 class CollectedDataset(torch.utils.data.Dataset):

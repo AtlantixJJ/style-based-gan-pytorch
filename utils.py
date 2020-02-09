@@ -170,6 +170,22 @@ def numpy2label(label_np, n_label):
 ######
 
 
+def tensor_resize_by_pil(x, size=(299, 299), resample=Image.BILINEAR):
+    """
+    x: [-1, 1] torch tensor (N, C, H, W)
+    """
+    y = np.zeros((x.shape[0], size[0], size[1], 3), dtype='uint8')
+    x_arr = ((x + 1) * 127.5).detach().cpu().numpy().astype("uint8")
+    x_arr = x_arr.transpose(0, 2, 3, 1)
+    for i in range(x_arr.shape[0]):
+        if x_arr.shape[-1] == 1:
+            y[i] = np.asarray(Image.fromarray(x_arr[i, :, :, 0]).resize(
+                size, resample).convert("RGB"))
+        else:
+            y[i] = np.asarray(Image.fromarray(x_arr[i]).resize(size, resample))
+    return torch.from_numpy(y.transpose(0, 3, 1, 2)).type_as(x) / 127.5 - 1
+
+
 def imread(fpath):
     with open(os.path.join(fpath), "rb") as f:
         return np.asarray(Image.open(f), dtype="uint8")
@@ -184,7 +200,7 @@ def imwrite(fpath, image):
     elif ".png" in fpath:
         ext = "PNG"
     with open(os.path.join(fpath), "wb") as f:
-        Image.fromarray(image.astype("uint8")).save(f, format=ext)
+        Image.fromarray(image.astype("uint8")).convert("RGB").save(f, format=ext)
 
 
 def pil_read(fpath):

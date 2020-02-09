@@ -96,22 +96,6 @@ def calculate_statistics_given_iterator(model, iterator, save_path=None):
     return mu, sigma
 
 
-def pil_bilinear_interpolation(x, size=(299, 299)):
-    """
-    x: [-1, 1] torch tensor
-    """
-    y = np.zeros((x.shape[0], size[0], size[1], 3), dtype='uint8')
-    x_arr = ((x + 1) * 127.5).detach().cpu().numpy().astype("uint8")
-    x_arr = x_arr.transpose(0, 2, 3, 1)
-    for i in range(x_arr.shape[0]):
-        if x_arr.shape[-1] == 1:
-            y[i] = np.asarray(Image.fromarray(x_arr[i, :, :, 0]).resize(
-                size, Image.BILINEAR).convert("RGB"))
-        else:
-            y[i] = np.asarray(Image.fromarray(x_arr[i]).resize(size, Image.BILINEAR))
-    return torch.from_numpy(y.transpose(0, 3, 1, 2)).type_as(x) / 127.5 - 1
-
-
 class GeneratorIterator(object):
     def __init__(self, model, dim=512, tot_num=50000, batch_size=64, cuda=True):
         self.model = model
@@ -146,7 +130,7 @@ class GeneratorIterator(object):
                         (t[idx:idx+1] + 1)/ 2,
                         f"{save_path}/{gidx}.jpg")
 
-            yield pil_bilinear_interpolation(t)
+            yield utils.tensor_resize_by_pil(t)
 
 
 class IterableDataset(torch.utils.data.IterableDataset):
@@ -183,7 +167,7 @@ class PartFIDEvaluator(object):
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
-    def calc_share_feature(self, idx):
+    def calc_share_feature(self, idx, save_path):
         for i in range(self.n_class):
             if len(self.part_features[i]) == 0:
                 continue
@@ -209,12 +193,12 @@ class PartFIDEvaluator(object):
             
             if (index + 1) % 1000 == 0:
                 print("=> Calculate share %d of feature." % self.n_share)
-                self.calc_share_feature(self.n_share)
+                self.calc_share_feature(self.n_share, save_path)
                 self.n_share += 1
         
         class_number = [len(p) for p in self.part_features]
         if sum(class_number) > 0:
-            self.calc_share_feature(self.n_share)
+            self.calc_share_feature(self.n_share, save_path)
             self.n_share += 1
 
     def small_calculate_statistics_given_iterator(self, iterator, save_path=None):
