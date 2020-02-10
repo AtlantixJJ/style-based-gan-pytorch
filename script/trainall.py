@@ -3,10 +3,10 @@ import os
 class FixSeg(object):
     def __init__(self):
         self.seg_cfgs = [
-            "mul-16-l1_nearest_sl0",
-            "mul-16-none_nearest_sl0",
-            "mul-16-l1_bilinear_sl0",
-            "mul-16-none_bilinear_sl0",
+            #"mul-16-l1_nearest_sl0",
+            #"mul-16-none_nearest_sl0",
+            #"mul-16-l1_bilinear_sl0",
+            #"mul-16-none_bilinear_sl0",
             #"mul-16-l1_nearest_sl1",
             #"mul-16-none_nearest_sl1",
             #"mul-16-l1_bilinear_sl1",

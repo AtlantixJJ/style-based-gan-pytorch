@@ -29,7 +29,7 @@ if len(args.model) == 0:
         idmap=utils.idmap,
         random_flip=False)
     pds = dataset.ImageSegmentationPartDataset(ds)
-    dl = DataLoader(pds, batch_size=1, num_workers=1, shuffle=False)
+    dl = DataLoader(pds, batch_size=1, num_workers=4, shuffle=False)
 
     evaluator.large_calc_statistic(dl, args.output)
     exit(0)
