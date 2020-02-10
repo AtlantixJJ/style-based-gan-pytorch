@@ -69,4 +69,4 @@ def direct_run(gpus):
 
 #gpus = ["6", "7"]; assign_run(direct_run, gpus)
 #gpus = ["4", "5", "6", "7"]; assign_run(FixSeg().command, gpus)
-gpus = ["0", "1", "2", "3"]; assign_run(FixSeg().command, gpus)
+gpus = ["0", "1", "2"]; assign_run(FixSeg().command, gpus)
