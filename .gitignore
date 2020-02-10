@@ -6,12 +6,10 @@
 *.mp4
 *.tar.gz
 datasets
+record
 results
 expr
-datasets
 checkpoint
-complex
-simple
 data
 web/collect_data
 
