@@ -276,8 +276,7 @@ class FixSegConfig(BaseConfig):
             self.id2cid = {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 4, 6: 5, 7: 5, 8: 6, 9: 6, 10: 7, 11: 8, 12: 9, 13: 10, 14: 11, 15: 12, 16: 13, 17: 14, 18: 15}
         else:
             self.map_id = False
-        self.name = "{}_{}_{}_l{self.reg_coef}".format(
-            self.task, self.seg_coef, self.semantic_config)
+        self.name = f"{self.task}_{self.seg_coef}_{self.semantic_config}_l{self.reg_coef}"
         self.expr_dir = osj("expr", self.name)
     
     def idmap(self, x):
