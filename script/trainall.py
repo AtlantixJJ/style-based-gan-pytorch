@@ -3,25 +3,15 @@ import os
 class FixSeg(object):
     def __init__(self):
         self.seg_cfgs = [
-            #"mul-16-l1_nearest_sl0",
-            #"mul-16-none_nearest_sl0",
-            #"mul-16-l1_bilinear_sl0",
-            #"mul-16-none_bilinear_sl0",
-            #"mul-16-l1_nearest_sl1",
-            #"mul-16-none_nearest_sl1",
-            #"mul-16-l1_bilinear_sl1",
-            #"mul-16-none_bilinear_sl1",
-            #"mul-16-l1_nearest_sl2",
-            #"mul-16-none_nearest_sl2",
-            #"mul-16-l1_bilinear_sl2",
-            #"mul-16-none_bilinear_sl2",
-            ## complex
-            "gen-16-bilinear",
-            "gen-16-nearest",
-            "cas-16-bilinear",
-            "cas-16-nearest"
+            "mul-16-l1",
+            "mul-16-l1",
+            "mul-16-l1"
             ]
-
+        self.l1_coefs = [
+            2e-4,
+            1e-3,
+            5e-3,
+        ]
         self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --gpu %s --batch_size %d --iter-num %d --trace %d --load checkpoint/karras2019stylegan-celebahq-1024x1024.for_g_all.pt &"
     
     def args_gen(self, gpus):
@@ -79,4 +69,4 @@ def direct_run(gpus):
 
 #gpus = ["6", "7"]; assign_run(direct_run, gpus)
 #gpus = ["4", "5", "6", "7"]; assign_run(FixSeg().command, gpus)
-gpus = ["0", "1", "5", "6"]; assign_run(FixSeg().command, gpus)
+gpus = ["4", "5", "6", "7"]; assign_run(FixSeg().command, gpus)

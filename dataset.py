@@ -106,7 +106,7 @@ class ImageSegmentationPartDataset(torch.utils.data.Dataset):
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
             ])
-    
+
     def __len__(self):
         return len(self.ds)
 
@@ -121,7 +121,6 @@ class ImageSegmentationPartDataset(torch.utils.data.Dataset):
         for i in range(len(parts)):
             parts[i][1] = self.transform(Image.fromarray(parts[i][1]))
         return parts
-
 
 
 class SegGANDataset(torch.utils.data.Dataset):

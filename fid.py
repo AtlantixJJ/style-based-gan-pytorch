@@ -133,27 +133,16 @@ class GeneratorIterator(object):
             yield utils.tensor_resize_by_pil(t)
 
 
-class IterableDataset(torch.utils.data.IterableDataset):
-    def __init__(self, iterable, pre):
+class IterableDataset(torch.utils.data.Dataset):
+    def __init__(self, iterable):
         super(IterableDataset, self).__init__()
         self.iterable = iterable
-        self.pre = pre
     
-    def __iter__(self):
-        #start = 0
-        for sample in self.iterable:
-            #start += 1
-            #vutils.save_image((1 + sample) / 2, f"test/{self.pre}_{start}.png")
-            yield sample
+    def __len__(self):
+        return len(self.iterable)
 
-
-class IteratorDataset(torch.utils.data.IterableDataset):
-    def __init__(self, iterator):
-        super(IteratorDataset, self).__init__()
-        self.iterator = iterator
-    
-    def __iter__(self):
-        return self.iterator
+    def __getitem__(self, idx):
+        return self.iterable[idx]
 
         
 class PartFIDEvaluator(object):
@@ -167,11 +156,38 @@ class PartFIDEvaluator(object):
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
+    def summarize_large_feature(self, load_path, allow_npy=True):
+        if allow_npy and len(glob.glob(f"{load_path}/c[0-9][0-9]_mu_sigma.npy")) > 0:
+            return
+        
+        for c in range(self.n_class):
+            files = glob.glob(f"{load_path}/share_s[0-9][0-9]_c{c:02d}.npy")
+            files.sort()
+            if len(files) == 0:
+                continue
+            arrs = [np.load(f) for f in files]
+            arrs = np.concatenate(arrs)
+            mu = np.mean(arrs, axis=0)
+            sigma = np.cov(arrs, rowvar=False)
+            np.save(f"{load_path}/c{c:02d}_mu_sigma.npy", {"mu": mu, "sigma": sigma})
+
+    def calculate_statistics_given_path(self, path1, path2):
+        fids = []
+        list1 = glob.glob(f"{path1}/*mu_sigma.npy")
+        list2 = glob.glob(f"{path2}/*mu_sigma.npy")
+        for f1, f2 in zip(list1, list2):
+            dic1 = np.load(f1, allow_pickle=True)[()]
+            dic2 = np.load(f2, allow_pickle=True)[()]
+            mu1, sigma1 = dic1["mu"], dic1["sigma"]
+            mu2, sigma2 = dic2["mu"], dic2["sigma"]
+            fids.append(calculate_frechet_distance(mu1, sigma1, mu2, sigma2))
+        return fids
+
     def calc_share_feature(self, idx, save_path):
         for i in range(self.n_class):
             if len(self.part_features[i]) == 0:
                 continue
-            ds = IterableDataset(self.part_features[i], str(i))
+            ds = IterableDataset(self.part_features[i])
             dl = torch.utils.data.DataLoader(ds,
                 batch_size=50, shuffle=False, num_workers=1, pin_memory=True, drop_last=False)
             feature = get_feature(self.model, dl)
@@ -218,7 +234,7 @@ class PartFIDEvaluator(object):
         for i in range(self.n_class):
             if len(part_features[i]) == 0:
                 continue
-            ds = IterableDataset(part_features[i], str(i))
+            ds = IterableDataset(part_features[i])
             dl = torch.utils.data.DataLoader(ds,
                 batch_size=50, shuffle=False, num_workers=1, pin_memory=True, drop_last=False)
             feature = get_feature(self.model, dl)
