@@ -1,5 +1,9 @@
 import sys
 sys.path.insert(0, ".")
+import os
+os.environ["MKL_NUM_THREADS"]		="16"
+os.environ["NUMEXPR_NUM_THREADS"]	="16"
+os.environ["OMP_NUM_THREADS"]		="16"
 import torch, argparse, tqdm, cv2
 from torchvision import transforms
 from torch.utils.data import DataLoader
