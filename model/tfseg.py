@@ -185,7 +185,7 @@ class MultiResolutionConvolution(nn.Module):
         print("%.3f %.3f" % (new_delta.min(), new_delta.max()))
         return new_delta
 
-    def forward(self, x):
+    def forward(self, x, ret_layers=False):
         """
         x is list of multi resolution feature map
         """
@@ -204,7 +204,8 @@ class MultiResolutionConvolution(nn.Module):
             prev = cur
         
         size = max([out.size(3) for out in outs])
-
+        if ret_layers:
+            return outs
         return sum([F.interpolate(out, size, mode=self.mode) for out in outs])
 
 class NoiseLayer(nn.Module):
