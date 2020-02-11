@@ -137,16 +137,29 @@ if "layer-conv" in args.task:
     generator = generator.to(device)
 
     image = generator(latent, seg=False)
-    image = (1 + image[0].clamp(-1, 1)) / 2
+    image = image.clamp(-1, 1)
+    unet_seg = faceparser(F.interpolate(image, size=512, mode="bilinear"))
+    unet_label_viz = colorizer(unet_seg.argmax(1)).float() / 255.
+    image = (1 + image[0]) / 2
     segs = generator.extract_segmentation(generator.stage)
 
-    images = [image, ]
-    
+    images = [image, unet_label_viz]
+
+    prev_label = 0
     for s in segs:
         layer_label = F.interpolate(s, size=image.shape[2], mode="bilinear")
+        if prev_label is 0:
+            prev_label = layer_label
         layer_label_viz = colorizer(layer_label).float() / 255.
+        diff_label_viz = layer_label_viz.clone()
+        for i in range(3):
+            diff_label_viz[:, i, :, :][layer_label == prev_label] = 1
+        images.extend([layer_label_viz, diff_label_viz])
 
-    
+    images = [F.interpolate(img, size=256, mode="bilinear") for img in images]
+    images = torch.cat(images)
+    vutils.save_image(images, f"{savepath}_layer-conv.png")
+
 
 
 
