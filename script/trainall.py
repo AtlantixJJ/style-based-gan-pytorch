@@ -15,7 +15,7 @@ class FixSeg(object):
             "celebahq",
             "ffhq"
         ]
-        self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --gpu %s --batch_size 4 --iter-num 8000 --trace %d --load %s --expr %s && python script/monitor.py --task log,seg,celeba-evaluator,agreement --gpu %s --model %s/fixseg_%s &"
+        self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --gpu %s --batch_size 4 --iter-num 8000 --trace %d --load %s --expr %s"
         # evaluator: layer visualization is missing
 
     def args_gen(self, gpus):
@@ -34,7 +34,8 @@ class FixSeg(object):
             for model, expr in zip(self.models, self.output_dirs):
                 l.append((count,
                     (segcfg, gpu, trace, model, expr, # train
-                    gpu, expr, segcfg))) # eval
+                    #gpu, expr, segcfg
+                    ))) # eval
                 count = (count + 1) % len(gpus)
         return l
     

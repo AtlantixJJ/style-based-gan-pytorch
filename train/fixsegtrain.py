@@ -145,4 +145,5 @@ for ind in tqdm(range(cfg.n_iter)):
 		torch.save(sg.state_dict(), cfg.expr_dir + "/iter_%06d.model" % ind)
 		if cfg.trace_weight:
 			np.save(cfg.expr_dir + "/trace_weight.npy", trace_weight[:ind])
-			np.save(cfg.expr_dir + "/trace_bias.npy", trace_bias[:ind])
+
+os.system(f"python script/monitor.py --task log,seg,celeba-evaluator,agreement --gpu {cfg.gpu[0]} --model {cfg.expr_dir}")

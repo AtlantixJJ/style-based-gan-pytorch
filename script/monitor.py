@@ -97,10 +97,12 @@ if "fast" in args.task:
 else:
     LEN = 1000
 
+
 if "log" in args.task:
     logfile = args.model + "/log.txt"
     dic = utils.parse_log(logfile)
     utils.plot_dic(dic, args.model, savepath + "_loss.png")
+
 
 if "celeba-evaluator" in args.task:
     WINDOW = 100
@@ -166,50 +168,6 @@ if "layer-conv" in args.task:
     images = torch.cat(images)
     print(f"=> Image write to {savepath}_layer-conv.png")
     vutils.save_image(images, f"{savepath}_layer-conv.png", nrow=2)
-
-
-if "layer-mul" in args.task:
-    colorizer = utils.Colorize(16) #label to rgb
-    model_file = model_files[-1]
-    latent = torch.randn(1, latent_size, device=device)
-    state_dict = torch.load(model_file, map_location='cpu')
-    missed = generator.load_state_dict(state_dict, strict=False)
-    if len(missed.missing_keys) > 1:
-        print(missed)
-        exit()
-    generator.eval()
-    generator = generator.to(device)
-
-    image, seg = generator(latent)
-    final_label_viz = colorizer(seg.argmax(1)).float() / 255.
-    image = image.clamp(-1, 1)
-    unet_seg = faceparser(F.interpolate(image, size=512, mode="bilinear"))
-    unet_label = utils.idmap(unet_seg.argmax(1))
-    unet_label_viz = colorizer(unet_label).float() / 255.
-    image = (1 + image[0]) / 2
-    layers = generator.semantic_branch(generator.stage, True)
-
-    images = [image, unet_label_viz, final_label_viz]
-
-    prev_label = 0
-    for i, l in enumerate(layers):
-        layer_label = F.interpolate(l, size=image.shape[2], mode="bilinear")
-        sum_layers = [F.interpolate(x, size=l.shape[2], mode="bilinear")
-            for x in layers[:i]]
-        sum_layers = sum_layers + l
-        sum_label_viz = colorizer(sum_layers.argmax(1)).float() / 255.
-        if prev_label is 0:
-            prev_label = layer_label
-        layer_label_viz = colorizer(layer_label).float() / 255.
-        diff_label_viz = sum_label_viz.clone()
-        for i in range(3):
-            diff_label_viz[:, i, :, :][sum_label_viz == prev_label] = 1
-        images.extend([layer_label_viz, sum_label_viz, diff_label_viz])
-        prev_label = sum_label_viz
-
-    images = [F.interpolate(img, size=256, mode="bilinear") for img in images]
-    images = torch.cat(images)
-    vutils.save_image(images, f"{savepath}_layer-conv.png")
 
 
 if "celeba-trace" in args.task:
