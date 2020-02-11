@@ -696,6 +696,9 @@ class StyledGenerator(nn.Module):
         for i, seg_input in enumerate(stage):
             outputs.append(self.semantic_extractor[count](seg_input))
             count += 1
+        size = outputs[-1].shape[2]
+        s = sum([F.interpolate(s, size=size, mode="bilinear") for s in outputs])
+        outputs.append(s)
         return outputs
 
     def extract_segmentation_multi(self, stage):

@@ -82,18 +82,24 @@ for ind in tqdm(range(cfg.n_iter)):
 	coefs = [1. for s in segs]
 	seglosses = []
 	for c, s in zip(coefs, segs):
-		s_ = F.interpolate(s, label.size(2), mode="bilinear")
-		l = logsoftmax(s_, label)
-		seglosses.append(c * l)
+		layer_loss = 0
+		if s.size(2) < label.size(2): # label is large : downsample label
+			l_ = label.unsqueeze(0).float()
+			l_ = F.interpolate(l_, s.size(2), mode="nearest")
+			layer_loss = logsoftmax(s, l_.long()[0])
+		elif s.size(2) > label.size(2): # label is small : downsample seg
+			s_ = F.interpolate(s, label.size(2), mode="bilinear")
+			layer_loss = logsoftmax(s_, label)
+		seglosses.append(c * layer_loss)
 	segloss = cfg.seg_coef * sum(seglosses) / len(seglosses)
 
 	regloss = 0
 	
-	if "l1" in cfg.semantic_config:
+	if "mul" in cfg.semantic_config and "l1" in cfg.semantic_config:
 		regloss += cfg.reg_coef * l1loss(sg.semantic_branch.weight)
 		regloss += cfg.reg_coef * l1loss(sg.semantic_branch.bias)
 
-	if "ortho" in cfg.semantic_config:
+	if "mul" in cfg.semantic_config and "ortho" in cfg.semantic_config:
 		w = sg.semantic_branch.weight[:, :, 0, 0]
 		ww = torch.matmul(w, w.permute(1, 0))
 		target = torch.eye(ww.shape[0], device=ww.device)

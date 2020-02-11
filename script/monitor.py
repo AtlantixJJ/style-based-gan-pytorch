@@ -124,8 +124,10 @@ if "celeba-evaluator" in args.task:
             f"{savepath}_evaluator_class_{name}.png")
 
 
-if "layer-" in args.task:
+if "layer-conv" in args.task:
+    colorizer = utils.Colorize(16) #label to rgb
     model_file = model_files[-1]
+    latent = torch.randn(1, latent_size, device=device)
     state_dict = torch.load(model_file, map_location='cpu')
     missed = generator.load_state_dict(state_dict, strict=False)
     if len(missed.missing_keys) > 1:
@@ -133,6 +135,18 @@ if "layer-" in args.task:
         exit()
     generator.eval()
     generator = generator.to(device)
+
+    image = generator(latent, seg=False)
+    image = (1 + image[0].clamp(-1, 1)) / 2
+    segs = generator.extract_segmentation(generator.stage)
+
+    images = [image, ]
+    
+    for s in segs:
+        layer_label = F.interpolate(s, size=image.shape[2], mode="bilinear")
+        layer_label_viz = colorizer(layer_label).float() / 255.
+
+    
 
 
 

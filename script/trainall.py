@@ -5,6 +5,7 @@ class FixSeg(object):
         self.seg_cfgs = [
             "conv-16-1",
             "conv-16-2",
+            "conv-16-3",
             ]
         self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --gpu %s --batch_size %d --iter-num %d --trace %d --load checkpoint/karras2019stylegan-celebahq-1024x1024.for_g_all.pt &"
     
@@ -105,5 +106,5 @@ def direct_run(gpus):
         yield index, c % gpu
 
 #gpus = ["6", "7"]; assign_run(direct_run, gpus)
-gpus = ["4", "5", "6", "7"]; assign_run(FixSeg().command, gpus)
+gpus = ["0"]; assign_run(FixSeg().command, gpus)
 #gpus = ["0", "1", "2"]; assign_run(FixSeg().command, gpus)
