@@ -147,7 +147,7 @@ if "layer-conv" in args.task:
 
     prev_label = 0
     for s in segs:
-        layer_label = F.interpolate(s, size=image.shape[2], mode="bilinear")
+        layer_label = F.interpolate(s, size=image.shape[2], mode="bilinear").argmax(1)
         if prev_label is 0:
             prev_label = layer_label
         layer_label_viz = colorizer(layer_label).float() / 255.
