@@ -24,7 +24,6 @@ class FixSeg(object):
  
         for i in range(len(self.seg_cfgs)):
             segcfg = self.seg_cfgs[i]
-            gpu = gpus[count]
             
             if "mul" in segcfg:
                 trace = 1
@@ -32,6 +31,7 @@ class FixSeg(object):
                 trace = 0
             
             for model, expr in zip(self.models, self.output_dirs):
+                gpu = gpus[count]
                 l.append((count,
                     (segcfg, gpu, trace, model, expr, # train
                     #gpu, expr, segcfg
