@@ -88,69 +88,6 @@ class MyConv2d(nn.Module):
         return x
 
 
-class MultiResolutionMLP(nn.Module):
-    def __init__(self,
-        in_dims=[512, 512, 256, 64, 32, 16],
-        hidden_dims=[512],
-        out_dim=16,
-        kernel_size=1,
-        args="l2_bias"):
-        super(MultiResolutionMLP, self).__init__()
-        self.args = args
-        self.ksize = kernel_size
-        self.in_dims = in_dims
-        self.segments = []
-        cur = 0
-        for dim in in_dims:
-            self.segments.append((cur, cur + dim))
-            cur += dim
-
-        self.in_weight = nn.Parameter(torch.zeros(out_dim, sum(in_dims), 1, 1))
-        torch.nn.init.kaiming_normal_(self.weight)
-        self.in_bias = nn.Parameter(torch.zeros(len(in_dims), hidden_dims[0]))
-
-        self.hidden_weights = nn.ParameterList()
-        self.hidden_biases = nn.ParameterList()
-
-        prev_dim = sum(in_dims)
-        for cur_dim in hidden_dims:
-            weight = torch.zeros(cur_dim, prev_dim, 1, 1)
-            torch.nn.init.kaiming_normal_(weight)
-            self.hidden_weights.append(nn.Parameter(weight))
-            bias = torch.zeros(prev_dim, cur_dim)
-            self.hidden_biases.append(nn.Parameter(bias))
-            prev_dim = cur_dim
-
-    # (256, 1024, 1024) 16, 32, 64, 128 (128)
-    def forward(self, x):
-        """
-        x is list of multi resolution feature map
-        """
-        outs = []
-        prev = 0
-
-        for i in range(len(self.in_dims)):
-            cur = prev + self.in_dims[i]
-            y = 0
-            if "bias" in self.args:
-                y = F.conv2d(x[i], self.weight[:, prev : cur], self.bias[i])
-            else:
-                y = F.conv2d(x[i], self.weight[:, prev : cur])
-            outs.append(y)
-
-            prev = cur
-        
-        size = max([out.size(3) for out in outs])
-
-        mode = 0
-        if "bilinear" in self.args:
-            mode = "bilinear"
-        elif "nearest" in self.args:
-            mode = "nearest"
-
-        return sum([F.interpolate(out, size, mode=mode) for out in outs])
-
-
 class MultiResolutionConvolution(nn.Module):
     def __init__(self, in_dims=[512, 512, 256, 64, 32, 16], out_dim=16,
         kernel_size=1, args="l2_bias"):
@@ -630,7 +567,7 @@ class StyledGenerator(nn.Module):
     def build_conv_extractor(self):
         def conv_block(in_dim, out_dim, ksize):
             if self.n_layer == 1:
-                _m = [MyConv2d(in_dim, out_dim, ksize)]
+                _m = [MyConv2d(in_dim, out_dim, ksize, bias=False)]
             else:
                 midim = (in_dim + out_dim) // 2
                 _m = []

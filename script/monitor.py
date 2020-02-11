@@ -41,6 +41,7 @@ if args.recursive == "1":
         os.system(cmd)
     exit(0)
 
+# for models store in expr, write result to results; for others, store in same dir
 savepath = args.model.replace("expr/", "results/")
 
 device = 'cuda' if int(args.gpu) > -1 else 'cpu'
@@ -139,28 +140,32 @@ if "layer-conv" in args.task:
     image = generator(latent, seg=False)
     image = image.clamp(-1, 1)
     unet_seg = faceparser(F.interpolate(image, size=512, mode="bilinear"))
-    unet_label_viz = colorizer(unet_seg.argmax(1)).float() / 255.
+    unet_label = utils.idmap(unet_seg.argmax(1))
+    unet_label_viz = colorizer(unet_label).float() / 255.
     image = (1 + image[0]) / 2
     segs = generator.extract_segmentation(generator.stage)
-
-    images = [image, unet_label_viz]
+    final_label_viz = colorizer(segs[-1].argmax(1)).float() / 255.
+    images = [image, unet_label_viz, final_label_viz]
 
     prev_label = 0
     for s in segs:
-        layer_label = F.interpolate(s, size=image.shape[2], mode="bilinear").argmax(1)
+        layer_label = F.interpolate(s, size=image.shape[2], mode="bilinear").argmax(1)[0]
         if prev_label is 0:
             prev_label = layer_label
         layer_label_viz = colorizer(layer_label).float() / 255.
         diff_label_viz = layer_label_viz.clone()
-        print(diff_label_viz.shape)
+        sum_layers = [F.interpolate(x, size=l.shape[2], mode="bilinear")
+            for x in segs[:i]]
+        sum_layers = sum_layers + l
+
         for i in range(3):
             diff_label_viz[i, :, :][layer_label == prev_label] = 1
         images.extend([layer_label_viz, diff_label_viz])
         prev_label = layer_label
-
-    images = [F.interpolate(img, size=256, mode="bilinear") for img in images]
+    images = [F.interpolate(img.unsqueeze(0), size=256, mode="bilinear") for img in images]
     images = torch.cat(images)
-    vutils.save_image(images, f"{savepath}_layer-conv.png")
+    print(f"=> Image write to {savepath}_layer-conv.png")
+    vutils.save_image(images, f"{savepath}_layer-conv.png", nrow=2)
 
 
 if "layer-mul" in args.task:
@@ -179,7 +184,8 @@ if "layer-mul" in args.task:
     final_label_viz = colorizer(seg.argmax(1)).float() / 255.
     image = image.clamp(-1, 1)
     unet_seg = faceparser(F.interpolate(image, size=512, mode="bilinear"))
-    unet_label_viz = colorizer(unet_seg.argmax(1)).float() / 255.
+    unet_label = utils.idmap(unet_seg.argmax(1))
+    unet_label_viz = colorizer(unet_label).float() / 255.
     image = (1 + image[0]) / 2
     layers = generator.semantic_branch(generator.stage, True)
 

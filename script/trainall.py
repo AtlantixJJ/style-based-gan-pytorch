@@ -3,12 +3,21 @@ import os
 class FixSeg(object):
     def __init__(self):
         self.seg_cfgs = [
-            "conv-16-1",
-            "conv-16-2",
             "conv-16-3",
+            "conv-16-2",
+            "conv-16-1",
             ]
-        self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --gpu %s --batch_size %d --iter-num %d --trace %d --load checkpoint/karras2019stylegan-celebahq-1024x1024.for_g_all.pt &"
-    
+        self.models = [
+            "checkpoint/karras2019stylegan-celebahq-1024x1024.for_g_all.pt",
+            "checkpoint/karras2019stylegan-ffhq-1024x1024.for_g_all.pt"
+        ]
+        self.output_dirs = [
+            "celebahq",
+            "ffhq"
+        ]
+        self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --gpu %s --batch_size 4 --iter-num 8000 --trace %d --load %s --expr %s && python script/monitor.py --task log,seg,celeba-evaluator,agreement --gpu %s --model %s/fixseg_%s &"
+        # evaluator: layer visualization is missing
+
     def args_gen(self, gpus):
         l = []
         count = 0
@@ -16,19 +25,17 @@ class FixSeg(object):
         for i in range(len(self.seg_cfgs)):
             segcfg = self.seg_cfgs[i]
             gpu = gpus[count]
-
-            trace = batch_size = iter_num = 0
+            
             if "mul" in segcfg:
                 trace = 1
-                batch_size = 8
-                iter_num = 4000
             else:
                 trace = 0
-                batch_size = 4
-                iter_num = 8000
-
-            l.append((count, (segcfg, gpu, batch_size, iter_num, trace)))
-            count = (count + 1) % len(gpus)
+            
+            for model, expr in zip(self.models, self.output_dirs):
+                l.append((count,
+                    (segcfg, gpu, trace, model, expr, # train
+                    gpu, expr, segcfg))) # eval
+                count = (count + 1) % len(gpus)
         return l
     
     def command(self, gpus):
@@ -106,5 +113,5 @@ def direct_run(gpus):
         yield index, c % gpu
 
 #gpus = ["6", "7"]; assign_run(direct_run, gpus)
-gpus = ["0"]; assign_run(FixSeg().command, gpus)
+gpus = ["0", "1", "2", "3"]; assign_run(FixSeg().command, gpus)
 #gpus = ["0", "1", "2"]; assign_run(FixSeg().command, gpus)

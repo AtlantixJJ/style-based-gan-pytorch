@@ -14,11 +14,6 @@ import config
 import utils
 import model
 
-def l2loss(x):
-	return (x ** 2).sum()
-
-def l1loss(x):
-	return x.abs().sum()
 
 cfg = config.FixSegConfig()
 cfg.parse()
@@ -56,14 +51,15 @@ logsoftmax = logsoftmax.cuda()
 
 latent = torch.randn(cfg.batch_size, LATENT_SIZE).cuda()
 
+def conv2vec(convs):
+	vecs = [utils.torch2numpy(conv[0].weight)[:, :, 0, 0] for conv in convs]
+	return np.concatenate(vecs, 1)
+
 record = cfg.record
 trace_weight = 0
-trace_bias = 0
-if cfg.trace_weight:
-	conv_dim = sg.semantic_branch.weight.shape[1]
-	bias_dim = sg.semantic_branch.bias.shape[0]
-	trace_weight = np.zeros((cfg.n_iter, cfg.n_class, conv_dim), dtype="float16")
-	trace_bias = np.zeros((cfg.n_iter, bias_dim, cfg.n_class), dtype="float16")
+if cfg.trace_weight and "conv" in cfg.semantic_config:
+	vec = conv2vec(sg.semantic_branch.children())
+	trace_weight = np.zeros((cfg.n_iter, vec.shape[0], vec.shape[1]), dtype="float16")
 
 evaluator = utils.MaskCelebAEval()
 
@@ -79,35 +75,28 @@ for ind in tqdm(range(cfg.n_iter)):
 			label = cfg.idmap(label.detach())
 
 	segs = sg.extract_segmentation(sg.stage)
-	coefs = [1. for s in segs]
+
+	# The last one is usually summation of previous one
+	if cfg.train_last:
+		segs = segs[-1:]
+
+	# calculate segmentation loss
 	seglosses = []
-	for c, s in zip(coefs, segs):
+	for s in segs:
 		layer_loss = 0
-		if s.size(2) < label.size(2): # label is large : downsample label
+		# label is large : downsample label
+		if s.size(2) < label.size(2): 
 			l_ = label.unsqueeze(0).float()
 			l_ = F.interpolate(l_, s.size(2), mode="nearest")
 			layer_loss = logsoftmax(s, l_.long()[0])
-		elif s.size(2) > label.size(2): # label is small : downsample seg
+		# label is small : downsample seg
+		elif s.size(2) > label.size(2): 
 			s_ = F.interpolate(s, label.size(2), mode="bilinear")
 			layer_loss = logsoftmax(s_, label)
-		seglosses.append(c * layer_loss)
-	segloss = cfg.seg_coef * sum(seglosses) / len(seglosses)
+		seglosses.append(layer_loss)
+	segloss = sum(seglosses) / len(seglosses)
 
-	regloss = 0
-	
-	if "mul" in cfg.semantic_config and "l1" in cfg.semantic_config:
-		regloss += cfg.reg_coef * l1loss(sg.semantic_branch.weight)
-		regloss += cfg.reg_coef * l1loss(sg.semantic_branch.bias)
-
-	if "mul" in cfg.semantic_config and "ortho" in cfg.semantic_config:
-		w = sg.semantic_branch.weight[:, :, 0, 0]
-		ww = torch.matmul(w, w.permute(1, 0))
-		target = torch.eye(ww.shape[0], device=ww.device)
-		#target = torch.diag(torch.diag(ww)).detach()
-		#print(torch.diag(ww).detach().cpu().numpy())
-		regloss += F.mse_loss(ww, target)
-
-	loss = segloss + regloss
+	loss = segloss
 	loss.backward()
 
 	g_optim.step()
@@ -115,8 +104,8 @@ for ind in tqdm(range(cfg.n_iter)):
 
 	record['loss'].append(utils.torch2numpy(loss))
 	record['segloss'].append(utils.torch2numpy(segloss))
-	record['regloss'].append(utils.torch2numpy(regloss))
 
+	# calculate training accuracy
 	gen_label = F.interpolate(segs[-1], label.size(2), mode="bilinear").argmax(1)
 	gen_label_np = gen_label.cpu().numpy()
 	label_np = label.cpu().numpy()
@@ -125,8 +114,7 @@ for ind in tqdm(range(cfg.n_iter)):
 		evaluator.accumulate(scores)
 
 	if cfg.trace_weight:
-		trace_weight[ind - 1] = utils.torch2numpy(sg.semantic_branch.weight)[:, :, 0, 0]
-		trace_bias[ind - 1] = utils.torch2numpy(sg.semantic_branch.bias)
+		trace_weight[ind - 1] = conv2vec(sg.semantic_branch.children())
 
 	if cfg.debug:
 		print(record.keys())

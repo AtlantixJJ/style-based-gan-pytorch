@@ -254,17 +254,17 @@ class FixSegConfig(BaseConfig):
         super(FixSegConfig, self).__init__()
 
         self.parser.add_argument("--seg-net", default="checkpoint/faceparse_unet_512.pth", help="The load path of semantic segmentation network")
-        self.parser.add_argument("--seg", default=1., type=float, help="Coefficient of segmentation loss")
-        self.parser.add_argument("--seg-cfg", default="mul-16-l2_assign_bias_bilinear", help="Configure of segmantic segmentation extractor")
-        self.parser.add_argument("--reg-coef", type=float, default=0.005)
+        self.parser.add_argument("--seg-cfg", default="mul-16", help="Configure of segmantic segmentation extractor")
+        self.parser.add_argument("--upsample", default="bilinear", help="Upsample method of feature map. bilinear, nearest.")
         self.parser.add_argument("--n-class", type=int, default=16, help="Class num")
         self.parser.add_argument("--trace", type=int, default=0, help="If to save the weight evolution of semantic branch")
+        self.parser.add_argument("--train-last", type=int, default=0, help="If to train the last segmentation map.")
 
     def parse(self):
         super(FixSegConfig, self).parse()
-        self.reg_coef = self.args.reg_coef
+        self.train_last = self.args.train_last
+        self.upsample = self.args.upsample
         self.n_class = self.args.n_class
-        self.seg_coef = self.args.seg
         self.seg_net_path = self.args.seg_net
         self.trace_weight = self.args.trace
         ind = self.seg_net_path.rfind("_")
@@ -276,7 +276,7 @@ class FixSegConfig(BaseConfig):
             self.id2cid = {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 4, 6: 5, 7: 5, 8: 6, 9: 6, 10: 7, 11: 8, 12: 9, 13: 10, 14: 11, 15: 12, 16: 13, 17: 14, 18: 15}
         else:
             self.map_id = False
-        self.name = f"{self.task}_{self.seg_coef}_{self.semantic_config}_l{self.reg_coef}"
+        self.name = f"{self.task}_{self.semantic_config}"
         self.expr_dir = osj("expr", self.name)
     
     def idmap(self, x):
@@ -290,7 +290,7 @@ class FixSegConfig(BaseConfig):
         super(FixSegConfig, self).print_info()
         print("=> Segmentation network: %s" % self.seg_net_path)
         print("=> Segmentation configure: %s" % self.semantic_config)
-        print("=> Segmentation loss coefficient: %.4f" % self.seg_coef)
+
 
 class GuideConfig(SDConfig):
     def __init__(self):
