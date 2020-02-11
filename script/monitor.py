@@ -152,8 +152,9 @@ if "layer-conv" in args.task:
             prev_label = layer_label
         layer_label_viz = colorizer(layer_label).float() / 255.
         diff_label_viz = layer_label_viz.clone()
+        print(diff_label_viz.shape)
         for i in range(3):
-            diff_label_viz[:, i, :, :][layer_label == prev_label] = 1
+            diff_label_viz[i, :, :][layer_label == prev_label] = 1
         images.extend([layer_label_viz, diff_label_viz])
         prev_label = layer_label
 
