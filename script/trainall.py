@@ -3,10 +3,8 @@ import os
 class FixSeg(object):
     def __init__(self):
         self.seg_cfgs = [
-            "gen-16-bilinear",
-            "gen-16-nearest",
-            "cas-16-bilinear",
-            "cas-16-nearest",
+            "conv-16-1",
+            "conv-16-2",
             ]
         self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --gpu %s --batch_size %d --iter-num %d --trace %d --load checkpoint/karras2019stylegan-celebahq-1024x1024.for_g_all.pt &"
     

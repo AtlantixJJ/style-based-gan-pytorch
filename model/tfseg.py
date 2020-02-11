@@ -507,6 +507,7 @@ class StyledGenerator(nn.Module):
         self.padsize = (self.ksize - 1) // 2
 
         if "conv" in self.segcfg:
+            self.n_layer = int(self.args.split("_")[0])
             # final layer not good, but good classification on early layers
             self.build_conv_extractor()
         elif "cas" in self.segcfg:
@@ -532,40 +533,6 @@ class StyledGenerator(nn.Module):
             kernel_size=self.ksize,
             args=self.args
         )
-
-    def build_cat_extractor(self):
-        def conv_block(in_dim, out_dim):
-            midim = (in_dim + out_dim) // 2
-            if self.n_layer == 1:
-                _m = [MyConv2d(in_dim, out_dim, self.ksize), nn.ReLU(inplace=True)]
-            else:
-                _m = []
-                _m.append(MyConv2d(in_dim, midim, self.ksize))
-                _m.append(nn.ReLU(inplace=True))
-                for i in range(self.n_layer - 2):
-                    _m.append(MyConv2d(midim, midim, self.ksize))
-                    _m.append(nn.ReLU(inplace=True))
-                _m.append(MyConv2d(midim, out_dim, self.ksize))
-                _m.append(nn.ReLU(inplace=True))
-            return nn.Sequential(*_m)
-        
-
-        # start from 16x16 resolution
-        semantic_extractor = nn.ModuleList([
-            conv_block(512, 128),#256), # (128,512, 512)
-            conv_block(512, 128),#256), # (128,512, 512)
-            conv_block(256, 128),#256), # (128,512, 512)
-            conv_block(128, 128),#128), # (128,512, 512)
-            conv_block(64 , 64),#64 ), # (64, 512, 512)
-            conv_block(32 , 64),#64 ), # (32, 512, 512)
-            #conv_block(16 , 16 )
-        ])
-
-        semantic_visualizer = MyConv2d(128 * 5, self.n_class, self.ksize)
-
-        self.semantic_branch = nn.ModuleList([
-            semantic_extractor,
-            semantic_visualizer])
 
     def build_gen_extractor(self):
         def conv_block(in_dim, out_dim):
@@ -661,10 +628,10 @@ class StyledGenerator(nn.Module):
 
     def build_conv_extractor(self):
         def conv_block(in_dim, out_dim, ksize):
-            midim = (in_dim + out_dim) // 2
             if self.n_layer == 1:
                 _m = [MyConv2d(in_dim, out_dim, ksize)]
             else:
+                midim = (in_dim + out_dim) // 2
                 _m = []
                 _m.append(MyConv2d(in_dim, midim, ksize))
                 for i in range(self.n_layer - 2):
@@ -675,6 +642,8 @@ class StyledGenerator(nn.Module):
 
         # start from 16x16 resolution
         self.semantic_extractor = nn.ModuleList([
+            conv_block(512, self.n_class, self.ksize),
+            conv_block(512, self.n_class, self.ksize),
             conv_block(512, self.n_class, self.ksize),
             conv_block(512, self.n_class, self.ksize),
             conv_block(256, self.n_class, self.ksize),
@@ -725,28 +694,8 @@ class StyledGenerator(nn.Module):
         count = 0
         outputs = []
         for i, seg_input in enumerate(stage):
-            if seg_input.size(2) >= 16:
-                outputs.append(self.semantic_extractor[count](seg_input))
-                count += 1
-        return outputs
-
-    def extract_segmentation_cat(self, stage):
-        count = 0
-        outputs = []
-        hiddens = []
-        extractor, visualizer = self.semantic_branch
-        # note the the 1024 resolution layer's output is not collected
-        for i, seg_input in enumerate(stage):
-            #net_device = next(visualizer.parameters()).device
-            if seg_input.size(2) >= 16 and seg_input.size(2) <= 512:
-                hiddens.append(extractor[count](seg_input))
-                count += 1
-        # concat
-        base_size = hiddens[-1].size(2)
-        feat = torch.cat(
-            [F.interpolate(h.float(), base_size, mode="bilinear") for h in hiddens],
-            1)
-        outputs.append(visualizer(feat))
+            outputs.append(self.semantic_extractor[count](seg_input))
+            count += 1
         return outputs
 
     def extract_segmentation_multi(self, stage):

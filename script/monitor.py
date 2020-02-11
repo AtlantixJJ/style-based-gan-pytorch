@@ -124,6 +124,18 @@ if "celeba-evaluator" in args.task:
             f"{savepath}_evaluator_class_{name}.png")
 
 
+if "layer-" in args.task:
+    model_file = model_files[-1]
+    state_dict = torch.load(model_file, map_location='cpu')
+    missed = generator.load_state_dict(state_dict, strict=False)
+    if len(missed.missing_keys) > 1:
+        print(missed)
+        exit()
+    generator.eval()
+    generator = generator.to(device)
+
+
+
 if "celeba-trace" in args.task:
     trace_path = f"{args.model}/trace_weight.npy"
     trace = np.load(trace_path) # (N, 16, D)
