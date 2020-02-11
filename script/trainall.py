@@ -90,7 +90,7 @@ class FixSegL1(object):
 def assign_run(command_generator, gpus, false_exec=False):
     slots = [""] * len(gpus)
     for index, cmd in command_generator(gpus):
-        slots[index] += cmd + "& "
+        slots[index] += cmd + " && "
     for s in slots:
         print(s[:-2])
         if not false_exec:
