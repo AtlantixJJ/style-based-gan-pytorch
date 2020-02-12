@@ -277,7 +277,7 @@ class FixSegConfig(BaseConfig):
         else:
             self.map_id = False
         self.name = f"{self.task}_{self.semantic_config}"
-        self.expr_dir = osj("expr", self.name)
+        self.expr_dir = osj(self.args.expr, self.name)
     
     def idmap(self, x):
         for fr,to in self.id2cid.items():
