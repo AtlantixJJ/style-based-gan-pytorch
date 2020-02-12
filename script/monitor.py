@@ -20,7 +20,7 @@ parser.add_argument("--model", default="")
 parser.add_argument("--gpu", default="0")
 parser.add_argument("--recursive", default="0")
 args = parser.parse_args()
-
+print(args.gpu)
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
 if args.recursive == "1":
@@ -45,7 +45,6 @@ if args.recursive == "1":
 savepath = args.model.replace("expr/", "results/")
 
 device = 'cuda' if int(args.gpu) > -1 else 'cpu'
-torch.manual_seed(65537)
 
 cfg = 0
 batch_size = 0
@@ -71,6 +70,7 @@ else:
     latent_size = 512
 faceparser_path = f"checkpoint/faceparse_unet_{imsize}.pth"
 
+utils.set_seed(65537)
 latent = torch.randn(1, latent_size).to(device)
 latent.requires_grad = True
 noise = []
@@ -130,7 +130,7 @@ if "celeba-evaluator" in args.task:
 if "layer-conv" in args.task:
     colorizer = utils.Colorize(16) #label to rgb
     model_file = model_files[-1]
-    latent = torch.randn(1, latent_size, device=device)
+    latent = torch.randn(4, latent_size, device=device)[2:3]
     state_dict = torch.load(model_file, map_location='cpu')
     missed = generator.load_state_dict(state_dict, strict=False)
     if len(missed.missing_keys) > 1:
@@ -150,23 +150,23 @@ if "layer-conv" in args.task:
     images = [image, unet_label_viz, final_label_viz]
 
     prev_label = 0
-    for s in segs:
+    for i, s in enumerate(segs):
         layer_label = F.interpolate(s, size=image.shape[2], mode="bilinear").argmax(1)[0]
         if prev_label is 0:
             prev_label = layer_label
         layer_label_viz = colorizer(layer_label).float() / 255.
-        diff_label_viz = layer_label_viz.clone()
         sum_layers = [F.interpolate(x, size=s.shape[2], mode="bilinear")
             for x in segs[:i]]
         sum_layers = sum(sum_layers) + s
         sum_layers = F.interpolate(sum_layers, size=image.shape[2], mode="bilinear")
         sum_label = sum_layers.argmax(1)[0]
         sum_label_viz = colorizer(sum_label).float() / 255.
+        diff_label_viz = sum_label_viz.clone()
 
         for i in range(3):
             diff_label_viz[i, :, :][sum_label == prev_label] = 1
         images.extend([layer_label_viz, sum_label_viz, diff_label_viz])
-        prev_label = layer_label
+        prev_label = sum_label
     images = [F.interpolate(img.unsqueeze(0), size=256, mode="bilinear") for img in images]
     images = torch.cat(images)
     print(f"=> Image write to {savepath}_layer-conv.png")
@@ -292,6 +292,7 @@ if "seg" in args.task:
         missed = generator.load_state_dict(state_dict, strict=False)
         print(missed)
         generator.eval()
+        generator.set_noise(noise)
 
         gen = generator(latent, False)
         gen = gen.clamp(-1, 1)
