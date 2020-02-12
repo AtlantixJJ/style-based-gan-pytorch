@@ -88,6 +88,27 @@ class MyConv2d(nn.Module):
         return x
 
 
+class ExtendedConv(nn.Module):
+    """Conv layer with equalized learning rate and custom learning rate multiplier."""
+    def __init__(self, input_channels, output_channels, kernel_size, gain=2**(0.5), bias=True, args=""):
+        super().__init__()
+        self.args = args
+        he_std = gain * (input_channels * kernel_size ** 2) ** (-0.5) # He init
+        self.kernel_size = kernel_size
+        self.weight = torch.nn.Parameter(torch.randn(output_channels, input_channels, kernel_size, kernel_size) * he_std)
+        if bias:
+            self.bias = torch.nn.Parameter(torch.zeros(output_channels))
+        else:
+            self.bias = None
+
+    def forward(self, x):
+        w = self.weight
+        if "positive" in self.args:
+            w = F.relu(w)
+        x = F.conv2d(x, w, self.bias, padding=self.kernel_size // 2)
+        return x
+
+
 class MultiResolutionConvolution(nn.Module):
     def __init__(self, in_dims=[512, 512, 256, 64, 32, 16], out_dim=16,
         kernel_size=1, args="l2_bias"):
@@ -567,7 +588,7 @@ class StyledGenerator(nn.Module):
     def build_conv_extractor(self):
         def conv_block(in_dim, out_dim, ksize):
             if self.n_layer == 1:
-                _m = [MyConv2d(in_dim, out_dim, ksize, bias=False)]
+                _m = [ExtendedConv(in_dim, out_dim, ksize, bias=False, args=self.args)]
             else:
                 midim = (in_dim + out_dim) // 2
                 _m = []

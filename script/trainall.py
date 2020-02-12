@@ -6,7 +6,7 @@ class FixSeg(object):
         self.seg_cfgs = [
             #"conv-16-3",
             #"conv-16-2",
-            "conv-16-1",
+            "conv-16-1_positive",
             ]
         # loop 2
         self.models = [
@@ -19,8 +19,7 @@ class FixSeg(object):
         ]
         # loop 3
         self.ortho_regs = [
-            #-1,
-            1e-4,
+            -1,
         ]
         self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --gpu %s --batch_size 4 --iter-num 8000 --trace %d --load %s --expr %s --ortho-reg %f"
         # evaluator: layer visualization is missing
@@ -129,6 +128,6 @@ def direct_run(gpus):
         c = commands[i]
         yield index, c % gpu
 
-gpus = ["0"]; assign_run(direct_run, gpus)
-#gpus = ["0"]; assign_run(FixSeg().command, gpus)
+#gpus = ["0"]; assign_run(direct_run, gpus)
+gpus = ["0"]; assign_run(FixSeg().command, gpus)
 #gpus = ["0", "1", "2"]; assign_run(FixSeg().command, gpus)

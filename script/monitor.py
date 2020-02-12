@@ -10,7 +10,7 @@ import torch
 import torch.nn.functional as F
 from torchvision import utils as vutils
 from os.path import join as osj
-
+from sklearn.metrics.pairwise import cosine_similarity
 import utils, config
 from lib.face_parsing import unet
 
@@ -185,6 +185,7 @@ if "celeba-trace" in args.task:
     weight = trace[-1]
 
     # variance
+    """
     weight_var = trace.std(0)
     fig = plt.figure(figsize=(16, 16))
     maximum, minimum = weight_var.max(), weight_var.min()
@@ -197,6 +198,7 @@ if "celeba-trace" in args.task:
         ax.set_ylim([minimum, maximum])
     fig.savefig(f"{savepath}_trace_var.png", bbox_inches='tight')
     plt.close()
+    """
 
     # weight vector
     fig = plt.figure(figsize=(16, 16))
@@ -210,6 +212,27 @@ if "celeba-trace" in args.task:
         ax.set_ylim([minimum, maximum])
     fig.savefig(f"{savepath}_trace_weight.png", bbox_inches='tight')
     plt.close()
+
+    # orthogonal status
+    dic = {}
+    for i in range(len(segments) - 1):
+        prev_dim, cur_dim = segments[i:i+2]
+        w = weight[:, prev_dim:cur_dim]
+        cosim = cosine_similarity(w, w)
+        dic[f"stage{i + 1}"] = cosim
+        print(cosim.shape)
+    utils.plot_heatmap(dic, "cosim", f"{savepath}_cosim.png")
+
+    # one positive status
+    dic = {}
+    for i in range(len(segments) - 1):
+        prev_dim, cur_dim = segments[i:i+2]
+        w = weight[:, prev_dim:cur_dim]
+        w[w < 0] = 0 # relu
+        op_ratio = w.max(0) / w.sum(0)
+        print(op_ratio.shape)
+        dic[f"stage{i + 1}"] = op_ratio
+    utils.plot_dic(dic, "one positive ratio", f"{savepath}_opr.png")
 
 
 if "contribution" in args.task:
