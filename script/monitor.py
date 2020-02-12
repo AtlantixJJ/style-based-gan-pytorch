@@ -156,18 +156,21 @@ if "layer-conv" in args.task:
             prev_label = layer_label
         layer_label_viz = colorizer(layer_label).float() / 255.
         diff_label_viz = layer_label_viz.clone()
-        sum_layers = [F.interpolate(x, size=l.shape[2], mode="bilinear")
+        sum_layers = [F.interpolate(x, size=s.shape[2], mode="bilinear")
             for x in segs[:i]]
-        sum_layers = sum_layers + l
+        sum_layers = sum(sum_layers) + s
+        sum_layers = F.interpolate(sum_layers, size=image.shape[2], mode="bilinear")
+        sum_label = sum_label.argmax(1)[0]
+        sum_label_viz = colorizer(sum_label).float() / 255.
 
         for i in range(3):
-            diff_label_viz[i, :, :][layer_label == prev_label] = 1
-        images.extend([layer_label_viz, diff_label_viz])
+            diff_label_viz[i, :, :][sum_label == prev_label] = 1
+        images.extend([layer_label_viz, sum_label_viz, diff_label_viz])
         prev_label = layer_label
     images = [F.interpolate(img.unsqueeze(0), size=256, mode="bilinear") for img in images]
     images = torch.cat(images)
     print(f"=> Image write to {savepath}_layer-conv.png")
-    vutils.save_image(images, f"{savepath}_layer-conv.png", nrow=2)
+    vutils.save_image(images, f"{savepath}_layer-conv.png", nrow=3)
 
 
 if "celeba-trace" in args.task:

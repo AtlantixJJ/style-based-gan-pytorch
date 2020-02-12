@@ -23,7 +23,7 @@ def config_from_name(name):
             att_mtd = items[i+1]
             dics.update({"att": att, "att_mtd": att_mtd})
         if "seg" in items[i] or "sd" in items[i]:
-            segcfg = "_".join(items[i+2:])
+            segcfg = "_".join(items[i+1:])
             dics.update({"semantic": segcfg})
     return dics
 
