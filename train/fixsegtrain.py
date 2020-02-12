@@ -130,7 +130,7 @@ for ind in tqdm(range(cfg.n_iter)):
 		ortho_loss = positive_convs(sg.semantic_branch.children())
 		regloss = regloss + cfg.ortho_reg * ortho_loss
 
-	loss = segloss
+	loss = segloss + regloss
 	loss.backward()
 
 	g_optim.step()
