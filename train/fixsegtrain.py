@@ -55,6 +55,17 @@ def conv2vec(convs):
 	vecs = [utils.torch2numpy(conv[0].weight)[:, :, 0, 0] for conv in convs]
 	return np.concatenate(vecs, 1)
 
+def ortho_convs(convs):
+	ortho_loss = 0
+	count = 0
+	for conv in convs:
+		w = conv[0].weight[:, :, 0, 0] # (out_dim, in_dim)
+		ww = torch.matmul(w, w.permute(1, 0))
+		I = torch.eye(ww.shape[0], device=ww.device)
+		ortho_loss += F.mse_loss(ww, I)
+		count += 1
+	return ortho_loss / count
+
 record = cfg.record
 trace_weight = 0
 if cfg.trace_weight and "conv" in cfg.semantic_config:
@@ -96,6 +107,11 @@ for ind in tqdm(range(cfg.n_iter)):
 		seglosses.append(layer_loss)
 	segloss = sum(seglosses) / len(seglosses)
 
+	regloss = 0
+	if cfg.ortho_reg > 0:
+		ortho_loss = ortho_convs(sg.semantic_branch.children())
+		regloss = regloss + cfg.ortho_reg * ortho_loss
+
 	loss = segloss
 	loss.backward()
 
@@ -104,6 +120,7 @@ for ind in tqdm(range(cfg.n_iter)):
 
 	record['loss'].append(utils.torch2numpy(loss))
 	record['segloss'].append(utils.torch2numpy(segloss))
+	record['regloss'].append(utils.torch2numpy(regloss))
 
 	# calculate training accuracy
 	gen_label = F.interpolate(segs[-1], label.size(2), mode="bilinear").argmax(1)

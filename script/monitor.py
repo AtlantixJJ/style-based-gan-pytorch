@@ -160,7 +160,7 @@ if "layer-conv" in args.task:
             for x in segs[:i]]
         sum_layers = sum(sum_layers) + s
         sum_layers = F.interpolate(sum_layers, size=image.shape[2], mode="bilinear")
-        sum_label = sum_label.argmax(1)[0]
+        sum_label = sum_layers.argmax(1)[0]
         sum_label_viz = colorizer(sum_label).float() / 255.
 
         for i in range(3):

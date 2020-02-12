@@ -259,10 +259,12 @@ class FixSegConfig(BaseConfig):
         self.parser.add_argument("--n-class", type=int, default=16, help="Class num")
         self.parser.add_argument("--trace", type=int, default=0, help="If to save the weight evolution of semantic branch")
         self.parser.add_argument("--train-last", type=int, default=0, help="If to train the last segmentation map.")
+        self.parser.add_argument("--ortho-reg", type=float, default=-1, help="The coef of using ortho edit. < 0 means not to use.")
 
     def parse(self):
         super(FixSegConfig, self).parse()
         self.train_last = self.args.train_last
+        self.ortho_reg = self.args.ortho_reg
         self.upsample = self.args.upsample
         self.n_class = self.args.n_class
         self.seg_net_path = self.args.seg_net
@@ -270,13 +272,13 @@ class FixSegConfig(BaseConfig):
         ind = self.seg_net_path.rfind("_")
         self.seg_net_imsize = int(self.seg_net_path[ind+1:ind+4])
         self.semantic_config = self.args.seg_cfg
-        self.record = {'loss': [], 'segloss': []}
+        self.record = {'loss': [], 'segloss': [], 'regloss': []}
         if "faceparse_unet" in self.seg_net_path:
             self.map_id = True
             self.id2cid = {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 4, 6: 5, 7: 5, 8: 6, 9: 6, 10: 7, 11: 8, 12: 9, 13: 10, 14: 11, 15: 12, 16: 13, 17: 14, 18: 15}
         else:
             self.map_id = False
-        self.name = f"{self.task}_{self.semantic_config}"
+        self.name = f"{self.task}_{self.semantic_config}_{self.ortho_reg}"
         self.expr_dir = osj(self.args.expr, self.name)
     
     def idmap(self, x):

@@ -2,20 +2,28 @@ import os
 
 class FixSeg(object):
     def __init__(self):
+        # loop 1
         self.seg_cfgs = [
-            "conv-16-3",
-            "conv-16-2",
+            #"conv-16-3",
+            #"conv-16-2",
             "conv-16-1",
             ]
+        # loop 2
         self.models = [
             "checkpoint/karras2019stylegan-celebahq-1024x1024.for_g_all.pt",
-            "checkpoint/karras2019stylegan-ffhq-1024x1024.for_g_all.pt"
+            #"checkpoint/karras2019stylegan-ffhq-1024x1024.for_g_all.pt"
         ]
         self.output_dirs = [
-            "celebahq",
-            "ffhq"
+            "record/celebahq",
+            #"record/ffhq"
         ]
-        self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --gpu %s --batch_size 4 --iter-num 8000 --trace %d --load %s --expr %s"
+        # loop 3
+        self.ortho_regs = [
+            #-1,
+            0.1,
+            1.0
+        ]
+        self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --gpu %s --batch_size 4 --iter-num 8000 --trace %d --load %s --expr %s --ortho-reg %f"
         # evaluator: layer visualization is missing
 
     def args_gen(self, gpus):
@@ -25,18 +33,27 @@ class FixSeg(object):
         for i in range(len(self.seg_cfgs)):
             segcfg = self.seg_cfgs[i]
             
-            if "mul" in segcfg:
+            if "conv-16-1" in segcfg:
                 trace = 1
             else:
                 trace = 0
             
             for model, expr in zip(self.models, self.output_dirs):
-                gpu = gpus[count]
-                l.append((count,
-                    (segcfg, gpu, trace, model, expr, # train
-                    #gpu, expr, segcfg
-                    ))) # eval
-                count = (count + 1) % len(gpus)
+                if "conv-16-1" in segcfg:
+                    for ortho_reg in self.ortho_regs:
+                        gpu = gpus[count]
+                        l.append((count,
+                            (segcfg, gpu, trace, model, expr, ortho_reg # train
+                            #gpu, expr, segcfg
+                            ))) # eval
+                        count = (count + 1) % len(gpus)
+                else:
+                    gpu = gpus[count]
+                    l.append((count,
+                        (segcfg, gpu, trace, model, expr, # train
+                        #gpu, expr, segcfg
+                        ))) # eval
+                    count = (count + 1) % len(gpus)
         return l
     
     def command(self, gpus):
@@ -114,5 +131,5 @@ def direct_run(gpus):
         yield index, c % gpu
 
 #gpus = ["6", "7"]; assign_run(direct_run, gpus)
-gpus = ["0", "1", "2", "3"]; assign_run(FixSeg().command, gpus)
+gpus = ["2", "3"]; assign_run(FixSeg().command, gpus)
 #gpus = ["0", "1", "2"]; assign_run(FixSeg().command, gpus)
