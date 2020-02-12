@@ -55,7 +55,7 @@ def conv2vec(convs):
 	vecs = [utils.torch2numpy(conv[0].weight)[:, :, 0, 0] for conv in convs]
 	return np.concatenate(vecs, 1)
 
-def ortho_convs(convs):
+def positive_convs(convs):
 	ortho_loss = 0
 	count = 0
 	for conv in convs:
@@ -64,6 +64,18 @@ def ortho_convs(convs):
 		#I = torch.eye(ww.shape[0], device=ww.device)
 		#ortho_loss += F.mse_loss(ww, I)
 		ortho_loss += F.relu(w).sum()
+		count += 1
+	return ortho_loss / count
+
+def ortho_convs(convs):
+	ortho_loss = 0
+	count = 0
+	for conv in convs:
+		w = conv[0].weight[:, :, 0, 0] # (out_dim, in_dim)
+		ww = torch.matmul(w, w.permute(1, 0))
+		I = torch.eye(ww.shape[0], device=ww.device)
+		ortho_loss += F.mse_loss(ww, I)
+		#ortho_loss += F.relu(w).sum()
 		count += 1
 	return ortho_loss / count
 
@@ -109,8 +121,13 @@ for ind in tqdm(range(cfg.n_iter)):
 	segloss = sum(seglosses) / len(seglosses)
 
 	regloss = 0
+
 	if cfg.ortho_reg > 0:
 		ortho_loss = ortho_convs(sg.semantic_branch.children())
+		regloss = regloss + cfg.ortho_reg * ortho_loss
+
+	if cfg.positive_reg > 0:
+		ortho_loss = positive_convs(sg.semantic_branch.children())
 		regloss = regloss + cfg.ortho_reg * ortho_loss
 
 	loss = segloss
