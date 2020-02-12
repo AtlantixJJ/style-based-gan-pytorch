@@ -9,7 +9,7 @@
                 "optim" : "celossreg-latent",
                 "load_path" : "../checkpoint/fixseg.model",
                 "seg_cfg": "mul-16",
-                "gpu" : 0
+                "gpu" : -1
             }
         },
         "Baseline-Latent": {
@@ -20,7 +20,7 @@
                 "optim" : "baseline-latent",
                 "load_path" : "../checkpoint/fixseg.model",
                 "seg_cfg": "mul-16",
-                "gpu" : 0
+                "gpu" : -1
             }
         }
     }

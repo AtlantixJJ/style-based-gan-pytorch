@@ -60,9 +60,10 @@ def ortho_convs(convs):
 	count = 0
 	for conv in convs:
 		w = conv[0].weight[:, :, 0, 0] # (out_dim, in_dim)
-		ww = torch.matmul(w, w.permute(1, 0))
-		I = torch.eye(ww.shape[0], device=ww.device)
-		ortho_loss += F.mse_loss(ww, I)
+		#ww = torch.matmul(w, w.permute(1, 0))
+		#I = torch.eye(ww.shape[0], device=ww.device)
+		#ortho_loss += F.mse_loss(ww, I)
+		ortho_loss += F.relu(w).sum()
 		count += 1
 	return ortho_loss / count
 
@@ -88,8 +89,8 @@ for ind in tqdm(range(cfg.n_iter)):
 	segs = sg.extract_segmentation(sg.stage)
 
 	# The last one is usually summation of previous one
-	if cfg.train_last:
-		segs = segs[-1:]
+	if not cfg.train_last:
+		segs = segs[:-1]
 
 	# calculate segmentation loss
 	seglosses = []
@@ -146,13 +147,23 @@ for ind in tqdm(range(cfg.n_iter)):
 		num = min(4, label.shape[0])
 		res = []
 		for i in range(num):
-			gen_seg = segs[0][i].argmax(0)
+			gen_seg = segs[-1][i].argmax(0)
 			tarlabel = utils.tensor2label(label[i], cfg.n_class)
 			genlabel = utils.tensor2label(gen_seg, cfg.n_class)
 			image = (gen[i].clamp(-1, 1) + 1) / 2
 			res.extend([image, genlabel, tarlabel])
 		res = torch.cat([F.interpolate(m.float().unsqueeze(0), 256).cpu() for m in res])
-		vutils.save_image(res, cfg.expr_dir + "/%05d.png" % ind, nrow=3)
+		vutils.save_image(res, cfg.expr_dir + "/seg_%05d.png" % ind, nrow=3)
+
+		res = [(gen[0].clamp(-1, 1) + 1) / 2]
+		for i in range(len(segs)):
+			gen_label = segs[i][0].argmax(0)
+			gen_label_viz = utils.tensor2label(gen_label, cfg.n_class)
+			res.append(gen_label_viz)
+		res.append(utils.tensor2label(label[0], cfg.n_class))
+		res = torch.cat([F.interpolate(m.float().unsqueeze(0), 256).cpu() for m in res])
+		vutils.save_image(res, cfg.expr_dir + "/layer_%05d.png" % ind, nrow=3)
+		
 		utils.write_log(cfg.expr_dir, record)
 		utils.plot_dic(record, "loss", cfg.expr_dir + "/loss.png")
 

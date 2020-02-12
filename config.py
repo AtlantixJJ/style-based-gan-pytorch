@@ -258,7 +258,7 @@ class FixSegConfig(BaseConfig):
         self.parser.add_argument("--upsample", default="bilinear", help="Upsample method of feature map. bilinear, nearest.")
         self.parser.add_argument("--n-class", type=int, default=16, help="Class num")
         self.parser.add_argument("--trace", type=int, default=0, help="If to save the weight evolution of semantic branch")
-        self.parser.add_argument("--train-last", type=int, default=0, help="If to train the last segmentation map.")
+        self.parser.add_argument("--train-last", type=int, default=1, help="If to train the last segmentation map.")
         self.parser.add_argument("--ortho-reg", type=float, default=-1, help="The coef of using ortho edit. < 0 means not to use.")
 
     def parse(self):

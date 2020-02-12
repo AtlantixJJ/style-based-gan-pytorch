@@ -20,8 +20,7 @@ class FixSeg(object):
         # loop 3
         self.ortho_regs = [
             #-1,
-            0.1,
-            1.0
+            1e-4,
         ]
         self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --gpu %s --batch_size 4 --iter-num 8000 --trace %d --load %s --expr %s --ortho-reg %f"
         # evaluator: layer visualization is missing
@@ -116,7 +115,7 @@ def assign_run(command_generator, gpus, false_exec=False):
 
 def direct_run(gpus):
     commands = [
-        "python train/fixsegtrain.py --task fixseg --seg-cfg mul-16 --arch tfseg --batch_size 1 --gpu %s --trace 1 &",
+        "python train/fixsegtrain.py --ortho-reg -1 --train-last 0 --task fixseg --seg-cfg conv-16-1 --batch_size 1 --gpu %s --trace 1 --load checkpoint/karras2019stylegan-celebahq-1024x1024.for_g_all.pt",
         #"python train/fixsegtrain.py --task fixsegsimple --seg-cfg mul-16 --arch simple --batch_size 1 --load expr/celeba_wgan_64/gen_iter_100000.model --imsize 64 --seg-net checkpoint/faceparse_unet_128.pth --gpu %s --trace 1 &",
         #"python train/simplesdtrain.py --task simplesd --seg-cfg mul-16 --arch simple --batch_size 64 --imsize 256 --load \"\" --disc-net \"\" --gpu %s --iter-num 100000 &",
         #"python train/simplesdtrain.py --task simplesd --seg-cfg mul-16 --seg 0 --arch simple --batch_size 64 --imsize 256 --load \"\" --disc-net \"\" --gpu %s --iter-num 100000 &",
@@ -130,6 +129,6 @@ def direct_run(gpus):
         c = commands[i]
         yield index, c % gpu
 
-#gpus = ["6", "7"]; assign_run(direct_run, gpus)
-gpus = ["2", "3"]; assign_run(FixSeg().command, gpus)
+gpus = ["0"]; assign_run(direct_run, gpus)
+#gpus = ["0"]; assign_run(FixSeg().command, gpus)
 #gpus = ["0", "1", "2"]; assign_run(FixSeg().command, gpus)
