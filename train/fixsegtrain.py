@@ -63,7 +63,7 @@ def positive_convs(convs):
 		#ww = torch.matmul(w, w.permute(1, 0))
 		#I = torch.eye(ww.shape[0], device=ww.device)
 		#ortho_loss += F.mse_loss(ww, I)
-		ortho_loss += F.relu(w).sum()
+		ortho_loss = ortho_loss + F.relu(w).mean()
 		count += 1
 	return ortho_loss / count
 
@@ -127,8 +127,8 @@ for ind in tqdm(range(cfg.n_iter)):
 		regloss = regloss + cfg.ortho_reg * ortho_loss
 
 	if cfg.positive_reg > 0:
-		ortho_loss = positive_convs(sg.semantic_branch.children())
-		regloss = regloss + cfg.ortho_reg * ortho_loss
+		positive_loss = positive_convs(sg.semantic_branch.children())
+		regloss = regloss + cfg.positive_reg * positive_loss
 
 	loss = segloss + regloss
 	loss.backward()

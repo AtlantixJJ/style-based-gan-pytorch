@@ -455,7 +455,9 @@ class StyledGenerator(nn.Module):
         self.g_mapping = G_mapping()
         self.g_synthesis = G_synthesis()
 
-        self.segcfg, self.n_class, self.args = semantic.split("-")
+        res = semantic.split("-")
+        self.segcfg, self.n_class = res[:2]
+        self.args = "_".join(res[2:])
         self.n_class = int(self.n_class)
 
         self.resample_mode = "nearest" if "nearest" in self.args else "bilinear"
