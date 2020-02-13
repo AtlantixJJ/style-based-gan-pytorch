@@ -190,4 +190,4 @@ for ind in tqdm(range(cfg.n_iter)):
 		if cfg.trace_weight:
 			np.save(cfg.expr_dir + "/trace_weight.npy", trace_weight[:ind])
 
-os.system(f"python script/monitor.py --task log,seg,celeba-evaluator,agreement --gpu {cfg.gpu[0]} --model {cfg.expr_dir}")
+#os.system(f"python script/monitor.py --task log,seg,celeba-evaluator,agreement --gpu {cfg.gpu[0]} --model {cfg.expr_dir}")
