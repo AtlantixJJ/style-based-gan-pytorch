@@ -59,9 +59,44 @@ def baseline_edit_label_stroke(model, latent, noises, label_stroke, label_mask,
     return image, label, latent, noises, record
 
 
-def extended_latent_edit_label_stroke(model, latent, noises, label_stroke, label_mask,
-    n_iter=5, lr=1e-2):
-    optim = torch.optim.Adam([latent], lr=lr)
+"""
+Return the EL and optimization variable
+"""
+def get_el_from_latent(latent, mapping_network, method):
+    el = 0
+    v = 0
+    # latent is assumed to be (1, 512) noises or (18, 512) for ML
+    if "LL" in method:
+        gl = mapping_network(latent)
+        el = gl.expand(-1, 18, -1)
+        v = latent
+    elif "GL" in method:
+        el = latent.expand(-1, 18, -1)
+        v = latent
+    elif "ML" in method:
+        mgl = [mapping_network(z) for z in latent]
+        el = torch.stack(mgl, dim=1)
+        v = latent
+    elif "EL" in method:
+        el = latent
+        v = latent
+    return el, v
+
+
+def get_image_seg_celeba(model, el, external_model, method):
+    if "internal" in method:
+        return model(el)
+    elif "external" in method:
+        image = model(el, seg=False)
+        # [NOTICE]: This is hardcode for CelebA
+        seg = utils.diff_idmap(external_model(image.clamp(-1, 1)))
+        return image, seg
+
+
+def edit_label_stroke(model, latent, noises, label_stroke, label_mask,
+    n_iter=5, n_reg=5, lr=1e-2, method="ML-internal", external_model=None, mapping_network=None):
+    el, var = get_el_from_latent(latent, mapping_network, method)
+    optim = torch.optim.Adam([var], lr=lr)
     model.set_noise(noises)
     record = {"mseloss": [], "celoss": [], "segdiff": [], "gradnorm": []}
 
@@ -72,7 +107,8 @@ def extended_latent_edit_label_stroke(model, latent, noises, label_stroke, label
     target_label = target_label.long()
 
     for ind in tqdm(range(n_iter)):
-        image, seg = model(latent)
+        image, seg = get_image_seg_celeba(model, el, external_model, method)
+
         current_label = seg.argmax(1)
         diff_mask = (current_label != target_label).float()
         total_diff = diff_mask.sum()
@@ -88,6 +124,22 @@ def extended_latent_edit_label_stroke(model, latent, noises, label_stroke, label
         record["celoss"].append(utils.torch2numpy(celoss))
         record["mseloss"].append(utils.torch2numpy(mseloss))
         record["gradnorm"].append(utils.torch2numpy(grad_norm))
+
+        for _ in range(n_reg):
+            image, seg = get_image_seg_celeba(model, el, external_model, method)
+            revise_label = seg.argmax(1).long()
+            # directly use cross entropy may also decrease other part
+            diff_mask = (revise_label != orig_label).float()
+            total_diff = diff_mask.sum()
+            celoss = mask_cross_entropy_loss(diff_mask, seg, orig_label)
+            grad = torch.autograd.grad(celoss, latent)[0]
+            grad_norm = torch.norm(grad[0], 2)
+            latent.grad = grad
+            optim.step()
+            record["celoss"].append(utils.torch2numpy(celoss))
+            record["mseloss"].append(utils.torch2numpy(mseloss))
+            record["segdiff"].append(total_diff)
+            record["gradnorm"].append(utils.torch2numpy(grad_norm))
 
     image, seg = model(latent)
     image = (1 + image.clamp(-1, 1)) / 2

@@ -36,13 +36,20 @@ args = parser.parse_args()
 torch.manual_seed(args.seed)
 device = 'cuda'
 optim_types = [
-    "label-latent",
-    "label-extended-latent"]
+    "label-LL-internal",
+    "label-ML-internal",
+    "label-LL-external",
+    "label-ML-external",]
 
 # build model
 generator = model.tfseg.StyledGenerator(semantic=args.seg_cfg).to(device)
 generator.load_state_dict(torch.load(args.model, map_location=device))
 generator.eval()
+
+external_model = unet.unet()
+external_model.load_state_dict(torch.load(args.external_model))
+external_model = external_model.to(device)
+external_model.eval()
 
 ds = dataset.CollectedDataset(args.data_dir)
 print(str(ds))
@@ -54,6 +61,7 @@ for ind, dic in enumerate(dl):
         dic[k] = dic[k].to(device)
 
     latent_ = dic["origin_latent"]
+    mix_latent_ = latent_.expand(18, -1)
     noises_ = utils.parse_noise(dic["origin_noise"][0])
     label_stroke = dic["label_stroke"]
     label_mask = dic["label_mask"]
@@ -75,17 +83,17 @@ for ind, dic in enumerate(dl):
     for t in optim_types:
         print("=> Optimization method %s" % t)
 
-        if "extended-latent" in t:
-            param = extended_latent_
-            func = optim.extended_latent_edit_label_stroke
-        elif "generalized-latent" in t:
-            param = generalized_latent_
-        elif "latent" in t:
+        if "EL" in t:
+            latent = extended_latent_
+        elif "GL" in t:
+            latent = generalized_latent_
+        elif "LL" in t:
             param = latent_
-            func = optim.baseline_edit_label_stroke
 
-        image, label, latent, noises, record = func(
+        image, label, latent, noises, record = optim.edit_label_stroke(
             model=generator,
+            external_model=external_model,
+            mapping_network=generator.g_mapping.simple_forward,
             latent=extended_latent_,
             noises=noises_,
             label_stroke=label_stroke,
