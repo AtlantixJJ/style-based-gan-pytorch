@@ -102,17 +102,19 @@ class BaseConfig(object):
             print("=> Set seed to %d" % self.args.seed)
             utils.set_seed(self.args.seed)
 
-    def print_info(self):
-        print("=> Task : %s" % self.task)
-        print("=> Name : %s" % self.name)
-        print("=> Arch : model.%s" % self.arch)
-        print("=> Experiment directory %s" % self.expr_dir)
+    def __str__(self):
+        strs = []
+        strs.append("=> Task : %s" % self.task)
+        strs.append("=> Name : %s" % self.name)
+        strs.append("=> Arch : model.%s" % self.arch)
+        strs.append("=> Experiment directory %s" % self.expr_dir)
         if self.load:
-            print("=> Load from %s" % self.load_path)
+            strs.append("=> Load from %s" % self.load_path)
         else:
-            print("=> Train from scratch")
-        print("=> LR: %.4f" % self.lr)
-        print("=> Batch size : %d " % self.batch_size)
+            strs.append("=> Train from scratch")
+        strs.append("=> LR: %.4f" % self.lr)
+        strs.append("=> Batch size : %d " % self.batch_size)
+        return "\n".join(strs)
 
 
 class TSSegConfig(BaseConfig):
@@ -290,10 +292,13 @@ class FixSegConfig(BaseConfig):
             x[x == fr] = to
         return x
 
-    def print_info(self):
-        super(FixSegConfig, self).print_info()
-        print("=> Segmentation network: %s" % self.seg_net_path)
-        print("=> Segmentation configure: %s" % self.semantic_config)
+    def __str__(self):
+        prev_str = super(FixSegConfig, self).__str__()
+        strs = [prev_str]
+        strs.append("=> Segmentation network: %s" % self.seg_net_path)
+        strs.append("=> Segmentation configure: %s" % self.semantic_config)
+        strs.append("=> Train summation")
+
 
 
 class GuideConfig(SDConfig):
