@@ -17,8 +17,11 @@ import model
 
 cfg = config.FixSegConfig()
 cfg.parse()
-cfg.print_info()
+s = str(cfg)
 cfg.setup()
+print(s)
+with open(cfg.expr_dir + "/config.txt", "w") as f:
+	f.write(s)
 
 state_dict = torch.load(cfg.seg_net_path, map_location='cpu')
 faceparser = unet.unet()
@@ -60,9 +63,6 @@ def positive_convs(convs):
 	count = 0
 	for conv in convs:
 		w = conv[0].weight[:, :, 0, 0] # (out_dim, in_dim)
-		#ww = torch.matmul(w, w.permute(1, 0))
-		#I = torch.eye(ww.shape[0], device=ww.device)
-		#ortho_loss += F.mse_loss(ww, I)
 		ortho_loss = ortho_loss + F.relu(w).mean()
 		count += 1
 	return ortho_loss / count
@@ -75,7 +75,6 @@ def ortho_convs(convs):
 		ww = torch.matmul(w, w.permute(1, 0))
 		I = torch.eye(ww.shape[0], device=ww.device)
 		ortho_loss += F.mse_loss(ww, I)
-		#ortho_loss += F.relu(w).sum()
 		count += 1
 	return ortho_loss / count
 

@@ -11,7 +11,7 @@ import dataset
 import utils
 
 NUM_WORKER = 4
-
+CELEBA_STYLEGAN_PATH = "checkpoint/karras2019stylegan-celebahq-1024x1024.for_g_all.pt"
 
 def config_from_name(name):
     items = name.strip().split("_")
@@ -34,25 +34,28 @@ class BaseConfig(object):
         self.parser.add_argument(
             "--debug", default=False, help="Enable debugging output")
         self.parser.add_argument(
-            "--task", default="ts", help="ts (teacher student training) | seg (given segmentation label)")
-        self.parser.add_argument("--arch", default="tfseg", help="Network definition")
+            "--task", default="fixseg", help="fixseg")
+        self.parser.add_argument(
+            "--arch", default="tfseg", help="Network definition file")
         self.parser.add_argument(
             "--name", default="", help="Name of experiment, auto inference name if leave empty")
         self.parser.add_argument("--imsize", default=512, type=int, help="Train image size")
         # Training environment options
         self.parser.add_argument("--gpu", type=str, default="0")
-        self.parser.add_argument("--seed", type=int, default=1314)
+        self.parser.add_argument("--seed", type=int, default=65537)
         self.parser.add_argument(
             "--expr", default="expr/", help="Experiment directory")
         # Network architecture options
         # Optimize options
         self.parser.add_argument(
             "--iter-num", default=10000, type=int, help="train total iteration")
-        self.parser.add_argument("--lr", default=1e-3, type=float, help="default lr")
         self.parser.add_argument(
-            "--load", default="checkpoint/karras2019stylegan-celebahq-1024x1024.for_g_all.pt", help="load weight from model")
+            "--lr", default=1e-3, type=float, help="default lr")
+        self.parser.add_argument(
+            "--load", default=CELEBA_STYLEGAN_PATH, help="load weight from model")
         # Train data options
-        self.parser.add_argument("--batch_size", type=int, default=1)
+        self.parser.add_argument(
+            "--batch_size", type=int, default=1)
         # Loss options
 
     def parse(self):
@@ -117,6 +120,67 @@ class BaseConfig(object):
         return "\n".join(strs)
 
 
+class FixSegConfig(BaseConfig):
+    def __init__(self):
+        super(FixSegConfig, self).__init__()
+
+        self.parser.add_argument(
+            "--seg-net", default="checkpoint/faceparse_unet_512.pth", help="The load path of semantic segmentation network")
+        self.parser.add_argument(
+            "--seg-cfg", default="conv-16-1", help="Configure of segmantic segmentation extractor")
+        self.parser.add_argument(
+            "--upsample", default="bilinear", help="Upsample method of feature map. bilinear, nearest.")
+        self.parser.add_argument(
+            "--n-class", type=int, default=16, help="Class num")
+        self.parser.add_argument(
+            "--trace", type=int, default=0, help="If to save the weight evolution of semantic branch")
+        self.parser.add_argument(
+            "--train-summation", type=int, default=1, help="If to train the summation of segmentation maps.")
+        self.parser.add_argument(
+            "--ortho-reg", type=float, default=-1, help="The coef of using ortho reg. < 0 means not to use.")
+        self.parser.add_argument(
+            "--positive-reg", type=float, default=-1, help="The coef of using positive regularization.")
+
+    def parse(self):
+        super(FixSegConfig, self).parse()
+        self.train_summation = self.args.train_summation
+        self.ortho_reg = self.args.ortho_reg
+        self.positive_reg = self.args.positive_reg
+        self.upsample = self.args.upsample
+        self.n_class = self.args.n_class
+        self.seg_net_path = self.args.seg_net
+        self.trace_weight = self.args.trace
+        ind = self.seg_net_path.rfind("_")
+        self.seg_net_imsize = int(self.seg_net_path[ind+1:ind+4])
+        self.semantic_config = self.args.seg_cfg
+        self.record = {'loss': [], 'segloss': [], 'regloss': []}
+        if "faceparse_unet" in self.seg_net_path:
+            self.map_id = True
+            self.id2cid = {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 4, 6: 5, 7: 5, 8: 6, 9: 6, 10: 7, 11: 8, 12: 9, 13: 10, 14: 11, 15: 12, 16: 13, 17: 14, 18: 15}
+        else:
+            self.map_id = False
+        self.name = f"{self.task}_{self.semantic_config}_{self.ortho_reg}_{self.positive_reg}"
+        self.expr_dir = osj(self.args.expr, self.name)
+
+    def idmap(self, x):
+        for fr,to in self.id2cid.items():
+            if fr == to:
+                continue
+            x[x == fr] = to
+        return x
+
+    def __str__(self):
+        prev_str = super(FixSegConfig, self).__str__()
+        strs = [prev_str]
+        strs.append("=> Segmentation network: %s" % self.seg_net_path)
+        strs.append("=> Segmentation configure: %s" % self.semantic_config)
+        strs.append("=> Train summation: %d" % self.train_summation)
+        strs.append("=> Orthogonal regularization: %f" % self.ortho_reg)
+        strs.append("=> Positive regularization: %f" % self.positive_reg)
+        return "\n".join(strs)
+
+
+""" Deprecated
 class TSSegConfig(BaseConfig):
     def __init__(self):
         super(TSSegConfig, self).__init__()
@@ -250,57 +314,6 @@ class SDConfig(BaseConfig):
         print(self.ds)
 
 
-class FixSegConfig(BaseConfig):
-    def __init__(self):
-        super(FixSegConfig, self).__init__()
-
-        self.parser.add_argument("--seg-net", default="checkpoint/faceparse_unet_512.pth", help="The load path of semantic segmentation network")
-        self.parser.add_argument("--seg-cfg", default="conv-16-1", help="Configure of segmantic segmentation extractor")
-        self.parser.add_argument("--upsample", default="bilinear", help="Upsample method of feature map. bilinear, nearest.")
-        self.parser.add_argument("--n-class", type=int, default=16, help="Class num")
-        self.parser.add_argument("--trace", type=int, default=0, help="If to save the weight evolution of semantic branch")
-        self.parser.add_argument("--train-summation", type=int, default=1, help="If to train the summation of segmentation maps.")
-        self.parser.add_argument("--ortho-reg", type=float, default=-1, help="The coef of using ortho reg. < 0 means not to use.")
-        self.parser.add_argument("--positive-reg", type=float, default=-1, help="The coef of using positive regularization.")
-
-    def parse(self):
-        super(FixSegConfig, self).parse()
-        self.train_summation = self.args.train_summation
-        self.ortho_reg = self.args.ortho_reg
-        self.positive_reg = self.args.positive_reg
-        self.upsample = self.args.upsample
-        self.n_class = self.args.n_class
-        self.seg_net_path = self.args.seg_net
-        self.trace_weight = self.args.trace
-        ind = self.seg_net_path.rfind("_")
-        self.seg_net_imsize = int(self.seg_net_path[ind+1:ind+4])
-        self.semantic_config = self.args.seg_cfg
-        self.record = {'loss': [], 'segloss': [], 'regloss': []}
-        if "faceparse_unet" in self.seg_net_path:
-            self.map_id = True
-            self.id2cid = {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 4, 6: 5, 7: 5, 8: 6, 9: 6, 10: 7, 11: 8, 12: 9, 13: 10, 14: 11, 15: 12, 16: 13, 17: 14, 18: 15}
-        else:
-            self.map_id = False
-        self.name = f"{self.task}_{self.semantic_config}_{self.ortho_reg}_{self.positive_reg}"
-        self.expr_dir = osj(self.args.expr, self.name)
-        utils.stdout_redirect(osj(self.expr_dir, "config.txt"))
-    
-    def idmap(self, x):
-        for fr,to in self.id2cid.items():
-            if fr == to:
-                continue
-            x[x == fr] = to
-        return x
-
-    def __str__(self):
-        prev_str = super(FixSegConfig, self).__str__()
-        strs = [prev_str]
-        strs.append("=> Segmentation network: %s" % self.seg_net_path)
-        strs.append("=> Segmentation configure: %s" % self.semantic_config)
-        strs.append("=> Train summation")
-
-
-
 class GuideConfig(SDConfig):
     def __init__(self):
         super(GuideConfig, self).__init__()
@@ -316,6 +329,7 @@ class GuideConfig(SDConfig):
     def print_info(self):
         super(GuideConfig, self).print_info()
         print("=> Guide loss type: %s" % self.guide)
+
 
 class TSConfig(BaseConfig):
     def __init__(self):
@@ -387,3 +401,4 @@ class TSConfig(BaseConfig):
             print("=> Mask area loss : %.2f" % self.ma)
         if self.md > 0:
             print("=> Mask divergence loss : %.2f" % self.md)
+"""
