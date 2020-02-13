@@ -42,10 +42,13 @@ class BaseConfig(object):
             "--arch", default="tfseg", help="Network definition file")
         self.parser.add_argument(
             "--name", default="", help="Name of experiment, auto inference name if leave empty")
-        self.parser.add_argument("--imsize", default=512, type=int, help="Train image size")
+        self.parser.add_argument(
+            "--imsize", default=512, type=int, help="Train image size")
         # Training environment options
-        self.parser.add_argument("--gpu", type=str, default="0")
-        self.parser.add_argument("--seed", type=int, default=65537)
+        self.parser.add_argument(
+            "--gpu", type=str, default="0")
+        self.parser.add_argument(
+            "--seed", type=int, default=65537)
         self.parser.add_argument(
             "--expr", default="expr/", help="Experiment directory")
         # Network architecture options
@@ -58,16 +61,20 @@ class BaseConfig(object):
             "--load", default=CELEBA_STYLEGAN_PATH, help="load weight from model")
         # Train data options
         self.parser.add_argument(
-            "--batch_size", type=int, default=1)
+            "--batch-size", type=int, default=1)
+        self.parser.add_argument(
+            "--disp-iter", type=int, default=100)
+        self.parser.add_argument(
+            "--save-iter", type=int, default=1000)
         # Loss options
 
     def parse(self):
         self.args = self.parser.parse_args()
         self.n_iter = self.args.iter_num
-        self.disp_iter = max(100, self.n_iter // 100)
-        self.save_iter = max(1000, self.n_iter // 10)
         self.debug = self.args.debug
         self.task = self.args.task
+        self.disp_iter = self.args.disp_iter
+        self.save_iter = self.args.save_iter
         self.imsize = self.args.imsize
         self.arch = self.args.arch
         self.lr = self.args.lr

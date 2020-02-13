@@ -1,8 +1,8 @@
 import os, subprocess
 
-basecmd = "python train/wgan.py --task wgan --gpu 4,5,6,7 --batch_size 128 --iter-num 100000 --imsize 128 --load "" --lr 0.0001 --dataset datasets/CelebAMask-HQ/CelebA-HQ-img-256"
+basecmd = "python train/wgan.py --task wgan --gpu 4,5,6,7 --batch-size 128 --iter-num 100000 --imsize 128 --load "" --lr 0.0001 --dataset datasets/CelebAMask-HQ/CelebA-HQ-img-256"
 
-basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg conv-16-1 --gpu 0 --batch_size 4 --iter-num 8000 --trace 1 --load checkpoint/karras2019stylegan-celebahq-1024x1024.for_g_all.pt --expr record/celebahq"
+basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg conv-16-1 --gpu 0 --batch-size 4 --iter-num 8000 --trace 1 --load checkpoint/karras2019stylegan-celebahq-1024x1024.for_g_all.pt --expr record/celebahq"
 
 class FixSegCore(object):
     def __init__(self):
@@ -11,7 +11,7 @@ class FixSegCore(object):
             "conv-16-2",
             "conv-16-3"
         ]
-        self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --gpu %s --batch_size 4 --iter-num 8000 --trace %s --expr record/celebahq"
+        self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --gpu %s --batch-size 4 --iter-num 8000 --trace %s --expr record/celebahq"
 
     def args_gen(self, gpus):
         l = []
@@ -50,7 +50,7 @@ class FixSegReg(FixSegCore):
             (1.0, -1),
             (-1, 1.0)
         ]
-        self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --gpu %s --batch_size 4 --iter-num 8000 --trace %s --ortho-reg %f --positive-reg %f --expr record/celebahq"
+        self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --gpu %s --batch-size 4 --iter-num 8000 --trace %s --ortho-reg %f --positive-reg %f --expr record/celebahq"
 
     def args_gen(self, gpus):
         l = []
@@ -94,7 +94,7 @@ class FixSegFull(object):
             0.1,
             1.0
         ]
-        self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --gpu %s --batch_size 4 --iter-num 8000 --trace %d --load %s --expr %s --positive-reg %f"
+        self.basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg %s --gpu %s --batch-size 4 --iter-num 8000 --trace %d --load %s --expr %s --positive-reg %f"
         # evaluator: layer visualization is missing
 
     def args_gen(self, gpus):
@@ -145,13 +145,13 @@ def assign_run(command_generator, gpus, false_exec=False):
 
 def direct_run(gpus):
     commands = [
-        "python train/fixsegtrain.py --ortho-reg -1 --train-last 0 --task fixseg --seg-cfg conv-16-1 --batch_size 1 --gpu %s --trace 1 --load checkpoint/karras2019stylegan-celebahq-1024x1024.for_g_all.pt",
-        #"python train/fixsegtrain.py --task fixsegsimple --seg-cfg mul-16 --arch simple --batch_size 1 --load expr/celeba_wgan_64/gen_iter_100000.model --imsize 64 --seg-net checkpoint/faceparse_unet_128.pth --gpu %s --trace 1 &",
-        #"python train/simplesdtrain.py --task simplesd --seg-cfg mul-16 --arch simple --batch_size 64 --imsize 256 --load \"\" --disc-net \"\" --gpu %s --iter-num 100000 &",
-        #"python train/simplesdtrain.py --task simplesd --seg-cfg mul-16 --seg 0 --arch simple --batch_size 64 --imsize 256 --load \"\" --disc-net \"\" --gpu %s --iter-num 100000 &",
-        #"python train/segtrain.py --task simpleseg --arch simple --batch_size 64 --imsize 64 --load \"\" --disc-net \"\" --gpu %s &",
-        #"python train/guidesdtrain.py --task simplesd --seg-cfg mul-16 --arch simple --batch_size 64 --imsize 64 --load \"\" --disc-net \"\" --gpu %s --guide norm &",
-        #"python train/guidesdtrain.py --task simplesd --seg-cfg mul-16 --arch simple --batch_size 64 --imsize 64 --load \"\" --disc-net \"\" --gpu %s --guide delta &",
+        "python train/fixsegtrain.py --ortho-reg -1 --train-last 0 --task fixseg --seg-cfg conv-16-1 --batch-size 1 --gpu %s --trace 1 --load checkpoint/karras2019stylegan-celebahq-1024x1024.for_g_all.pt",
+        #"python train/fixsegtrain.py --task fixsegsimple --seg-cfg mul-16 --arch simple --batch-size 1 --load expr/celeba_wgan_64/gen_iter_100000.model --imsize 64 --seg-net checkpoint/faceparse_unet_128.pth --gpu %s --trace 1 &",
+        #"python train/simplesdtrain.py --task simplesd --seg-cfg mul-16 --arch simple --batch-size 64 --imsize 256 --load \"\" --disc-net \"\" --gpu %s --iter-num 100000 &",
+        #"python train/simplesdtrain.py --task simplesd --seg-cfg mul-16 --seg 0 --arch simple --batch-size 64 --imsize 256 --load \"\" --disc-net \"\" --gpu %s --iter-num 100000 &",
+        #"python train/segtrain.py --task simpleseg --arch simple --batch-size 64 --imsize 64 --load \"\" --disc-net \"\" --gpu %s &",
+        #"python train/guidesdtrain.py --task simplesd --seg-cfg mul-16 --arch simple --batch-size 64 --imsize 64 --load \"\" --disc-net \"\" --gpu %s --guide norm &",
+        #"python train/guidesdtrain.py --task simplesd --seg-cfg mul-16 --arch simple --batch-size 64 --imsize 64 --load \"\" --disc-net \"\" --gpu %s --guide delta &",
     ]
     for i in range(len(commands)):
         index = i % len(gpus)
