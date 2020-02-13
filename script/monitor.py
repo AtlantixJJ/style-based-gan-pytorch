@@ -130,7 +130,7 @@ if "celeba-evaluator" in args.task:
 if "layer-conv" in args.task:
     colorizer = utils.Colorize(16) #label to rgb
     model_file = model_files[-1]
-    latent = torch.randn(4, latent_size, device=device)[2:3]
+    latent = torch.randn(64, latent_size, device=device)[45:46]
     state_dict = torch.load(model_file, map_location='cpu')
     missed = generator.load_state_dict(state_dict, strict=False)
     if len(missed.missing_keys) > 1:
@@ -146,27 +146,40 @@ if "layer-conv" in args.task:
     unet_label_viz = colorizer(unet_label).float() / 255.
     image = (1 + image[0]) / 2
     segs = generator.extract_segmentation(generator.stage)
+    LEN = (len(segs) + 1) // 2
+    layer_segs = segs[:LEN]
+    sum_segs = segs[0:1] + segs[LEN:]
     final_label_viz = colorizer(segs[-1].argmax(1)).float() / 255.
     images = [image, unet_label_viz, final_label_viz]
 
-    prev_label = 0
-    for i, s in enumerate(segs):
-        layer_label = F.interpolate(s, size=image.shape[2], mode="bilinear").argmax(1)[0]
-        if prev_label is 0:
-            prev_label = layer_label
+    prev_seg = 0
+    for i, (s, ss) in enumerate(zip(layer_segs, sum_segs)):
+        #layer_label = F.interpolate(s, size=image.shape[2], mode="bilinear").argmax(1)[0]
+        layer_label = s.argmax(1)[0]
         layer_label_viz = colorizer(layer_label).float() / 255.
-        sum_layers = [F.interpolate(x, size=s.shape[2], mode="bilinear")
-            for x in segs[:i]]
-        sum_layers = sum(sum_layers) + s
-        sum_layers = F.interpolate(sum_layers, size=image.shape[2], mode="bilinear")
-        sum_label = sum_layers.argmax(1)[0]
+        #sum_layers = [F.interpolate(x, size=s.shape[2], mode="bilinear") for x in segs[:i]]
+        #sum_layers = sum(sum_layers) + s
+        #sum_layers = F.interpolate(sum_layers, size=image.shape[2], mode="bilinear")
+
+        if prev_seg is 0:
+            prev_seg = ss
+        
+        prev_label = F.interpolate(prev_seg, size=s.shape[2], mode="bilinear").argmax(1)[0]
+
+        sum_label = ss.argmax(1)[0]
         sum_label_viz = colorizer(sum_label).float() / 255.
         diff_label_viz = sum_label_viz.clone()
-
         for i in range(3):
             diff_label_viz[i, :, :][sum_label == prev_label] = 1
+        if layer_label_viz.shape[2] < 256:
+            layer_label_viz = F.interpolate(
+                layer_label_viz.unsqueeze(0), size=256, mode="nearest")[0]
+            sum_label_viz = F.interpolate(
+                sum_label_viz.unsqueeze(0), size=256, mode="nearest")[0]
+            diff_label_viz = F.interpolate(
+                diff_label_viz.unsqueeze(0), size=256, mode="nearest")[0]
         images.extend([layer_label_viz, sum_label_viz, diff_label_viz])
-        prev_label = sum_label
+        prev_seg = ss
     images = [F.interpolate(img.unsqueeze(0), size=256, mode="bilinear") for img in images]
     images = torch.cat(images)
     print(f"=> Image write to {savepath}_layer-conv.png")
