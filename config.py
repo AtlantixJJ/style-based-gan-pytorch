@@ -13,6 +13,9 @@ import utils
 NUM_WORKER = 4
 CELEBA_STYLEGAN_PATH = "checkpoint/karras2019stylegan-celebahq-1024x1024.for_g_all.pt"
 
+
+
+
 def config_from_name(name):
     items = name.strip().split("_")
     dics = {}
@@ -180,6 +183,120 @@ class FixSegConfig(BaseConfig):
         return "\n".join(strs)
 
 
+class BasicGANConfig(BaseConfig):
+    def __init__(self):
+        super(BasicGANConfig, self).__init__()
+        self.parser.add_argument(
+            "--disc-net", default="")
+        self.parser.add_argument(
+            "--dataset", default="datasets/CelebAMask-HQ")
+        self.parser.add_argument(
+            "--n-critic", type=int, default=2, help="Number of discriminator steps")
+
+    def parse(self):
+        super(BasicGANConfig, self).parse()
+        self.n_critic = self.args.n_critic
+        self.disc_load_path = self.args.disc_net
+        self.gen_load_path = self.args.load
+        self.dataset = self.args.dataset
+        self.imsize = self.args.imsize
+
+        self.transform_train = transforms.Compose([
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+        self.ds = dataset.SimpleDataset(
+            root=self.dataset,
+            size=self.imsize,
+            transform=self.transform_train)
+        self.dl = DataLoader(self.ds,
+            batch_size=self.batch_size,
+            shuffle=True,
+            drop_last=True,
+            num_workers=NUM_WORKER)
+
+        self.record = {'disc_loss': [], 'grad_penalty': [], 'gen_loss': []}
+        self.name = f"{self.task}{self.imsize}"
+        self.expr_dir = osj("expr", self.name)
+
+    def __str__(self):
+        prev_str = super(BasicGANConfig, self).__str__()
+        strs = [prev_str]
+        strs.append(f"=> Discriminator path: {self.disc_load_path}")
+        strs.append(f"=> Generator path: {self.gen_load_path}")
+        strs.append(str(self.ds))
+        return "\n".join(strs)
+
+"""
+class SDConfig(BaseConfig):
+    def __init__(self):
+        super(SDConfig, self).__init__()
+        self.parser.add_argument(
+            "--disc-net", default="")
+        self.parser.add_argument(
+            "--dataset", default="datasets/CelebAMask-HQ")
+        self.parser.add_argument(
+            "--seg", default=-1, type=float, help="Use segmentation or not")
+        self.parser.add_argument(
+            "--seg-cfg", default="conv-16-1", help="Configure of segmantic segmentation extractor")
+        self.parser.add_argument(
+            "--n-class", type=int, default=16, help="Class num")
+        self.parser.add_argument(
+            "--n-critic", type=int, default=2, help="Number of discriminator steps")
+        self.parser.add_argument(
+            "--dseg-cfg", default="lowcat-16", help="Configure of how discriminator use segmantic segmentation")
+
+    def parse(self):
+        super(SDConfig, self).parse()
+        self.seg = self.args.seg
+        self.n_class = self.args.n_class
+        self.n_critic = self.args.n_critic
+        self.disc_semantic_config = self.args.dseg_cfg
+        self.semantic_config = self.args.seg_cfg
+        self.disc_load_path = self.args.disc_net
+        self.gen_load_path = self.args.load
+        self.dataset = self.args.dataset
+        self.map_id = True if "CelebAMask-HQ" in self.dataset else False
+        self.imsize = self.args.imsize
+
+        # 32, 64 -> 64; 128, 256 -> 256; 512, 1024 -> 1024
+        subfix = "64" if self.imsize <= 64 else "256"
+        if self.imsize > 256:
+            subfix = ""
+
+        self.ds = dataset.ImageSegmentationDataset(
+            root=self.dataset,
+            size=self.imsize,
+            image_dir=f"CelebA-HQ-img-{subfix}",
+            label_dir=f"CelebAMask-HQ-mask-{subfix}",
+            idmap=utils.idmap)
+        self.dl = DataLoader(self.ds,
+            batch_size=self.batch_size,
+            shuffle=True,
+            drop_last=True,
+            num_workers=NUM_WORKER)
+
+        self.record = {'disc_loss': [], 'grad_penalty': [], 'gen_loss': []}
+        if "mix" in self.disc_semantic_config:
+            self.record["disc_low_loss"] = []
+
+        self.name = f"{self.task}{self.imsize}_{self.seg}_{self.semantic_config}"
+        self.expr_dir = osj("expr", self.name)
+
+    def __str__(self):
+        prev_str = super(SDConfig, self).__str__()
+        strs = [prev_str]
+        strs.append(f"=> Discriminator path: {self.disc_load_path}")
+        strs.append(f"=> Segmentation: {self.seg}")
+        if self.seg > 0:
+            strs.append(f"=> Discriminator semantic config: {self.disc_semantic_config}")
+            strs.append(f"=> Generator semantic config: {self.semantic_config}")
+        strs.append(f"=> Generator path: {self.gen_load_path}")
+        strs.append(str(self.ds))
+        return "\n".join(strs)
+"""
+
+
 """ Deprecated
 class TSSegConfig(BaseConfig):
     def __init__(self):
@@ -256,63 +373,6 @@ class SegConfig(BaseConfig):
         super(SegConfig, self).print_info()
         print(self.ds)
         
-
-class SDConfig(BaseConfig):
-    def __init__(self):
-        super(SDConfig, self).__init__()
-        self.parser.add_argument("--disc-net", default="checkpoint/stylegan-1024px-new-disc.model")
-        self.parser.add_argument("--dataset", default="datasets/CelebAMask-HQ")
-        self.parser.add_argument("--seg", default=1., type=float, help="Use segmentation or not")
-        self.parser.add_argument("--seg-cfg", default="conv-16-1", help="Configure of segmantic segmentation extractor")
-        self.parser.add_argument("--n-class", type=int, default=16, help="Class num")
-        self.parser.add_argument("--n-critic", type=int, default=2, help="Number of discriminator steps")
-        self.parser.add_argument("--dseg-cfg", default="lowcat-16", help="Configure of how discriminator use segmantic segmentation")
-
-    def parse(self):
-        super(SDConfig, self).parse()
-        self.lr = 1e-4
-        self.seg = self.args.seg
-        self.n_class = self.args.n_class
-        self.n_critic = self.args.n_critic
-        self.disc_semantic_config = self.args.dseg_cfg
-        self.semantic_config = self.args.seg_cfg
-        self.disc_load_path = self.args.disc_net
-        self.gen_load_path = self.args.load
-        self.dataset = self.args.dataset
-        self.map_id = True
-        self.imsize = self.args.imsize
-        if self.imsize < 512:
-            self.ds = dataset.ImageSegmentationDataset(
-                root=self.dataset,
-                size=self.imsize,
-                image_dir=f"CelebA-HQ-img-{self.imsize}",
-                label_dir=f"CelebAMask-HQ-mask-{self.imsize}",
-                idmap=utils.idmap)
-        else:
-            self.ds = dataset.ImageSegmentationDataset(
-                root=self.dataset,
-                size=self.imsize,
-                image_dir="CelebA-HQ-img",
-                label_dir="CelebAMask-HQ-mask",
-                idmap=utils.idmap)
-        self.dl = DataLoader(self.ds, batch_size=self.batch_size, shuffle=True, drop_last=True)
-
-        self.record = {'disc_loss': [], 'grad_penalty': [], 'gen_loss': []}
-        if "mix" in self.disc_semantic_config:
-            self.record["disc_low_loss"] = []
-
-        self.name = f"{self.task}{self.imsize}_{self.seg}_{self.semantic_config}"
-        self.expr_dir = osj("expr", self.name)
-
-    def print_info(self):
-        super(SDConfig, self).print_info()
-        print(f"=> Discriminator path: {self.disc_load_path}")
-        if self.seg > 0:
-            print("=> Use segmentation")
-        else:
-            print("=> Don't use segmentation")
-        print(self.ds)
-
 
 class GuideConfig(SDConfig):
     def __init__(self):

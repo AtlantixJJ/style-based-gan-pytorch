@@ -13,20 +13,20 @@ class SimpleDataset(torch.utils.data.Dataset):
     """
     Image only dataset
     """
-    def __init__(self, data_path, size, transform=None):
+    def __init__(self, root, size, transform=None):
         if type(size) is int:
             self.size = (size, size)
         elif type(size) is tuple or type(size) is list:
             self.size = size
-        self.data_path = data_path
+        self.root = root
         self.transform = transform
 
-        self.files = sum([[file for file in files if ".jpg" in file or ".png" in file] for path, dirs, files in os.walk(data_path) if files], [])
+        self.files = sum([[file for file in files if ".jpg" in file or ".png" in file] for path, dirs, files in os.walk(root) if files], [])
         self.files.sort()
 
     def __getitem__(self, idx):
         fpath = self.files[idx]
-        with open(os.path.join(self.data_path, fpath), "rb") as f:
+        with open(os.path.join(self.root, fpath), "rb") as f:
             img = Image.open(f).convert("RGB").resize(self.size, Image.BILINEAR)
         if self.transform:
             img = self.transform(img)
@@ -34,6 +34,13 @@ class SimpleDataset(torch.utils.data.Dataset):
     
     def __len__(self):
         return len(self.files)
+    
+    def __str__(self):
+        strs = []
+        strs.append(f"=> Root: {self.root}")
+        strs.append(f"=> Number of samples: {len(self)}")
+        strs.append(str(self.transform))
+        return "\n".join(strs)
 
 
 class ImageSegmentationDataset(torch.utils.data.Dataset):

@@ -1,5 +1,7 @@
 import os, subprocess
 
+basecmd = "python train/wgan.py --task wgan --gpu 4,5,6,7 --batch_size 128 --iter-num 100000 --imsize 128 --load "" --lr 0.0001 --dataset datasets/CelebAMask-HQ/CelebA-HQ-img-256"
+
 basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg conv-16-1 --gpu 0 --batch_size 4 --iter-num 8000 --trace 1 --load checkpoint/karras2019stylegan-celebahq-1024x1024.for_g_all.pt --expr record/celebahq"
 
 class FixSegCore(object):

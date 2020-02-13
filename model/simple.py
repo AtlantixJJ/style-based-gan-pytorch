@@ -29,6 +29,27 @@ class MultiResolutionConvolution(nn.Module):
         return sum([F.interpolate(out, size, mode="bilinear") for out in outs])
 
 
+class ExtendedConv(nn.Module):
+    """Conv layer with equalized learning rate and custom learning rate multiplier."""
+    def __init__(self, input_channels, output_channels, kernel_size, gain=2**(0.5), bias=True, args=""):
+        super().__init__()
+        self.args = args
+        he_std = gain * (input_channels * kernel_size ** 2) ** (-0.5) # He init
+        self.kernel_size = kernel_size
+        self.weight = torch.nn.Parameter(torch.randn(output_channels, input_channels, kernel_size, kernel_size) * he_std)
+        if bias:
+            self.bias = torch.nn.Parameter(torch.zeros(output_channels))
+        else:
+            self.bias = None
+
+    def forward(self, x):
+        w = self.weight
+        if "positive" in self.args:
+            w = F.relu(w)
+        x = F.conv2d(x, w, self.bias, padding=self.kernel_size // 2)
+        return x
+
+
 def get_bn(name, dim):
     if name == 'none':
         return None
@@ -38,7 +59,7 @@ def get_bn(name, dim):
         return nn.InstanceNorm2d(dim)
 
 class Generator(nn.Module):
-    def __init__(self, out_dim=3, out_act="tanh", upsample=3, semantic="mul-16"):
+    def __init__(self, out_dim=3, out_act="tanh", upsample=3, semantic=""):
         """
         Start from 4x4, upsample=3 -> 32
         """
@@ -48,8 +69,11 @@ class Generator(nn.Module):
         self.out_act = out_act
         self.dims = dims
         self.upsample = upsample
-        self.segcfg, self.n_class = semantic.split("-")
-        self.n_class = int(self.n_class)
+        if len(semantic) > 0:
+            self.segcfg, self.n_class, self.args = semantic.split("-")
+            self.n_class = int(self.n_class)
+        else:
+            self.segcfg = ""
         self.ksize = 1
         self.padsize = (self.ksize - 1) // 2
 
@@ -64,7 +88,12 @@ class Generator(nn.Module):
             self.deconvs.append(conv)
         self.visualize = nn.Conv2d(dims[-1], self.out_dim, 3, padding=1)
         self.tanh = nn.Tanh()
-        self.build_extractor()
+
+        if "conv" in self.segcfg:
+            self.n_layer = int(self.args.split("_")[0])
+            self.build_extractor_conv()
+        elif "mul" in self.segcfg:
+            self.build_extractor_mul()
     
     def freeze(self, train=False):
         for p in self.parameters():
@@ -72,15 +101,46 @@ class Generator(nn.Module):
         for p in self.semantic_branch.parameters():
             p.requires_grad = True
 
-    def build_extractor(self):
+    def build_extractor_mul(self):
         self.semantic_branch = MultiResolutionConvolution(
             in_dims=self.dims[1:],
             out_dim=self.n_class,
             kernel_size=self.ksize
         )
 
-    def extract_segmentation(self, stage):
+    def build_extractor_conv(self):
+        self.semantic_branch = nn.ModuleList([
+            ExtendedConv(dim, self.n_class, self.ksize,
+                bias=False, args=self.args)
+                for dim in self.dims
+            ])
+
+    def extract_segmentation_conv(self, stage):
+        count = 0
+        outputs = []
+        for i, seg_input in enumerate(stage):
+            outputs.append(self.semantic_extractor[count](seg_input))
+            count += 1
+        size = outputs[-1].shape[2]
+
+        # summation series
+        for i in range(1, len(stage)):
+            size = stage[i].shape[2]
+            layers = [F.interpolate(s, size=size, mode="bilinear")
+                for s in outputs[:i]]
+            sum_layers = sum(layers) + outputs[i]
+            outputs.append(sum_layers)
+
+        return outputs
+
+    def extract_segmentation_mul(self, stage):
         return [self.semantic_branch(stage)]
+    
+    def extract_segmentation(self, stage):
+        if "conv" in self.segcfg:
+            return self.extract_segmentation_conv(stage)
+        elif "mul" in self.segcfg:
+            return self.extract_segmentation_mul(stage)  
 
     def forward(self, x, seg=True, detach=False):
         x = self.relu(self.fc(x)).view(-1, self.dims[0], 4, 4)
@@ -96,7 +156,7 @@ class Generator(nn.Module):
         if self.out_act == "tanh":
             x = self.tanh(x)
 
-        if seg:
+        if seg and self.segcfg != "":
             seg = self.extract_segmentation(self.stage)[-1]
             return x, seg
         return x
