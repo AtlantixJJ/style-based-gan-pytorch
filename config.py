@@ -3,8 +3,7 @@ Training options and expr dir set up.
 """
 
 import torch
-import os
-import argparse
+import os, argparse
 from os.path import join as osj
 from torchvision import transforms, utils
 from torch.utils.data import DataLoader
@@ -51,7 +50,7 @@ class BaseConfig(object):
             "--iter-num", default=10000, type=int, help="train total iteration")
         self.parser.add_argument("--lr", default=1e-3, type=float, help="default lr")
         self.parser.add_argument(
-            "--load", default="checkpoint/karras2019stylegan-ffhq-1024x1024.for_g_all.pt", help="load weight from model")
+            "--load", default="checkpoint/karras2019stylegan-celebahq-1024x1024.for_g_all.pt", help="load weight from model")
         # Train data options
         self.parser.add_argument("--batch_size", type=int, default=1)
         # Loss options
@@ -123,7 +122,7 @@ class TSSegConfig(BaseConfig):
         self.parser.add_argument("--seg-net", default="checkpoint/faceparse_unet_512.pth", help="The load path of semantic segmentation network")
         self.parser.add_argument("--seg", default=1., type=float, help="Coefficient of segmentation loss")
         self.parser.add_argument("--mse", default=1., type=float, help="Coefficient of MSE loss")
-        self.parser.add_argument("--seg-cfg", default="mul-16", help="Configure of segmantic segmentation extractor")
+        self.parser.add_argument("--seg-cfg", default="conv-16-1", help="Configure of segmantic segmentation extractor")
 
     def parse(self):
         super(TSSegConfig, self).parse()
@@ -164,7 +163,7 @@ class SegConfig(BaseConfig):
         self.parser.add_argument("--dataset", default="datasets/CelebAMask-HQ", help="Path of latent segmentation dataset")
         self.parser.add_argument("--idmap", default=1, type=int, help="Map the 19 class id of CelebA Mask to 16 classes")
         self.parser.add_argument("--seg", default=1., type=float, help="Coefficient of segmentation loss")
-        self.parser.add_argument("--seg-cfg", default="mul-16", help="Configure of segmantic segmentation extractor")
+        self.parser.add_argument("--seg-cfg", default="conv-16-1", help="Configure of segmantic segmentation extractor")
 
     def parse(self):
         super(SegConfig, self).parse()
@@ -198,7 +197,7 @@ class SDConfig(BaseConfig):
         self.parser.add_argument("--disc-net", default="checkpoint/stylegan-1024px-new-disc.model")
         self.parser.add_argument("--dataset", default="datasets/CelebAMask-HQ")
         self.parser.add_argument("--seg", default=1., type=float, help="Use segmentation or not")
-        self.parser.add_argument("--seg-cfg", default="mul-16", help="Configure of segmantic segmentation extractor")
+        self.parser.add_argument("--seg-cfg", default="conv-16-1", help="Configure of segmantic segmentation extractor")
         self.parser.add_argument("--n-class", type=int, default=16, help="Class num")
         self.parser.add_argument("--n-critic", type=int, default=2, help="Number of discriminator steps")
         self.parser.add_argument("--dseg-cfg", default="lowcat-16", help="Configure of how discriminator use segmantic segmentation")
@@ -254,17 +253,17 @@ class FixSegConfig(BaseConfig):
         super(FixSegConfig, self).__init__()
 
         self.parser.add_argument("--seg-net", default="checkpoint/faceparse_unet_512.pth", help="The load path of semantic segmentation network")
-        self.parser.add_argument("--seg-cfg", default="mul-16", help="Configure of segmantic segmentation extractor")
+        self.parser.add_argument("--seg-cfg", default="conv-16-1", help="Configure of segmantic segmentation extractor")
         self.parser.add_argument("--upsample", default="bilinear", help="Upsample method of feature map. bilinear, nearest.")
         self.parser.add_argument("--n-class", type=int, default=16, help="Class num")
         self.parser.add_argument("--trace", type=int, default=0, help="If to save the weight evolution of semantic branch")
-        self.parser.add_argument("--train-last", type=int, default=1, help="If to train the last segmentation map.")
+        self.parser.add_argument("--train-summation", type=int, default=1, help="If to train the summation of segmentation maps.")
         self.parser.add_argument("--ortho-reg", type=float, default=-1, help="The coef of using ortho reg. < 0 means not to use.")
         self.parser.add_argument("--positive-reg", type=float, default=-1, help="The coef of using positive regularization.")
 
     def parse(self):
         super(FixSegConfig, self).parse()
-        self.train_last = self.args.train_last
+        self.train_summation = self.args.train_summation
         self.ortho_reg = self.args.ortho_reg
         self.positive_reg = self.args.positive_reg
         self.upsample = self.args.upsample
@@ -282,6 +281,7 @@ class FixSegConfig(BaseConfig):
             self.map_id = False
         self.name = f"{self.task}_{self.semantic_config}_{self.ortho_reg}_{self.positive_reg}"
         self.expr_dir = osj(self.args.expr, self.name)
+        utils.stdout_redirect(osj(self.expr_dir, "config.txt"))
     
     def idmap(self, x):
         for fr,to in self.id2cid.items():

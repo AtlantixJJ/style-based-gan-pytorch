@@ -101,8 +101,8 @@ for ind in tqdm(range(cfg.n_iter)):
 	segs = sg.extract_segmentation(sg.stage)
 
 	# The last one is usually summation of previous one
-	if not cfg.train_last:
-		segs = segs[:-1]
+	if not cfg.train_summation:
+		segs = segs[:len(sg.generator.stage)]
 
 	# calculate segmentation loss
 	seglosses = []

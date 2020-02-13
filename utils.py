@@ -1,5 +1,5 @@
 from __future__ import print_function
-import datetime, time, math, glob, os
+import datetime, time, math, glob, os, sys
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from os.path import join as osj
@@ -665,6 +665,24 @@ class MaskCelebAEval(object):
 #########
 ## Logging related functions
 #########
+
+
+"""
+ORIGINAL_STDOUT = 0
+
+
+def stdout_redirect(filename):
+    global ORIGINAL_STDOUT
+    ORIGINAL_STDOUT = sys.stdout
+    sys.stdout = open(filename, "w")
+
+
+# must be called after redirect
+def stdout_resume():
+    sys.stdout.close()
+    sys.stdout = ORIGINAL_STDOUT
+"""
+
 
 def list_collect_data(data_dir, keys=["origin_latent", "origin_noise", "image_stroke", "image_mask", "label_stroke", "label_mask"]):
     dic = {}

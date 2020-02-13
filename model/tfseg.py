@@ -658,8 +658,15 @@ class StyledGenerator(nn.Module):
             outputs.append(self.semantic_extractor[count](seg_input))
             count += 1
         size = outputs[-1].shape[2]
-        s = sum([F.interpolate(s, size=size, mode="bilinear") for s in outputs])
-        outputs.append(s)
+
+        # summation series
+        for i in range(1, len(stage)):
+            size = stage[i].shape[2]
+            layers = [F.interpolate(s, size=size, mode="bilinear")
+                for s in outputs[:i]]
+            sum_layers = sum(layers) + outputs[i]
+            outputs.append(sum_layers)
+
         return outputs
 
     def extract_segmentation_multi(self, stage):
