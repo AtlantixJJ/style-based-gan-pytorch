@@ -192,8 +192,8 @@ class Discriminator(nn.Module):
             # need to do this, otherwise weight is not present, only weight_orig
             new_conv(torch.rand(1, self.n_class + in_dim, ks, ks))
             org_conv(torch.rand(1, in_dim, ks, ks))
-            new_conv.weight.data[:, :in_dim] = org_conv.weight.data.clone()
-            new_conv.bias.data = org_conv.bias.data.clone()
+            new_conv.weight.data[:, :in_dim] = org_conv.weight.data.detach().clone()
+            new_conv.bias.data = org_conv.bias.data.detach().clone()
             self.conv = new_conv
 
     def forward(self, x):

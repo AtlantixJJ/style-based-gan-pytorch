@@ -3,6 +3,7 @@ from home.stylegan import StyledGenerator
 from home.optim import get_optim_func, baseline_edit_label_stroke
 from home import utils
 
+
 class WrapedStyledGenerator(torch.nn.Module):
     def __init__(self, optim="", seg_cfg="", load_path="", gpu=-1):
         super(WrapedStyledGenerator, self).__init__()
@@ -26,6 +27,7 @@ class WrapedStyledGenerator(torch.nn.Module):
         print("=> Optimization method %s" % str(self.optim_func))
 
         self.latent_param = torch.randn(1, 512, requires_grad=True, device=self.device)
+        self.mix_latent_param = self.latent_param.extend(18, -1).unsqueeze(0).detach()
 
     def generate_noise(self):
         sizes = [4 * 2 ** (i // 2) for i in range(18)]
@@ -33,7 +35,6 @@ class WrapedStyledGenerator(torch.nn.Module):
         latent = torch.randn(1, 512, device=self.device)
         noise_vec = torch.randn((length,), device=self.device)
         return latent, noise_vec
-
 
     def generate_given_image_stroke(self, latent, noise, image_stroke, image_mask):
         utils.copy_tensor(self.latent_param, latent)

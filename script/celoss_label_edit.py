@@ -20,11 +20,11 @@ from lib.face_parsing import unet
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--model", default="checkpoint/fixseg.model")
+parser.add_argument("--model", default="checkpoint/fixseg_conv-16-1.model")
 parser.add_argument("--external-model", default="checkpoint/faceparse_unet_512.pth")
 parser.add_argument("--output", default="results")
 parser.add_argument("--data-dir", default="data")
-parser.add_argument("--seg-cfg", default="mul-16")
+parser.add_argument("--seg-cfg", default="conv-16-1")
 parser.add_argument("--lr", default=1e-2, type=int)
 parser.add_argument("--n-iter", default=20, type=int)
 parser.add_argument("--n-reg", default=3, type=int)
@@ -61,7 +61,7 @@ for ind, dic in enumerate(dl):
         dic[k] = dic[k].to(device)
 
     latent_ = dic["origin_latent"]
-    mix_latent_ = latent_.expand(18, -1)
+    mix_latent_ = latent_.detach().expand(18, -1)
     noises_ = utils.parse_noise(dic["origin_noise"][0])
     label_stroke = dic["label_stroke"]
     label_mask = dic["label_mask"]
@@ -88,18 +88,22 @@ for ind, dic in enumerate(dl):
         elif "GL" in t:
             latent = generalized_latent_
         elif "LL" in t:
-            param = latent_
+            latent = latent_
+        elif "ML" in t:
+            latent = mix_latent_
 
         image, label, latent, noises, record = optim.edit_label_stroke(
             model=generator,
             external_model=external_model,
             mapping_network=generator.g_mapping.simple_forward,
-            latent=extended_latent_,
+            latent=latent,
             noises=noises_,
             label_stroke=label_stroke,
             label_mask=label_mask,
+            method=t,
             lr=args.lr,
-            n_iter=args.n_iter)
+            n_iter=args.n_iter,
+            n_reg=0)
         
         label_viz = colorizer(label[0]).unsqueeze(0) / 255.
         diff_image = (orig_image - image).abs().sum(1, keepdim=True)
