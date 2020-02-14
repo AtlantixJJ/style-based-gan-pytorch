@@ -47,12 +47,15 @@ class WrapedStyledGenerator(torch.nn.Module):
             image_stroke=image_stroke, image_mask=image_mask,
             method=self.method,
             external_model=self.external_model, mapping_network=self.mapping_network)
-        noise = torch.cat([n.view(-1) for n in noise])
+
+        # Currently no modification to noise
+        # noise = torch.cat([n.view(-1) for n in noise])
 
         image = utils.torch2numpy(image * 255).transpose(0, 2, 3, 1)
         label = utils.torch2numpy(label)
         latent = utils.torch2numpy(latent)
         noise = utils.torch2numpy(noise)
+
         return image.astype("uint8"), label, latent, noise, record
 
 
@@ -61,13 +64,18 @@ class WrapedStyledGenerator(torch.nn.Module):
         noises = utils.parse_noise(noise)
 
         image, label, latent, noises, record = edit_label_stroke(
-            model=self.model, latent=self.latent_param, noises=noises, label_stroke=label_stroke, label_mask=label_mask)
-        noise = torch.cat([n.view(-1) for n in noise])
+            model=self.model, latent=self.latent_param, noises=noises, label_stroke=label_stroke, label_mask=label_mask,
+            method=self.method.replace("image", "label"),
+            external_model=self.external_model, mapping_network=self.mapping_network)
+        
+        # Currently no modification to noise
+        # noise = torch.cat([n.view(-1) for n in noise])
 
         image = utils.torch2numpy(image * 255).transpose(0, 2, 3, 1)
         label = utils.torch2numpy(label)
         latent = utils.torch2numpy(latent)
         noise = utils.torch2numpy(noise)
+        
         return image.astype("uint8"), label, latent, noise, record
 
 

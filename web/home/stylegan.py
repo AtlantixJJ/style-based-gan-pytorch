@@ -665,7 +665,7 @@ class StyledGenerator(nn.Module):
             layers = [F.interpolate(s, size=size, mode="bilinear")
                 for s in outputs[:i]]
             sum_layers = sum(layers) + outputs[i]
-            outputs.append(sum_layers)
+            outputs.append(sum_layers / i)
 
         return outputs
 

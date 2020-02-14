@@ -80,6 +80,7 @@ class ImageGenerationAPI(object):
             print("=> Generate given label stroke")
             res = model.generate_given_label_stroke(
                 latent, noise, label_stroke, label_mask)
+        print("=> Generate completed")
         image, label, latent, noise, record = res
         image = image[0]
         label = label[0]
@@ -94,8 +95,11 @@ class ImageGenerationAPI(object):
         return image, label_viz, latent, noise
 
     def generate_new_image(self, model_name):
+        print("=> Generate noise")
         latent, noise = self.models[model_name].generate_noise()
+        print("=> Generating")
         image, label = self.models[model_name](latent, noise)
+        print("=> Generation completed")
         image = image[0]
         label = label[0]
         label_viz = self.colorizer[model_name](label)
