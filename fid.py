@@ -277,7 +277,7 @@ class FIDEvaluator(object):
                 np.save(path + "_mu_sigma.npy", {"mu": mu, "sigma": sigma})
             return mu, sigma
 
-    def __call__(self, gs, save_path):
+    def __call__(self, gs, save_path=None):
         m1, s1 = self.calculate_statistics_given_path(self.ref_datapath)
         m2, s2 = calculate_statistics_given_iterator(
             self.model,
