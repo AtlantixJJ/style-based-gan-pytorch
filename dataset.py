@@ -24,6 +24,9 @@ class SimpleDataset(torch.utils.data.Dataset):
         self.files = sum([[file for file in files if ".jpg" in file or ".png" in file] for path, dirs, files in os.walk(root) if files], [])
         self.files.sort()
 
+    def reset(self):
+        pass
+
     def __getitem__(self, idx):
         fpath = self.files[idx]
         with open(os.path.join(self.root, fpath), "rb") as f:
