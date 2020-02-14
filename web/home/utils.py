@@ -136,7 +136,7 @@ def save_plot_with_time(dirname, name):
         os.makedirs(dirname)
     time_str = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
     fpath = os.path.join(dirname, '%s_%s.png' % (time_str, name))
-    plt.savefig(fpath)
+    plt.savefig(fpath, bbox_inches='tight')
     plt.close()
 
 
@@ -163,5 +163,5 @@ def plot_dic(dic, title="", file=None):
         ax.plot(v)
         ax.legend([k])
     if file is not None:
-        plt.savefig(file)
+        plt.savefig(file, bbox_inches='tight')
         plt.close()

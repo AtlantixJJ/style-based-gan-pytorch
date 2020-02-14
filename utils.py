@@ -1,5 +1,5 @@
 from __future__ import print_function
-import datetime, time, math, glob, os, sys
+import time, math, glob, os, sys
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from os.path import join as osj

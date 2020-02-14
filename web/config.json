@@ -6,7 +6,7 @@
             "out_dim" : 3,
             "output_size" : 1024,
             "model_args": {
-                "optim" : "baseline-image-LL-internal",
+                "method" : "baseline-image-LL-internal",
                 "load_path" : "../checkpoint/fixseg_conv-16-1.model",
                 "seg_cfg": "conv-16-1",
                 "gpu" : 0

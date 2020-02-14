@@ -54,7 +54,7 @@ def get_image_seg_celeba(model, el, external_model, method):
 
 
 def edit_label_stroke(model, latent, noises, label_stroke, label_mask,
-    n_iter=5, n_reg=5, lr=1e-2, method="celossreg-label-ML-internal", external_model=None, mapping_network=None):
+    n_iter=5, n_reg=0, lr=1e-2, method="celossreg-label-ML-internal", external_model=None, mapping_network=None):
     latent = latent.detach().clone()
     latent.requires_grad = True
     optim = torch.optim.Adam([latent], lr=lr)
@@ -122,7 +122,7 @@ def edit_label_stroke(model, latent, noises, label_stroke, label_mask,
 
 
 def edit_image_stroke(model, latent, noises, image_stroke, image_mask,
-    n_iter=5, n_reg=5, lr=1e-2, method="celossreg-label-ML-internal", external_model=None, mapping_network=None):
+    n_iter=5, n_reg=0, lr=1e-2, method="celossreg-label-ML-internal", external_model=None, mapping_network=None):
     latent = latent.detach().clone()
     latent.requires_grad = True
     optim = torch.optim.Adam([latent], lr=lr)

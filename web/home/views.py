@@ -4,12 +4,14 @@ from __future__ import unicode_literals
 from django.shortcuts import render
 from django.template import loader, Context
 from django.http import HttpResponse
-#from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import csrf_exempt
 import home.api as api
 import traceback
 from io import BytesIO
 from PIL import Image
 from base64 import b64encode, b64decode
+from datetime import datetime
+
 
 INDEX_FILE = "index_en.html"
 editor = api.ImageGenerationAPI("config.json")
@@ -29,17 +31,29 @@ def image2bytes(image):
 def response(image, label):
     imageString = image2bytes(image)
     segString = image2bytes(label)
-    #latent = b64encode(latent).decode('utf-8')
-    #noise = b64encode(noise).decode('utf-8')
     #json = '{"ok":"true","img":"data:image/png;base64,%s","label":"data:image/png;base64,%s","latent":"%s","noise":"%s"}' % (imageString, segString, latent, noise)
     json = '{"ok":"true","img":"data:image/png;base64,%s","label":"data:image/png;base64,%s"}' % (imageString, segString)
     return HttpResponse(json)
 
 
+def save_to_session(session, latent, noise):
+    session["latent"] = b64encode(latent).decode('utf-8')
+    session["noise"] = b64encode(noise).decode('utf-8')
+
+
+def restore_from_session(session):
+    latent = b64decode(session["latent"])
+    noise = b64decode(session["noise"])
+    return latent, noise
+
+
 def index(request):
-    return render(request, INDEX_FILE, base_dic)
+    res = render(request, INDEX_FILE, base_dic)
+    res.set_cookie('last_visit', datetime.now())
+    return res
 
 
+@csrf_exempt
 def generate_image_given_stroke(request):
     form_data = request.POST
     sess = request.session
@@ -52,10 +66,7 @@ def generate_image_given_stroke(request):
 
             imageStrokeData = b64decode(form_data['image_stroke'].split(',')[1])
             labelStrokeData = b64decode(form_data['label_stroke'].split(',')[1])
-            #latent = b64decode(form_data['latent'])
-            #noise = b64decode(form_data['noise'])
-            latent = sess["latent"]
-            noise = sess["noise"]
+            latent, noise = restore_from_session(sess)
 
             imageStroke = Image.open(BytesIO(imageStrokeData))
             labelStroke = Image.open(BytesIO(labelStrokeData))
@@ -67,8 +78,7 @@ def generate_image_given_stroke(request):
                 model, latent, noise,
                 imageStroke, imageMask,
                 labelStroke, labelMask)
-            sess["latent"] = latent
-            sess["noise"] = noise
+            save_to_session(sess, latent, noise)
             return response(image, label)
         except Exception:
             print("!> Exception:")
@@ -77,7 +87,7 @@ def generate_image_given_stroke(request):
     print(f"!> Invalid request: {str(form_data.keys())}")
     return HttpResponse('{}')
 
-
+@csrf_exempt
 def generate_new_image(request):
     form_data = request.POST
     sess = request.session
@@ -91,6 +101,7 @@ def generate_new_image(request):
             image, label, latent, noise = editor.generate_new_image(model)
             sess["latent"] = latent
             sess["noise"] = noise
+            save_to_session(sess, latent, noise)
             return response(image, label)
         except Exception:
             print("!> Exception:")

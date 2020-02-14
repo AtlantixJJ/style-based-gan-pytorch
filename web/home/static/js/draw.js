@@ -17,9 +17,9 @@ var graph = null, // canvas manager
 var currentModel = 0; // current model name
 var loading = false; // the image is loading (waiting response)
 var image = null, // image data
-    label = null, // label image data
-    latent = null, // latent data
-    noise = null; // noise data
+    label = null; // label image data
+    //latent = null, // latent data
+    //noise = null; // noise data
 var config = null; // config file
 var imwidth = 256, // image size
     imheight = 256; // image size
@@ -102,9 +102,9 @@ function setImage(data) {
   }
 
   image = data.img;
-  latent = data.latent;
-  noise = data.noise;
   label = data.label;
+  //latent = data.latent;
+  //noise = data.noise;
   $('#image').attr('src', image);
   $('#canvas').css('background-image', 'url(' + image + ')');
   $('#label').attr('src', label);
@@ -136,9 +136,9 @@ function onSubmit() {
     var formData = {
       model: MODEL_NAMES[currentModel],
       image_stroke: graph.getImageData(),
-      label_stroke: labelgraph.getImageData(),
-      latent: latent,
-      noise: noise
+      label_stroke: labelgraph.getImageData()
+      //latent: latent,
+      //noise: noise
     };
     $.post('stroke', formData, setImage, 'json');
   }

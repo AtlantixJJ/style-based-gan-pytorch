@@ -21,9 +21,6 @@ class ImageGenerationAPI(object):
         with open(self.config_file, 'r') as f:
             self.config = json.load(f)
         self.models_config = self.config['models']
-        # for name, mc in self.models_config.items():
-        #     mc['mode'] = 'RGB' if mc['out_dim'] == 3 else 'L'
-        # self.imsize = self.config['image_size']
         self.data_dir = self.config['collect_data_dir']
 
     def init_model(self):
