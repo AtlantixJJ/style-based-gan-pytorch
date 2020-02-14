@@ -43,9 +43,6 @@ sg = torch.nn.DataParallel(sg)
 sg = sg.to(cfg.device)
 sg.train()
 
-softmax = torch.nn.Softmax2d()
-softmax = softmax.cuda()
-
 g_optim = torch.optim.Adam(sg.module.parameters(), lr=cfg.lr, betas=(0.0, 0.9))
 d_optim = torch.optim.Adam(disc.module.parameters(), lr=cfg.lr * 2, betas=(0.0, 0.9))
 

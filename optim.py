@@ -54,15 +54,12 @@ def get_image_seg_celeba(model, el, external_model, method):
 
 
 def edit_label_stroke(model, latent, noises, label_stroke, label_mask,
-    n_iter=5, n_reg=5, lr=1e-2, method="celossreg-label-ML-internal", external_model=None, mapping_network=None):
+    n_iter=5, n_reg=0, lr=1e-2, method="label-ML-internal", external_model=None, mapping_network=None):
     latent = latent.detach().clone()
     latent.requires_grad = True
     optim = torch.optim.Adam([latent], lr=lr)
     model.set_noise(noises)
-    record = {"mseloss": [], "gradnorm": []}
-    if "celossreg" in method:
-        record.update({"celoss": [], "segdiff": []})
-        n_reg = 0 # no regularization in baseline method
+    record = {"mseloss": [], "gradnorm": [], "celoss": [], "segdiff": []}
 
     el = get_el_from_latent(latent, mapping_network, method)
     orig_image, orig_seg = get_image_seg_celeba(model, el, external_model, method)
@@ -75,17 +72,17 @@ def edit_label_stroke(model, latent, noises, label_stroke, label_mask,
         el = get_el_from_latent(latent, mapping_network, method)
         image, seg = get_image_seg_celeba(model, el, external_model, method)
 
-        if "celossreg" in method:
-            current_label = seg.argmax(1)
-            diff_mask = (current_label != target_label).float()
-            total_diff = diff_mask.sum()
-            celoss = mask_cross_entropy_loss(diff_mask, seg, target_label)
-            record["segdiff"].append(utils.torch2numpy(total_diff))
-            record["celoss"].append(utils.torch2numpy(celoss))
-        else:
+        current_label = seg.argmax(1)
+        diff_mask = (current_label != target_label).float()
+        total_diff = diff_mask.sum()
+        if total_diff < 1:
             celoss = 0
+        else:
+            celoss = mask_cross_entropy_loss(diff_mask, seg, target_label)
 
-        mseloss = mask_mse_loss(1 - diff_mask, image, orig_image)
+        mseloss = 0
+        if diff_mask is not 0:
+            mseloss = mask_mse_loss(1 - diff_mask, image, orig_image)
         loss = mseloss + celoss
         grad = torch.autograd.grad(loss, latent)[0]
         grad_norm = torch.norm(grad.view(-1), 2)
@@ -94,7 +91,9 @@ def edit_label_stroke(model, latent, noises, label_stroke, label_mask,
 
         record["mseloss"].append(utils.torch2numpy(mseloss))
         record["gradnorm"].append(utils.torch2numpy(grad_norm))
-
+        record["segdiff"].append(utils.torch2numpy(total_diff))
+        record["celoss"].append(utils.torch2numpy(celoss))
+        
         # celoss regularization
         for _ in range(n_reg):
             el = get_el_from_latent(latent, mapping_network, method)
@@ -122,7 +121,7 @@ def edit_label_stroke(model, latent, noises, label_stroke, label_mask,
 
 
 def edit_image_stroke(model, latent, noises, image_stroke, image_mask,
-    n_iter=5, n_reg=5, lr=1e-2, method="celossreg-label-ML-internal", external_model=None, mapping_network=None):
+    n_iter=5, n_reg=0, lr=1e-2, method="celossreg-label-ML-internal", external_model=None, mapping_network=None):
     latent = latent.detach().clone()
     latent.requires_grad = True
     optim = torch.optim.Adam([latent], lr=lr)
@@ -135,7 +134,7 @@ def edit_image_stroke(model, latent, noises, image_stroke, image_mask,
     el = get_el_from_latent(latent, mapping_network, method)
     orig_image, orig_seg = get_image_seg_celeba(model, el, external_model, method)
     orig_image = orig_image.detach().clone()
-    orig_label = orig_seg.argmax(1)
+    orig_label = orig_seg.detach().clone().argmax(1)
 
     for _ in tqdm(range(n_iter)):
         el = get_el_from_latent(latent, mapping_network, method)
@@ -145,7 +144,10 @@ def edit_image_stroke(model, latent, noises, image_stroke, image_mask,
             current_label = seg.argmax(1)
             diff_mask = (current_label != orig_label).float()
             total_diff = diff_mask.sum()
-            celoss = mask_cross_entropy_loss(diff_mask, seg, orig_label)
+            if total_diff < 1:
+                celoss = 0
+            else:
+                celoss = mask_cross_entropy_loss(diff_mask, seg, orig_label)
             record["segdiff"].append(utils.torch2numpy(total_diff))
             record["celoss"].append(utils.torch2numpy(celoss))
         else:
