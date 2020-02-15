@@ -37,9 +37,12 @@ torch.manual_seed(args.seed)
 device = 'cuda'
 optim_types = [
     "label-LL-internal",
+    "label-GL-internal",
+    "label-EL-internal",
     "label-ML-internal",
-    "label-LL-external",
-    "label-ML-external",]
+    #"label-LL-external",
+    #"label-ML-external",
+    ]
 
 # build model
 generator = model.tfseg.StyledGenerator(semantic=args.seg_cfg).to(device)
