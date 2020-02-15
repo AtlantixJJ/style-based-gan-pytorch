@@ -1,12 +1,14 @@
 import sys, argparse, torch, glob, os
 sys.path.insert(0, ".")
 import numpy as np
-import model, fid
+import model, fid, utils
+from lib.face_parsing.unet import unet
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset", default="../datasets/CelebAMask-HQ/CelebA-HQ-img-128")
 parser.add_argument("--imsize", default=128, type=int)
-parser.add_argument("--model", default="checkpoint/fixseg.model")
+parser.add_argument("--model", default="checkpoint/fixseg_conv-16-1.model")
+parser.add_argument("--external-model", default="checkpoint/faceparse_unet_512.pth")
 parser.add_argument("--recursive", default=1, type=int)
 parser.add_argument("--gpu", default="0")
 args = parser.parse_args()
@@ -14,11 +16,12 @@ os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
 ind = args.model.rfind("/")
 model_name = args.model[ind + 1:]
+device = "cuda"
 
 if args.recursive == 1:
     start = 0
-    if os.path.exists(f"record/{model_name}_fid.txt"):
-        with open(f"record/{model_name}_fid.txt", "r") as f:
+    if os.path.exists(f"record/{model_name}_linearity.txt"):
+        with open(f"record/{model_name}_linearity.txt", "r") as f:
             lines = f.readlines()
         fids = [float(l.strip()) for l in lines]
         start = len(fids)
@@ -46,10 +49,13 @@ upsample = int(np.log2(args.imsize // 4))
 generator = model.simple.Generator(upsample=upsample)
 missed = generator.load_state_dict(torch.load(args.model), strict=False)
 print(missed)
-generator.cuda()
+generator.to(device)
 
-evaluator = fid.FIDEvaluator(args.dataset)
-fid_value = evaluator(fid.GeneratorIterator(generator, batch_size=64, tot_num=30000, dim=128))
-with open(f"record/{model_name}_fid.txt", "a") as f:
-    f.write(f"{fid_value}\n")
-print('FID: ', fid_value)
+state_dict = torch.load(args.external_model, map_location='cpu')
+faceparser = unet()
+faceparser.load_state_dict(state_dict)
+faceparser = faceparser.to(device)
+faceparser.eval()
+
+evaluator = utils.LinearityEvaluator(faceparser)
+evaluator(generator)

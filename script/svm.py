@@ -84,7 +84,7 @@ for ind, sample in enumerate(tqdm(dl)):
     feat = feat.view(feat.shape[0], -1).permute(1, 0)
     feat = utils.torch2numpy(feat)
     label = F.interpolate(label.unsqueeze(0).float(), size=size, mode="nearest").long()[0, 0]
-    svm = LinearSVC(fit_intercept=False)
+    svm = LinearSVC(dual=feat.shape[0] < feat.shape[1], fit_intercept=False)
     svm.fit(feat, label.reshape(-1))
     est_label = svm.predict(feat).reshape(size, size)
 

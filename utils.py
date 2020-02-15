@@ -23,22 +23,6 @@ CELEBA_FULL_CATEGORY = ['background', 'skin', 'nose', 'eye_g', 'l_eye', 'r_eye',
 CELEBA_REDUCED_CATEGORY = ['background', 'skin', 'nose', 'eye_g', 'eye', 'brow', 'ear', 'mouth', 'u_lip', 'l_lip', 'hair', 'hat', 'ear_r', 'neck_l', 'neck', 'cloth']
 
 
-# for celeba mask dataset
-class CelebAIDMap(object):
-    def __init__(self):
-        self.n_class = 19
-        self.map_from = [5, 7, 9]
-        self.map_to = [4, 6, 8]
-        self.id2cid = create_id2cid(self.n_class, self.map_from, self.map_to)
-        self.cid2id = create_cid2id(self.n_class, self.map_from, self.map_to)
-
-    def mapid(self, x):
-        return idmap(x, self.id2cid)
-    
-    def diff_mapid(self, x):
-        return diff_idmap(x, self.cid2id)
-
-
 class MultiGPUTensor(object):
     def __init__(self, root, n_gpu):
         self.root = root
@@ -252,6 +236,17 @@ def parse_noise_stylegan(vec):
         size = 4 * 2 ** (i // 2)
         noise.append(vec[prev : prev + size ** 2].view(1, 1, size, size))
         prev += size ** 2
+    return noise
+
+
+def generate_noise_stylegan():
+    """
+    StyleGAN only
+    """
+    noise = []
+    for i in range(18):
+        size = 4 * 2 ** (i // 2)
+        noise.append(torch.randn(1, 1, size, size))
     return noise
 
 
@@ -489,6 +484,28 @@ def compute_score(y_pred, y_true):
     return tp, fp, fn
 
 
+def compute_all_metric(tp, fp, fn):
+    pixelcorrect += tp
+    pixeltotal += tp + fn
+    gt_nonempty = (tp + fn) > 0
+    if gt_nonempty:
+        if tp + fp == 0:
+            precision = 0
+        else:
+            precision = tp / (tp + fp)
+        recall = tp / (tp + fn)
+        iou = tp / (tp + fp + fn)
+    else:
+        # doesn't count if gt is empty
+        if fp > 0:
+            precision = 0
+        else:
+            precision = -1
+        recall = -1
+        iou = -1
+    return pixelcorrect, pixeltotal, precision, recall, iou
+
+
 # map given id and reduce other id to form continuous ids
 # from > to, both refer to index in original labeling
 def create_id2cid(n, map_from=[2], map_to=[1]):
@@ -557,6 +574,22 @@ def diff_idmap(x, cid2id=None, n=None, map_from=None, map_to=None):
     return torch.log(ps)
 
 
+# for celeba mask dataset
+class CelebAIDMap(object):
+    def __init__(self):
+        self.n_class = 19
+        self.map_from = [5, 7, 9]
+        self.map_to = [4, 6, 8]
+        self.id2cid = create_id2cid(self.n_class, self.map_from, self.map_to)
+        self.cid2id = create_cid2id(self.n_class, self.map_from, self.map_to)
+
+    def mapid(self, x):
+        return idmap(x, self.id2cid)
+    
+    def diff_mapid(self, x):
+        return diff_idmap(x, self.cid2id)
+
+
 class MaskCelebAEval(object):
     def __init__(self, resdic=None, map_id=True):
         self.dic = {}
@@ -597,24 +630,7 @@ class MaskCelebAEval(object):
                 precision, recall, iou = -1, -1, -1
             else:
                 tp, fp, fn = compute_score(seg == i, label == i)
-                pixelcorrect += tp
-                pixeltotal += tp + fn
-                gt_nonempty = (tp + fn) > 0
-                if gt_nonempty:
-                    if tp + fp == 0:
-                        precision = 0
-                    else:
-                        precision = tp / (tp + fp)
-                    recall = tp / (tp + fn)
-                    iou = tp / (tp + fp + fn)
-                else:
-                    # doesn't count if gt is empty
-                    if fp > 0:
-                        precision = 0
-                    else:
-                        precision = -1
-                    recall = -1
-                    iou = -1
+                pixelcorrect, pixeltotal, precision, recall, iou = compute_all_metric(tp, fp, fn)
 
             metrics.append([precision, recall, iou])
 
@@ -717,6 +733,186 @@ class MaskCelebAEval(object):
 
     def load(self, fpath):
         self.dic = np.load(fpath, allow_pickle=True)[()]
+
+
+def get_sum_dic(n_class):
+    dic = {}
+    dic["pixelacc"] = 0
+    for name in ["AP", "AR", "IoU"]:
+        dic[name] = [-1] * n_class
+        dic["m" + name] = 0
+    return dic
+
+
+def get_history_dic(n_class):
+    dic = {}
+    dic["pixelacc"] = []
+    for name in ["AP", "AR", "IoU"]:
+        dic[name] = [[] for _ in range(n_class)]
+        dic["m" + name] = []
+    return dic
+
+
+def update_dic(dic1, update):
+    for k in dic1.keys():
+        if type(update[k]) is list:
+            for i in range(len(dic1[k])):
+                dic1[k][i].append(update[k][i])
+        else:
+            dic1[k].append(update[k])
+
+
+class LinearityEvaluator(object):
+    """
+    External model: a semantic segmentation network
+    """
+    def __init__(self, external_model,
+        N=100, imsize=512, latent_dim=512, n_class=16):
+        self.external_model = external_model
+        self.device = "cuda"
+        self.N = N
+        self.latent_dim = 512
+        self.imsize = 512
+        self.n_class = n_class
+
+        self.logsoftmax = torch.nn.CrossEntropyLoss()
+        self.logsoftmax.to(self.device)
+
+        self.fix_latents = torch.randn(64, self.latent_dim)
+        self.fix_noises = [generate_noise_stylegan() for _ in range(64)]
+
+    def summarize(self):
+        print("=> mAP  \t  mAR  \t  mIoU  \t  PixelAcc")
+        print("=> %.3f\t%.3f\t%.3f\t%.3f" % (self.dic["mAP"], self.dic["mAR"], self.dic["mIoU"], self.dic["pixelacc"]))
+        print("=> Class wise metrics:")
+        
+        self.clean_dic = {}
+        for key in ["mAP", "mAR", "mIoU", "pixelacc"]:
+            self.clean_dic[key] = self.dic[key]
+
+        print("=> Name \t  AP \t  AR \t  IoU \t")
+        for i in range(self.n_class):
+            print("=> %s: \t%.3f\t%.3f\t%.3f" % (
+                CELEBA_REDUCED_CATEGORY[i],
+                self.dic["AP"][i],
+                self.dic["AR"][i],
+                self.dic["IoU"][i]))
+            for key in ["AP", "AR", "IoU"]:
+                self.clean_dic[key] = self.dic[key]
+        return self.clean_dic
+
+    def eval_fix(self):
+        segms = []
+        for i in range(self.fix_latents.shape[0]):
+            latent = self.fix_latents[i:i+1].detach().clone().to(self.device)
+            noise = [n.detach().clone().to(self.device) for n in self.fix_noises[i]]
+            self.model.set_noise(noise)
+            _, seg = self.model(latent)
+            label = seg.argmax(1)
+            segms.append(label.detach().clone())
+        segms = torch2numpy(torch.cat(segms))
+        if self.prev_segm is 0:
+            self.prev_segm = segms
+            return 0
+
+        dic = get_sum_dic(self.n_class)
+        for seg, label in zip(segms, self.prev_segm):
+            pixelcorrect = pixeltotal = 0
+            for i in range(self.n_class):
+                tp, fp, fn = compute_score(seg == i, label == i)
+                # pixelcorrect, pixeltotal, precision, recall, iou
+                res = compute_all_metric(tp, fp, fn)
+                pixelcorrect += res[0]
+                pixeltotal += res[1]
+                for j, name in enumerate(["AP", "AR", "IoU"]):
+                    dic[name][i].append(res[j])
+            dic["pixelacc"] += float(pixelcorrect) / pixeltotal
+        dic["pixelacc"] /= segms.shape[0]
+
+        for i in range(self.n_class):
+            for j, name in enumerate(["AP", "AR", "IoU"]):
+                arr = dic[name][i] # The data of a class of a metric
+                arr = arr[arr > -1]
+                if arr.shape[0] == 0:
+                    dic[name][i] = -1
+                else:
+                    dic[name][i] = arr.mean()
+
+        for j, name in enumerate(["AP", "AR", "IoU"]):
+            vals = [dic[name][i] for i in range(self.n_class)]
+            vals = np.array(vals)
+            dic["m" + name] = vals[vals > -1].mean()
+        update_dic(self.dic, dic)
+        self.prev_segm = segms
+
+    def build_extractor_conv(self):
+        def conv_block(in_dim, out_dim, ksize):
+            _m = [torch.nn.Conv2d(in_dim, out_dim, ksize, bias=False)]
+            return torch.nn.Sequential(*_m)
+
+        self.semantic_extractor = torch.nn.ModuleList([
+            conv_block(dim, self.n_class, 1)
+                for dim in self.dims])
+        
+        self.optim = torch.nn.optim.Adam(self.semantic_extractor.parameters(), lr=1e-3)
+
+    def extract_segmentation(self, stage):
+        count = 0
+        outputs = []
+        for i, seg_input in enumerate(stage):
+            outputs.append(self.semantic_extractor[count](seg_input))
+            count += 1
+        size = outputs[-1].shape[2]
+
+        # summation series
+        for i in range(1, len(stage)):
+            size = stage[i].shape[2]
+            layers = [F.interpolate(s, size=size, mode="bilinear")
+                for s in outputs[:i]]
+            sum_layers = sum(layers) + outputs[i]
+            outputs.append(sum_layers)
+
+        return outputs
+
+    def __call__(self, model):
+        self.model = model
+        latent = torch.randn(1, self.latent_dim, device=self.device)
+        for ind in range(self.N):
+            latent.normal_()
+            image = self.model(latent, seg=False, detach=True)
+            if ind == 0:
+                self.prev_segm = 0
+                self.dic = get_history_dic(self.n_class) 
+                self.dims = [s.shape[1] for s in self.model.stage]
+                self.build_extractor_conv()
+            segs = self.extract_segmentation(self.model.stage)
+
+            ext_seg = self.external_model(image.clamp(-1, 1))
+            ext_label = ext_seg.argmax(1)
+
+            seglosses = []
+            for s in segs:
+                layer_loss = 0
+                # label is large : downsample label
+                if s.size(2) < ext_label.size(2): 
+                    l_ = ext_label.unsqueeze(0).float()
+                    l_ = F.interpolate(l_, s.size(2), mode="nearest")
+                    layer_loss = self.logsoftmax(s, l_.long()[0])
+                # label is small : downsample seg
+                elif s.size(2) > ext_label.size(2): 
+                    s_ = F.interpolate(s, ext_label.size(2), mode="bilinear")
+                    layer_loss = self.logsoftmax(s_, ext_label)
+                seglosses.append(layer_loss)
+            segloss = sum(seglosses) / len(seglosses)
+
+            segloss.backward()
+
+            self.optim.step()
+            self.optim.zero_grad()
+            self.eval_fix()
+            self.summarize()
+        
+
 
 #########
 ## Logging related functions
