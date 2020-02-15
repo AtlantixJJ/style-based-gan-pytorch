@@ -779,9 +779,9 @@ class LinearityEvaluator(object):
         self.logsoftmax = torch.nn.CrossEntropyLoss()
         self.logsoftmax.to(self.device)
 
-        self.fix_latents = torch.randn(64, self.latent_dim)
+        self.fix_latents = torch.randn(256, self.latent_dim)
         if self.style_noise:
-            self.fix_noises = [generate_noise_stylegan() for _ in range(64)]
+            self.fix_noises = [generate_noise_stylegan() for _ in range(256)]
 
     def aggregate_process(self):
         global_dic = {}
@@ -908,7 +908,7 @@ class LinearityEvaluator(object):
         global_dic, class_dic = self.aggregate_process()
         np.save(f"results/{name}_global_dic.npy", global_dic)
         np.save(f"results/{name}_class_dic.npy", class_dic)
-        return global_dic["mIoU"].std()
+        return np.array(global_dic["mIoU"]).std()
         #plot_dic(global_dic, "global metric linearity", "results/global_linearity.png")
         #plot_dic(class_dic, "class metric linearity (IoU)", "results/class_iou_linearity.png")
     

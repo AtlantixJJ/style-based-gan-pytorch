@@ -19,16 +19,10 @@ model_name = args.model[ind + 1:]
 device = "cuda"
 
 if args.recursive == 1:
-    start = 0
-    if os.path.exists(f"record/{model_name}_linearity_ioustd.txt"):
-        with open(f"record/{model_name}_linearity_ioustd.txt", "r") as f:
-            lines = f.readlines()
-        start = len(lines)
     # This is root, run for all the expr directory
     model_files = glob.glob(args.model + "/*.model")
     model_files = [m for m in model_files if "disc" not in m]
     model_files.sort()
-    model_files = model_files[start:]
     gpus = args.gpu.split(",")
     slots = [[] for _ in gpus]
     for i, model in enumerate(model_files):
@@ -63,5 +57,5 @@ def external_model(x):
 
 evaluator = utils.LinearityEvaluator(external_model, latent_dim=128)
 iou_std = evaluator(generator, model_name)
-with open(f"record/{model_name}_linearity_ioustd.txt", "r") as f:
+with open(f"record/{model_name}_linearity_ioustd.txt", "w") as f:
     f.write(f"{model_name} {iou_std}\n")
