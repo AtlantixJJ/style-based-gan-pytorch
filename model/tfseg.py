@@ -699,6 +699,15 @@ class StyledGenerator(nn.Module):
         for i in range(len(noises)):
             self.noise_layers[i].noise = noises[i]
 
+    def get_noise(self):
+        noises = []
+        if not hasattr(self, "noise_layers"):
+            self.noise_layers = [l for n,l in self.named_modules() if "noise" in n]
+
+        for i in range(len(noises)):
+            noises.append(self.noise_layers[i].noise.detach().view(-1))
+        return torch.cat(noises)
+
     def forward(self, x, seg=True, detach=False, ortho_bias=None):
         if type(x) is list: # ML (1, 512)
             ws = [self.g_mapping.simple_forward(z) for z in x]

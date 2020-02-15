@@ -14,51 +14,45 @@ from sklearn.svm import LinearSVC
 from torchvision import utils as vutils
 from lib.face_parsing import unet
 import utils
+import pickle
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "--model", default="checkpoint/karras2019stylegan-ffhq-1024x1024.for_g_all.pt")
+    "--model", default="checkpoint/fixseg.model")
 args = parser.parse_args()
 
 # constants setup
 torch.manual_seed(1)
-device = 'cuda'
-imsize = 512
-faceparser_path = f"checkpoint/faceparse_unet_{imsize}.pth"
-
-state_dict = torch.load(faceparser_path, map_location='cpu')
-faceparser = unet.unet()
-faceparser.load_state_dict(state_dict)
-faceparser = faceparser.to(device)
-faceparser.eval()
+device = 'cpu'
 
 # build model
-generator = StyledGenerator(semantic="mul-16").to(device)
+generator = StyledGenerator(semantic="mul-16-sl2").to(device)
 state_dict = torch.load(args.model, map_location='cpu')
 missing_dict = generator.load_state_dict(state_dict, strict=False)
 generator.eval()
 
 # set up input
 latent = torch.randn(1, 512).to(device)
+noise = []
+for i in range(18):
+    size = 4 * 2 ** (i // 2)
+    noise.append(torch.randn(1, 1, size, size, device=device))
+generator.set_noise(noise)
 out = generator(latent, seg=False)
 out = out.clamp(-1, 1)
-
-face_in = F.interpolate(out, imsize, mode="bilinear")
-label_logit = faceparser(face_in)
-label_logit = F.interpolate(label_logit, out.size(3), mode="bilinear")[0]
-label = label_logit.argmax(0)
-label = utils.idmap(label) # (1024, 1024)
-label = utils.torch2numpy(label)
-del faceparser
+vutils.save_image(out, "out.png")
 
 feat_size = max([feat.shape[3] for feat in generator.stage if feat.shape[3] >= 16])
-feat = [F.interpolate(feat.cpu(), feat_size)[0].detach().numpy()
+feat = [feat.detach().cpu().numpy()
     for feat in generator.stage if feat.shape[3] >= 16]
-feat = np.concatenate(feat)
-del generator # release GPU memory
+del generator 
+pickle.dump(feat, open("feat.pkl", "wb"))
+# release GPU memory
 
-feat = feat.reshape(feat.shape[0], -1).transpose()
+x = feat[2][0]
+x = x.reshape(x.shape[0], -1).transpose()
 
-svm = LinearSVC(penalty="l2", loss="hinge")
-svm = svm.fit(feat, label.reshape(-1))
+#feat = feat.reshape(feat.shape[0], -1).transpose()
+svm = LinearSVC(fit_intercept=False)
+#svm = svm.fit(feat, label.reshape(-1))
 
