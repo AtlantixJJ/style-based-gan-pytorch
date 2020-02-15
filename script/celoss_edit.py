@@ -60,7 +60,7 @@ for ind, dic in enumerate(dl):
         dic[k] = dic[k].to(device)
 
     latent_ = dic["origin_latent"][0]
-    noises_ = utils.parse_noise(dic["origin_noise"][0])
+    noises_ = utils.parse_noise_stylegan(dic["origin_noise"][0])
 
     # get original images
     with torch.no_grad():

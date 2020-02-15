@@ -40,7 +40,7 @@ class WrapedStyledGenerator(torch.nn.Module):
 
     def generate_given_image_stroke(self, latent, noise, image_stroke, image_mask):
         utils.copy_tensor(self.latent_param, latent)
-        noises = utils.parse_noise(noise)
+        noises = utils.parse_noise_stylegan(noise)
 
         image, label, latent, noises, record = edit_image_stroke(
             model=self.model, latent=self.latent_param, noises=noises, 
@@ -61,7 +61,7 @@ class WrapedStyledGenerator(torch.nn.Module):
 
     def generate_given_label_stroke(self, latent, noise, label_stroke, label_mask):
         utils.copy_tensor(self.latent_param, latent)
-        noises = utils.parse_noise(noise)
+        noises = utils.parse_noise_stylegan(noise)
 
         image, label, latent, noises, record = edit_label_stroke(
             model=self.model, latent=self.latent_param, noises=noises, label_stroke=label_stroke, label_mask=label_mask,
@@ -80,7 +80,7 @@ class WrapedStyledGenerator(torch.nn.Module):
 
 
     def forward(self, latent, noise): # [0, 1] in torch
-        noise = utils.parse_noise(noise)
+        noise = utils.parse_noise_stylegan(noise)
         self.model.set_noise(noise)
         gen, seg = self.model(latent)
 

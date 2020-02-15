@@ -226,7 +226,7 @@ def normalize_image(img):
 ######
 
 
-def parse_noise(vec):
+def parse_noise_stylegan(vec):
     """
     StyleGAN only
     """
@@ -471,6 +471,14 @@ def compute_score(y_pred, y_true):
     fp = n_pred - tp
     fn = n_true - tp
     return tp, fp, fn
+
+
+# map given id and reduce other id to form continuous ids
+def create_id2cid(n, map_from=[2], map_to=[1]):
+    count = 0
+    id2cid = {}
+    for i in range(n):
+        id2cid[]
 
 
 def idmap(x):

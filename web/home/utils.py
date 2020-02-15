@@ -7,7 +7,7 @@ from PIL import Image
 from datetime import datetime
 
 
-def parse_noise(vec):
+def parse_noise_stylegan(vec):
     """
     StyleGAN only
     """

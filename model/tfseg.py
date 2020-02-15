@@ -175,12 +175,14 @@ class NoiseLayer(nn.Module):
     
     def forward(self, x, noise=None):
         if noise is None and self.noise is None:
-            noise = torch.randn(x.size(0), 1, x.size(2), x.size(3), device=x.device, dtype=x.dtype)
+            self.noise = torch.randn(x.size(0), 1, x.size(2), x.size(3), device=x.device, dtype=x.dtype)
+            noise = self.noise
         elif noise is None:
             # here is a little trick: if you get all the noiselayers and set each
             # modules .noise attribute, you can have pre-defined noise.
             # Very useful for analysis
             noise = self.noise
+        self.noise = noise
         x = x + self.weight.view(1, -1, 1, 1) * noise
         return x
 
@@ -450,7 +452,7 @@ class G_synthesis(nn.Module):
 
 
 class StyledGenerator(nn.Module):
-    def __init__(self, semantic="mul-16"):
+    def __init__(self, semantic="mul-16-sl0"):
         super().__init__()
         self.g_mapping = G_mapping()
         self.g_synthesis = G_synthesis()
@@ -704,7 +706,7 @@ class StyledGenerator(nn.Module):
         if not hasattr(self, "noise_layers"):
             self.noise_layers = [l for n,l in self.named_modules() if "noise" in n]
 
-        for i in range(len(noises)):
+        for i in range(len(self.noise_layers)):
             noises.append(self.noise_layers[i].noise.detach().view(-1))
         return torch.cat(noises)
 

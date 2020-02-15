@@ -14,10 +14,17 @@ os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
 
 if args.recursive == 1:
+    start = 0
+    if os.path.exists("record/wgan128_fid.txt"):
+        with open("record/wgan128_fid.txt", "r") as f:
+            lines = f.readlines()
+        fids = [float(l.strip()) for l in lines]
+        start = len(fids)
     # This is root, run for all the expr directory
     model_files = glob.glob(args.model + "/*.model")
     model_files = [m for m in model_files if "disc" not in m]
     model_files.sort()
+    model_files = model_files[start:]
     gpus = args.gpu.split(",")
     slots = [[] for _ in gpus]
     for i, model in enumerate(model_files):
@@ -41,6 +48,6 @@ generator.cuda()
 
 evaluator = fid.FIDEvaluator(args.dataset)
 fid_value = evaluator(fid.GeneratorIterator(generator, batch_size=64, tot_num=30000, dim=128))
-with open("fid.txt", "a") as f:
+with open("record/fid.txt", "a") as f:
     f.write(f"{fid_value}\n")
 print('FID: ', fid_value)
