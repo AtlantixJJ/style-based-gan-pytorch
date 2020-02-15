@@ -332,13 +332,6 @@ class TSSegConfig(BaseConfig):
         self.name = self.task + "_" + str(self.seg_coef) + "_" + self.semantic_config
         self.expr_dir = osj("expr", self.name)
 
-    def idmap(self, x):
-        for fr,to in self.id2cid.items():
-            if fr == to:
-                continue
-            x[x == fr] = to
-        return x
-
     def print_info(self):
         super(TSSegConfig, self).print_info()
         print("=> Segmentation configure: %s" % self.semantic_config)

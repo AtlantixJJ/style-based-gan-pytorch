@@ -3,6 +3,7 @@ import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 import math
+from dataset import CelebAIDMap
 
 
 class Temperture(object):
@@ -43,13 +44,14 @@ def get_el_from_latent(latent, mapping_network, method):
     return el
 
 
-def get_image_seg_celeba(model, el, external_model, method):
+def get_image_seg_celeba(model, el, external_model, method, idmap=utils.CelebAIDMap()):
     if "internal" in method:
         return model(el)
     elif "external" in method:
         image = model(el, seg=False)
-        # [NOTICE]: This is hardcode for CelebA
-        seg = utils.diff_idmap(external_model(image.clamp(-1, 1)))
+        seg = external_model(image.clamp(-1, 1))
+        if idmap is not None:
+            seg = idmap.diff_mapid(seg)
         return image, seg
 
 

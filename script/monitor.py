@@ -11,7 +11,7 @@ import torch.nn.functional as F
 from torchvision import utils as vutils
 from os.path import join as osj
 from sklearn.metrics.pairwise import cosine_similarity
-import utils, config
+import utils, config, dataset
 from lib.face_parsing import unet
 
 parser = argparse.ArgumentParser()
@@ -45,7 +45,7 @@ if args.recursive == "1":
 savepath = args.model.replace("expr/", "results/")
 
 device = 'cuda' if int(args.gpu) > -1 else 'cpu'
-
+idmap = dataset.CelebAIDMap()
 cfg = 0
 batch_size = 0
 if "simpleseg" in args.model:

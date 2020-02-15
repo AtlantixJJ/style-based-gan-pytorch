@@ -23,6 +23,22 @@ CELEBA_FULL_CATEGORY = ['background', 'skin', 'nose', 'eye_g', 'l_eye', 'r_eye',
 CELEBA_REDUCED_CATEGORY = ['background', 'skin', 'nose', 'eye_g', 'eye', 'brow', 'ear', 'mouth', 'u_lip', 'l_lip', 'hair', 'hat', 'ear_r', 'neck_l', 'neck', 'cloth']
 
 
+# for celeba mask dataset
+class CelebAIDMap(object):
+    def __init__(self):
+        self.n_class = 19
+        self.map_from = [5, 7, 9]
+        self.map_to = [4, 6, 8]
+        self.id2cid = create_id2cid(self.n_class, self.map_from, self.map_to)
+        self.cid2id = create_cid2id(self.n_class, self.map_from, self.map_to)
+
+    def mapid(self, x):
+        return idmap(x, self.id2cid)
+    
+    def diff_mapid(self, x):
+        return diff_idmap(x, self.cid2id)
+
+
 class MultiGPUTensor(object):
     def __init__(self, root, n_gpu):
         self.root = root
@@ -474,15 +490,49 @@ def compute_score(y_pred, y_true):
 
 
 # map given id and reduce other id to form continuous ids
+# from > to, both refer to index in original labeling
 def create_id2cid(n, map_from=[2], map_to=[1]):
+    mid2id = {i:[i] for i in range(n)}
+    for fr, to in zip(map_from, map_to):
+        ind = mid2id[fr].index(fr)
+        del mid2id[fr][ind]
+        mid2id[to].append(fr)
+
     count = 0
     id2cid = {}
-    for i in range(n):
-        id2cid[]
+    count = 0
+    for i, (k, v) in enumerate(mid2id.items()):
+        if len(v) == 0:
+            continue
+        for l in v:
+            id2cid[l] = count
+        count += 1
+
+    return id2cid
 
 
-def idmap(x):
-    id2cid = {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 4, 6: 5, 7: 5, 8: 6, 9: 6, 10: 7, 11: 8, 12: 9, 13: 10, 14: 11, 15: 12, 16: 13, 17: 14, 18: 15}
+def create_cid2id(n, map_from=[2], map_to=[1]):
+    mid2id = {i:[i] for i in range(n)}
+    for fr, to in zip(map_from, map_to):
+        ind = mid2id[fr].index(fr)
+        del mid2id[fr][ind]
+        mid2id[to].append(fr)
+
+    count = 0
+    cid2id = {}
+    count = 0
+    for i, (k, v) in enumerate(mid2id.items()):
+        if len(v) == 0:
+            continue
+        cid2id[count] = v
+        count += 1
+
+    return cid2id
+
+
+def idmap(x, id2cid=None, n=None, map_from=None, map_to=None):
+    if id2cid is None:
+        id2cid = create_id2cid(n, map_from, map_to)
     for fr,to in id2cid.items():
         if fr == to:
             continue
@@ -490,20 +540,18 @@ def idmap(x):
     return x
 
 
-def diff_idmap(x):
+def diff_idmap(x, cid2id=None, n=None, map_from=None, map_to=None):
     """
     combine neural network output
     (N, C2, H, W) -> (N, C1, H, W)
     """
-    cid2id = {0: 0, 1: 1, 2: 2, 3: 3, 4: [4, 5], 5: [6, 7], 6: [8, 9], 7: 10, 8: 11, 9: 12, 10: 13, 11: 14, 12: 15, 13: 16, 14: 17, 15: 18}
+    if cid2id is None:
+        cid2id = create_cid2id(n, map_from, map_to)
     px = F.softmax(x, dim=1)
     ts = []
     for dst, src in cid2id.items():
-        if type(src) is int:
-            ts.append(px[:, src:src+1])
-        else:
-            composition = sum([px[:, index:index+1] for index in src])
-            ts.append(composition)
+        composition = sum([px[:, index:index+1] for index in src])
+        ts.append(composition)
     ps = torch.cat(ts, dim=1)
     ps /= ps.sum(dim=1, keepdim=True)
     return torch.log(ps)

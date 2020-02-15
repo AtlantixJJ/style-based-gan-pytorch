@@ -54,6 +54,7 @@ ds = dataset.CollectedDataset("data")
 print(str(ds))
 dl = DataLoader(ds, batch_size=1, pin_memory=True)
 colorizer = utils.Colorize(16)
+idmap = dataset.CelebAIDMap()
 
 for ind, dic in enumerate(dl):
     for k in dic.keys():
@@ -68,7 +69,7 @@ for ind, dic in enumerate(dl):
         mixed_latent_ = [latent_.clone() for _ in extended_latent_.shape[1]]
         generalized_latent_ = extended_latent_[:, 0:1, :].detach()
         orig_image, orig_seg = generator(extended_latent_)
-        ext_seg = utils.diff_idmap(external_model(orig_image.clamp(-1, 1)))
+        ext_seg = idmap.diff_mapid(external_model(orig_image.clamp(-1, 1)))
     orig_image = (1 + orig_image.clamp(-1, 1)) / 2
     ext_label = ext_seg.argmax(1)
     ext_label_viz = colorizer(ext_label[0]).unsqueeze(0) / 255.
