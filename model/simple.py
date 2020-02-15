@@ -145,19 +145,20 @@ class Generator(nn.Module):
     def forward(self, x, seg=True, detach=False):
         x = self.relu(self.fc(x)).view(-1, self.dims[0], 4, 4)
 
-        self.stage = []
+        stage = []
         for layers in self.deconvs:
             x = layers(x)
             if detach:
-                self.stage.append(x.detach())
+                stage.append(x.detach())
             else:
-                self.stage.append(x)
+                stage.append(x)
+        self.stage = stage
         x = self.visualize(x)
         if self.out_act == "tanh":
             x = self.tanh(x)
 
         if seg and self.segcfg != "":
-            seg = self.extract_segmentation(self.stage)[-1]
+            seg = self.extract_segmentation(stage)[-1]
             return x, seg
         return x
 

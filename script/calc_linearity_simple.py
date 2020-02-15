@@ -20,11 +20,10 @@ device = "cuda"
 
 if args.recursive == 1:
     start = 0
-    if os.path.exists(f"record/{model_name}_linearity.txt"):
-        with open(f"record/{model_name}_linearity.txt", "r") as f:
+    if os.path.exists(f"record/{model_name}_linearity_ioustd.txt"):
+        with open(f"record/{model_name}_linearity_ioustd.txt", "r") as f:
             lines = f.readlines()
-        fids = [float(l.strip()) for l in lines]
-        start = len(fids)
+        start = len(lines)
     # This is root, run for all the expr directory
     model_files = glob.glob(args.model + "/*.model")
     model_files = [m for m in model_files if "disc" not in m]
@@ -33,7 +32,7 @@ if args.recursive == 1:
     gpus = args.gpu.split(",")
     slots = [[] for _ in gpus]
     for i, model in enumerate(model_files):
-        basecmd = "python script/calc_fid_simple.py --dataset %s --model %s --gpu %s --recursive 0"
+        basecmd = "python script/calc_linearity_simple.py --dataset %s --model %s --gpu %s --recursive 0"
         basecmd = basecmd % (args.dataset, model, gpus[i % len(gpus)])
         slots[i % len(gpus)].append(basecmd)
     
@@ -57,5 +56,12 @@ faceparser.load_state_dict(state_dict)
 faceparser = faceparser.to(device)
 faceparser.eval()
 
-evaluator = utils.LinearityEvaluator(faceparser)
-evaluator(generator)
+idmap = utils.CelebAIDMap()
+
+def external_model(x):
+    return idmap.mapid(faceparser(x).argmax(1))
+
+evaluator = utils.LinearityEvaluator(external_model, latent_dim=128)
+iou_std = evaluator(generator, model_name)
+with open(f"record/{model_name}_linearity_ioustd.txt", "r") as f:
+    f.write(f"{model_name} {iou_std}\n")

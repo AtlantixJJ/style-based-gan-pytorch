@@ -9,6 +9,7 @@ import torch
 import torch.nn.functional as F
 import torchvision.utils as vutils
 from skimage import morphology
+from tqdm import tqdm
 try:
     import cv2
 except:
@@ -485,8 +486,8 @@ def compute_score(y_pred, y_true):
 
 
 def compute_all_metric(tp, fp, fn):
-    pixelcorrect += tp
-    pixeltotal += tp + fn
+    pixelcorrect = tp
+    pixeltotal = tp + fn
     gt_nonempty = (tp + fn) > 0
     if gt_nonempty:
         if tp + fp == 0:
@@ -739,7 +740,7 @@ def get_sum_dic(n_class):
     dic = {}
     dic["pixelacc"] = 0
     for name in ["AP", "AR", "IoU"]:
-        dic[name] = [-1] * n_class
+        dic[name] = [[] for _ in range(n_class)]
         dic["m" + name] = 0
     return dic
 
@@ -767,47 +768,41 @@ class LinearityEvaluator(object):
     External model: a semantic segmentation network
     """
     def __init__(self, external_model,
-        N=100, imsize=512, latent_dim=512, n_class=16):
+        N=1000, imsize=512, latent_dim=512, n_class=16, style_noise=False):
         self.external_model = external_model
         self.device = "cuda"
         self.N = N
-        self.latent_dim = 512
+        self.latent_dim = latent_dim
         self.imsize = 512
         self.n_class = n_class
-
+        self.style_noise = style_noise
         self.logsoftmax = torch.nn.CrossEntropyLoss()
         self.logsoftmax.to(self.device)
 
         self.fix_latents = torch.randn(64, self.latent_dim)
-        self.fix_noises = [generate_noise_stylegan() for _ in range(64)]
+        if self.style_noise:
+            self.fix_noises = [generate_noise_stylegan() for _ in range(64)]
 
-    def summarize(self):
-        print("=> mAP  \t  mAR  \t  mIoU  \t  PixelAcc")
-        print("=> %.3f\t%.3f\t%.3f\t%.3f" % (self.dic["mAP"], self.dic["mAR"], self.dic["mIoU"], self.dic["pixelacc"]))
-        print("=> Class wise metrics:")
+    def aggregate_process(self):
+        global_dic = {}
+        for name in ["pixelacc", "mAP", "mAR", "mIoU"]:
+            global_dic[name] = self.dic[name]
         
-        self.clean_dic = {}
-        for key in ["mAP", "mAR", "mIoU", "pixelacc"]:
-            self.clean_dic[key] = self.dic[key]
+        class_dic = {}
+        for i, name in enumerate(CELEBA_REDUCED_CATEGORY):
+            class_dic[name] = self.dic["IoU"][i]
 
-        print("=> Name \t  AP \t  AR \t  IoU \t")
-        for i in range(self.n_class):
-            print("=> %s: \t%.3f\t%.3f\t%.3f" % (
-                CELEBA_REDUCED_CATEGORY[i],
-                self.dic["AP"][i],
-                self.dic["AR"][i],
-                self.dic["IoU"][i]))
-            for key in ["AP", "AR", "IoU"]:
-                self.clean_dic[key] = self.dic[key]
-        return self.clean_dic
+        return global_dic, class_dic
 
     def eval_fix(self):
         segms = []
         for i in range(self.fix_latents.shape[0]):
             latent = self.fix_latents[i:i+1].detach().clone().to(self.device)
-            noise = [n.detach().clone().to(self.device) for n in self.fix_noises[i]]
-            self.model.set_noise(noise)
-            _, seg = self.model(latent)
+            if self.style_noise:
+                noise = [n.detach().clone().to(self.device) for n in self.fix_noises[i]]
+                self.model.set_noise(noise)
+            self.model(latent)
+            seg = self.extract_segmentation(self.model.stage)[-1]
             label = seg.argmax(1)
             segms.append(label.detach().clone())
         segms = torch2numpy(torch.cat(segms))
@@ -831,7 +826,7 @@ class LinearityEvaluator(object):
 
         for i in range(self.n_class):
             for j, name in enumerate(["AP", "AR", "IoU"]):
-                arr = dic[name][i] # The data of a class of a metric
+                arr = np.array(dic[name][i]) # The data of a class of a metric
                 arr = arr[arr > -1]
                 if arr.shape[0] == 0:
                     dic[name][i] = -1
@@ -852,9 +847,9 @@ class LinearityEvaluator(object):
 
         self.semantic_extractor = torch.nn.ModuleList([
             conv_block(dim, self.n_class, 1)
-                for dim in self.dims])
+                for dim in self.dims]).to(self.device)
         
-        self.optim = torch.nn.optim.Adam(self.semantic_extractor.parameters(), lr=1e-3)
+        self.optim = torch.optim.Adam(self.semantic_extractor.parameters(), lr=1e-3)
 
     def extract_segmentation(self, stage):
         count = 0
@@ -874,12 +869,12 @@ class LinearityEvaluator(object):
 
         return outputs
 
-    def __call__(self, model):
+    def __call__(self, model, name):
         self.model = model
         latent = torch.randn(1, self.latent_dim, device=self.device)
-        for ind in range(self.N):
+        for ind in tqdm(range(self.N)):
             latent.normal_()
-            image = self.model(latent, seg=False, detach=True)
+            image = self.model(latent)
             if ind == 0:
                 self.prev_segm = 0
                 self.dic = get_history_dic(self.n_class) 
@@ -887,8 +882,7 @@ class LinearityEvaluator(object):
                 self.build_extractor_conv()
             segs = self.extract_segmentation(self.model.stage)
 
-            ext_seg = self.external_model(image.clamp(-1, 1))
-            ext_label = ext_seg.argmax(1)
+            ext_label = self.external_model(image.clamp(-1, 1))
 
             seglosses = []
             for s in segs:
@@ -910,8 +904,14 @@ class LinearityEvaluator(object):
             self.optim.step()
             self.optim.zero_grad()
             self.eval_fix()
-            self.summarize()
-        
+
+        global_dic, class_dic = self.aggregate_process()
+        np.save(f"results/{name}_global_dic.npy", global_dic)
+        np.save(f"results/{name}_class_dic.npy", class_dic)
+        return global_dic["mIoU"].std()
+        #plot_dic(global_dic, "global metric linearity", "results/global_linearity.png")
+        #plot_dic(class_dic, "class metric linearity (IoU)", "results/class_iou_linearity.png")
+    
 
 
 #########
