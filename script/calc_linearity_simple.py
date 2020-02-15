@@ -26,8 +26,8 @@ if args.recursive == 1:
     gpus = args.gpu.split(",")
     slots = [[] for _ in gpus]
     for i, model in enumerate(model_files):
-        basecmd = "python script/calc_linearity_simple.py --dataset %s --model %s --gpu %s --recursive 0"
-        basecmd = basecmd % (args.dataset, model, gpus[i % len(gpus)])
+        basecmd = "python script/calc_linearity_simple.py --dataset %s --imsize %d --model %s --gpu %s --recursive 0"
+        basecmd = basecmd % (args.dataset, args.imsize, model, gpus[i % len(gpus)])
         slots[i % len(gpus)].append(basecmd)
     
     for s in slots:
