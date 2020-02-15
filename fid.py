@@ -97,6 +97,9 @@ def calculate_statistics_given_iterator(model, iterator, save_path=None):
 
 
 class GeneratorIterator(object):
+    """
+    Generator iterator for FID evaluation
+    """
     def __init__(self, model, dim=512, tot_num=50000, batch_size=64, cuda=True):
         self.model = model
         self.tot_num = tot_num
@@ -131,18 +134,6 @@ class GeneratorIterator(object):
                         f"{save_path}/{gidx}.jpg")
 
             yield utils.tensor_resize_by_pil(t)
-
-
-class IterableDataset(torch.utils.data.Dataset):
-    def __init__(self, iterable):
-        super(IterableDataset, self).__init__()
-        self.iterable = iterable
-    
-    def __len__(self):
-        return len(self.iterable)
-
-    def __getitem__(self, idx):
-        return self.iterable[idx]
 
         
 class PartFIDEvaluator(object):
@@ -187,7 +178,7 @@ class PartFIDEvaluator(object):
         for i in range(self.n_class):
             if len(self.part_features[i]) == 0:
                 continue
-            ds = IterableDataset(self.part_features[i])
+            ds = dataset.IterableDataset(self.part_features[i])
             dl = torch.utils.data.DataLoader(ds,
                 batch_size=50, shuffle=False, num_workers=1, pin_memory=True, drop_last=False)
             feature = get_feature(self.model, dl)

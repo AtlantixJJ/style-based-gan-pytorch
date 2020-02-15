@@ -3,7 +3,7 @@ import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 import math
-from dataset import CelebAIDMap
+from utils import CelebAIDMap
 
 
 class Temperture(object):
@@ -45,18 +45,17 @@ def get_el_from_latent(latent, mapping_network, method):
 
 
 def get_image_seg_celeba(model, el, external_model, method, idmap=utils.CelebAIDMap()):
-    if "internal" in method:
-        return model(el)
-    elif "external" in method:
+    if "external" in method:
         image = model(el, seg=False)
         seg = external_model(image.clamp(-1, 1))
         if idmap is not None:
             seg = idmap.diff_mapid(seg)
         return image, seg
-
+    else:
+        return model(el)
 
 def edit_label_stroke(model, latent, noises, label_stroke, label_mask,
-    n_iter=5, n_reg=0, lr=1e-2, method="label-ML-internal", external_model=None, mapping_network=None):
+    n_iter=5, n_reg=0, lr=1e-2, method="celossreg-image-ML-internal", external_model=None, mapping_network=None):
     latent = latent.detach().clone()
     latent.requires_grad = True
     optim = torch.optim.Adam([latent], lr=lr)
@@ -97,6 +96,7 @@ def edit_label_stroke(model, latent, noises, label_stroke, label_mask,
         record["celoss"].append(utils.torch2numpy(celoss))
         
         # celoss regularization
+        """
         for _ in range(n_reg):
             el = get_el_from_latent(latent, mapping_network, method)
             image, seg = get_image_seg_celeba(model, el, external_model, method)
@@ -113,6 +113,7 @@ def edit_label_stroke(model, latent, noises, label_stroke, label_mask,
             record["mseloss"].append(utils.torch2numpy(mseloss))
             record["segdiff"].append(total_diff)
             record["gradnorm"].append(utils.torch2numpy(grad_norm))
+        """
 
     with torch.no_grad():
         el = get_el_from_latent(latent, mapping_network, method)

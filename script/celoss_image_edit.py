@@ -19,10 +19,11 @@ import optim, model, utils, dataset
 from lib.face_parsing import unet
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--model", default="checkpoint/fixseg.model")
+parser.add_argument("--model", default="checkpoint/fixseg_conv-16-1.model")
 parser.add_argument("--external-model", default="checkpoint/faceparse_unet_512.pth")
 parser.add_argument("--output", default="results")
-parser.add_argument("--seg-cfg", default="mul-16")
+parser.add_argument("--data-dir", default="data_image_edit")
+parser.add_argument("--seg-cfg", default="conv-16-1")
 parser.add_argument("--lr", default=1e-2, type=int)
 parser.add_argument("--n-iter", default=10, type=int)
 parser.add_argument("--n-reg", default=3, type=int)
@@ -34,10 +35,11 @@ args = parser.parse_args()
 torch.manual_seed(args.seed)
 device = 'cuda'
 optim_types = [
-    "baseline-latent",
-    "baseline-generalized-latent",
-    "celoss-external-generalized-latent-slow",
-    "celoss-generalized-latent-slow"]
+    "baseline-LL",
+    "celossreg-LL-internal",
+    "celossreg-GL-internal",
+    "celossreg-EL-internal",
+    "celossreg-ML-internal"]
 
 # build model
 generator = model.tfseg.StyledGenerator(semantic=args.seg_cfg).to(device)
@@ -50,23 +52,23 @@ external_model.load_state_dict(torch.load(args.external_model))
 external_model = external_model.to(device)
 external_model.eval()
 
-ds = dataset.CollectedDataset("data")
+ds = dataset.CollectedDataset(args.data_dir)
 print(str(ds))
 dl = DataLoader(ds, batch_size=1, pin_memory=True)
 colorizer = utils.Colorize(16)
-idmap = dataset.CelebAIDMap()
+idmap = utils.CelebAIDMap()
 
 for ind, dic in enumerate(dl):
     for k in dic.keys():
         dic[k] = dic[k].to(device)
 
-    latent_ = dic["origin_latent"][0]
+    latent_ = dic["origin_latent"]
+    mix_latent_ = latent_.expand(18, -1).detach().clone()
     noises_ = utils.parse_noise_stylegan(dic["origin_noise"][0])
 
     # get original images
     with torch.no_grad():
         extended_latent_ = generator.g_mapping(latent_).detach()
-        mixed_latent_ = [latent_.clone() for _ in extended_latent_.shape[1]]
         generalized_latent_ = extended_latent_[:, 0:1, :].detach()
         orig_image, orig_seg = generator(extended_latent_)
         ext_seg = idmap.diff_mapid(external_model(orig_image.clamp(-1, 1)))
@@ -83,27 +85,24 @@ for ind, dic in enumerate(dl):
     for t in optim_types:
         print("=> Optimization method %s" % t)
 
-        if "mixed-latent" in t:
-            param = [l.clone() for l in mixed_latent_]
-            for p in param:
-                p.requires_grad = True
-        elif "extended-latent" in t:
-            param = extended_latent_.clone()
-            param.requires_grad = True
-        elif "generalized-latent" in t:
-            param = generalized_latent_.clone()
-            param.requires_grad = True
-        elif "latent" in t:
-            param = latent_.clone()
-            param.requires_grad = True
+        if "EL" in t:
+            latent = extended_latent_
+        elif "GL" in t:
+            latent = generalized_latent_
+        elif "LL" in t:
+            latent = latent_
+        elif "ML" in t:
+            latent = mix_latent_
 
-        image, label, latent, noises, record = optim.get_optim(t,
-            external_model=external_model,
+        image, label, latent, noises, record = optim.edit_image_stroke(
             model=generator,
-            latent=param,
+            external_model=external_model,
+            mapping_network=generator.g_mapping.simple_forward,
+            latent=latent,
             noises=noises_,
             image_stroke=dic["image_stroke"],
             image_mask=dic["image_mask"],
+            method=t,
             lr=args.lr,
             n_iter=args.n_iter,
             n_reg=args.n_reg)

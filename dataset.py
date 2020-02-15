@@ -9,6 +9,18 @@ import utils
 import math
 
 
+class IterableDataset(torch.utils.data.Dataset):
+    def __init__(self, iterable):
+        super(IterableDataset, self).__init__()
+        self.iterable = iterable
+    
+    def __len__(self):
+        return len(self.iterable)
+
+    def __getitem__(self, idx):
+        return self.iterable[idx]
+        
+
 class SimpleDataset(torch.utils.data.Dataset):
     """
     Image only dataset

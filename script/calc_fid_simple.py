@@ -12,11 +12,13 @@ parser.add_argument("--gpu", default="0")
 args = parser.parse_args()
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
+ind = self.model.rfind("/")
+model_name = self.model[ind + 1:]
 
 if args.recursive == 1:
     start = 0
-    if os.path.exists("record/wgan128_fid.txt"):
-        with open("record/wgan128_fid.txt", "r") as f:
+    if os.path.exists(f"record/{model_name}_fid.txt"):
+        with open(f"record/{model_name}_fid.txt", "r") as f:
             lines = f.readlines()
         fids = [float(l.strip()) for l in lines]
         start = len(fids)
@@ -48,6 +50,6 @@ generator.cuda()
 
 evaluator = fid.FIDEvaluator(args.dataset)
 fid_value = evaluator(fid.GeneratorIterator(generator, batch_size=64, tot_num=30000, dim=128))
-with open("record/fid.txt", "a") as f:
+with open(f"record/{model_name}_fid.txt", "a") as f:
     f.write(f"{fid_value}\n")
 print('FID: ', fid_value)
