@@ -120,5 +120,5 @@ for ind, dic in enumerate(dl):
 
     images = torch.cat(images)
     images = F.interpolate(images, (256, 256), mode="bilinear")
-    vutils.save_image(images,f"{args.output}/edit_{ind:02d}_result.png", nrow=4)
+    vutils.save_image(images,f"{args.output}/image_edit_{ind:02d}_result.png", nrow=4)
 

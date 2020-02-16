@@ -121,5 +121,5 @@ for ind, dic in enumerate(dl):
         images[i] = images[i].detach().cpu()
 
     images = F.interpolate(torch.cat(images), (256, 256), mode="bilinear")
-    vutils.save_image(images,f"{args.output}/edit_{ind:02d}_result.png", nrow=4)
+    vutils.save_image(images,f"{args.output}/label_edit_{ind:02d}_result.png", nrow=4)
 

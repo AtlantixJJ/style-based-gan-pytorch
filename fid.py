@@ -135,7 +135,7 @@ class GeneratorIterator(object):
 
             yield utils.tensor_resize_by_pil(t)
 
-        
+
 class PartFIDEvaluator(object):
     def __init__(self, n_class=16):
         self.n_class = n_class
