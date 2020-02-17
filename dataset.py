@@ -7,6 +7,7 @@ import torchvision.utils as vutils
 import numpy as np
 import utils
 import math
+from scipy.ndimage.morphology import binary_erosion
 
 
 class IterableDataset(torch.utils.data.Dataset):
@@ -224,11 +225,16 @@ class CollectedDataset(torch.utils.data.Dataset):
                 elif "image_stroke" in name:
                     data = img * 2 - 1
                 elif "image_mask" in name:
-                    data = img[0:1]
+                    x = img[0].detach().numpy().astype("uint8")
+                    data = binary_erosion(x)
+                    data = torch.from_numpy(data).float()
                 elif "label_mask" in name:
-                    data = img[0]
+                    x = img[0].detach().numpy().astype("uint8")
+                    data = binary_erosion(x)
+                    data = torch.from_numpy(data).float()
             data_dic[k] = data
         return data_dic
+
 
 class LatentSegmentationDataset(torch.utils.data.Dataset):
     """

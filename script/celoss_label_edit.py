@@ -22,6 +22,7 @@ from lib.face_parsing import unet
 parser = argparse.ArgumentParser()
 parser.add_argument("--model", default="checkpoint/fixseg_conv-16-1.model")
 parser.add_argument("--external-model", default="checkpoint/faceparse_unet_512.pth")
+parser.add_argument("--external", default="external")
 parser.add_argument("--output", default="results")
 parser.add_argument("--data-dir", default="data_label_edit")
 parser.add_argument("--seg-cfg", default="conv-16-1")
@@ -36,12 +37,10 @@ args = parser.parse_args()
 torch.manual_seed(args.seed)
 device = 'cuda'
 optim_types = [
-    "label-LL-internal",
-    "label-GL-internal",
-    "label-EL-internal",
-    "label-ML-internal",
-    #"label-LL-external",
-    #"label-ML-external",
+    "label-LL-" + args.external,
+    "label-GL-" + args.external,
+    "label-EL-" + args.external,
+    "label-ML-" + args.external,
     ]
 
 # build model
@@ -115,11 +114,11 @@ for ind, dic in enumerate(dl):
         for i in range(3):
             diff_label[:, i, :, :][label == orig_label] = 1
         images.extend([image, label_viz, diff_image_viz, diff_label])
-        utils.plot_dic(record, t, f"{args.output}/edit_{ind:02d}_{t}.png")
+        utils.plot_dic(record, t, f"{args.output}/label_edit_{args.external}_loss_{ind:02d}_{t}.png")
         
     for i in range(len(images)):
         images[i] = images[i].detach().cpu()
 
     images = F.interpolate(torch.cat(images), (256, 256), mode="bilinear")
-    vutils.save_image(images,f"{args.output}/edit_{ind:02d}_result.png", nrow=4)
+    vutils.save_image(images,f"{args.output}/label_edit_{args.external}_{ind:02d}_result.png", nrow=4)
 

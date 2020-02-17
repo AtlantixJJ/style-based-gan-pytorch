@@ -14,6 +14,8 @@ celebahq
 ffhq
 checkpoint
 data_label_edit
+data_image_edit
+data_compare
 web/collect_data
 complex
 ffhq_mul_sl0

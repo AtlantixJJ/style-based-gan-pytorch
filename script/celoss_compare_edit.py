@@ -21,9 +21,8 @@ from lib.face_parsing import unet
 parser = argparse.ArgumentParser()
 parser.add_argument("--model", default="checkpoint/fixseg_conv-16-1.model")
 parser.add_argument("--external-model", default="checkpoint/faceparse_unet_512.pth")
-parser.add_argument("--external", default="external")
 parser.add_argument("--output", default="results")
-parser.add_argument("--data-dir", default="data_image_edit")
+parser.add_argument("--data-dir", default="data_compare")
 parser.add_argument("--seg-cfg", default="conv-16-1")
 parser.add_argument("--lr", default=1e-2, type=int)
 parser.add_argument("--n-iter", default=10, type=int)
@@ -32,15 +31,15 @@ parser.add_argument("--seed", default=65537, type=int)
 args = parser.parse_args()
 
 
+optim_types = [
+    "baseline-image-LL",
+    "label-LL-internal",
+    "label-LL-external"
+    ]
+
 # constants setup
 torch.manual_seed(args.seed)
 device = 'cuda'
-optim_types = [
-    "baseline-LL",
-    "celossreg-LL-" + args.external,
-    "celossreg-GL-" + args.external,
-    "celossreg-EL-" + args.external,
-    "celossreg-ML-" + args.external]
 
 # build model
 generator = model.tfseg.StyledGenerator(semantic=args.seg_cfg).to(device)
@@ -66,6 +65,8 @@ for ind, dic in enumerate(dl):
     latent_ = dic["origin_latent"]
     mix_latent_ = latent_.expand(18, -1).detach().clone()
     noises_ = utils.parse_noise_stylegan(dic["origin_noise"][0])
+    label_stroke = dic["label_stroke"]
+    label_mask = dic["label_mask"]
 
     # get original images
     with torch.no_grad():
@@ -78,10 +79,23 @@ for ind, dic in enumerate(dl):
     ext_label_viz = colorizer(ext_label[0]).unsqueeze(0) / 255.
     orig_label = orig_seg.argmax(1)
     orig_label_viz = colorizer(orig_label[0]).unsqueeze(0) / 255.
-    padding_image = torch.zeros_like(orig_image).fill_(-1)
+    int_target_label = orig_label.float() * (1 - label_mask) + label_stroke * label_mask
+    ext_target_label = ext_label.float() * (1 - label_mask) + label_stroke * label_mask
+    label_stroke_viz = colorizer(label_stroke[0]).unsqueeze(0) / 255.
+    int_target_label_viz = colorizer(int_target_label[0]).unsqueeze(0) / 255.
+    ext_target_label_viz = colorizer(ext_target_label[0]).unsqueeze(0) / 255.
     image_stroke = orig_image * (1 - dic["image_mask"]) + dic["image_stroke"] * dic["image_mask"]
+    padding_image = torch.zeros_like(orig_image).fill_(-1)
 
-    images = [orig_image, orig_label_viz, image_stroke, ext_label_viz]
+    image_mask_viz = dic["image_mask"].expand(3, -1, -1).unsqueeze(0)
+    label_mask_viz = dic["label_mask"].expand(3, -1, -1).unsqueeze(0)
+    images = [orig_image, orig_label_viz, dic["image_stroke"], image_mask_viz, label_stroke_viz, label_mask_viz]
+    for i in range(len(images)):
+        images[i] = images[i].detach().cpu()
+    images = torch.cat(images)
+    images = F.interpolate(images, (256, 256), mode="bilinear")
+    vutils.save_image(images, f"{args.output}/compare_edit_{ind:02d}_original.png", nrow=6)
+    images = []
 
     for t in optim_types:
         print("=> Optimization method %s" % t)
@@ -95,31 +109,51 @@ for ind, dic in enumerate(dl):
         elif "ML" in t:
             latent = mix_latent_
 
-        image, label, latent, noises, record = optim.edit_image_stroke(
-            model=generator,
-            external_model=external_model,
-            mapping_network=generator.g_mapping.simple_forward,
-            latent=latent,
-            noises=noises_,
-            image_stroke=dic["image_stroke"],
-            image_mask=dic["image_mask"],
-            method=t,
-            lr=args.lr,
-            n_iter=args.n_iter,
-            n_reg=args.n_reg)
-    
+        res = 0
+        if "image" in t:
+            res = optim.edit_image_stroke(
+                model=generator,
+                external_model=external_model,
+                mapping_network=generator.g_mapping.simple_forward,
+                latent=latent,
+                noises=noises_,
+                image_stroke=dic["image_stroke"],
+                image_mask=dic["image_mask"],
+                method="baseline-image-LL",
+                lr=args.lr,
+                n_iter=args.n_iter,
+                n_reg=args.n_reg)
+            images.append(image_stroke)
+        elif "label" in t:
+            res = optim.edit_label_stroke(
+                model=generator,
+                external_model=external_model,
+                mapping_network=generator.g_mapping.simple_forward,
+                latent=latent,
+                noises=noises_,
+                label_stroke=label_stroke,
+                label_mask=label_mask,
+                method=t,
+                lr=args.lr,
+                n_iter=args.n_iter,
+                n_reg=args.n_reg)
+            label_viz = ext_target_label_viz if "external" in t else int_target_label_viz
+            images.append(label_viz)
+        
+        image, label, latent, noises, record = res
         label_viz = colorizer(label[0]).unsqueeze(0) / 255.
         diff_image = (orig_image - image).abs().sum(1, keepdim=True)
         diff_image_viz = utils.heatmap_torch(diff_image / diff_image.max())
         diff_label = label_viz.clone()
+        prev_label = ext_target_label if "external" in t else int_target_label
         for i in range(3):
-            diff_label[:, i, :, :][label == orig_label] = 1
+            diff_label[:, i, :, :][label == prev_label] = 1
         images.extend([image, label_viz, diff_image_viz, diff_label])
         for i in range(len(images)):
             images[i] = images[i].detach().cpu()
-        utils.plot_dic(record, t, f"{args.output}/image_edit_{args.external}_loss_{ind:02d}_{t}.png")
+        utils.plot_dic(record, t, f"{args.output}/compare_edit_loss_{ind:02d}_{t}.png")
 
     images = torch.cat(images)
     images = F.interpolate(images, (256, 256), mode="bilinear")
-    vutils.save_image(images,f"{args.output}/image_edit_{args.external}_{ind:02d}_result.png", nrow=4)
+    vutils.save_image(images,f"{args.output}/compare_edit_{ind:02d}_result.png", nrow=5)
 
