@@ -25,16 +25,16 @@ parser.add_argument("--output", default="results")
 parser.add_argument("--data-dir", default="data_compare")
 parser.add_argument("--seg-cfg", default="conv-16-1")
 parser.add_argument("--lr", default=1e-2, type=int)
-parser.add_argument("--n-iter", default=10, type=int)
+parser.add_argument("--n-iter", default=50, type=int)
 parser.add_argument("--n-reg", default=3, type=int)
 parser.add_argument("--seed", default=65537, type=int)
 args = parser.parse_args()
 
 
 optim_types = [
-    "baseline-image-LL",
-    "label-LL-internal",
-    "label-LL-external"
+    "baseline-image-ML",
+    "label-ML-internal",
+    "label-ML-external"
     ]
 
 # constants setup
