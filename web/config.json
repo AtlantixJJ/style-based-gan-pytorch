@@ -1,50 +1,27 @@
 {
     "collect_data_dir": "collect_data",
     "models": {
-        "Baseline-Image-LL-Internal": {
+        "CelebA/CELoss-ML-Internal": {
             "model_def" : "home.wrapper.WrapedStyledGenerator",
-            "external_model" : "../checkpoint/faceparse_unet_512.pth",
+            "external_model" : "",
             "out_dim" : 3,
             "output_size" : 1024,
             "model_args": {
-                "method" : "baseline-image-LL-internal",
+                "method" : "celossreg-ML-internal",
+                "resolution" : 1024,
                 "load_path" : "../checkpoint/fixseg_conv-16-1.model",
                 "seg_cfg": "conv-16-1",
                 "gpu" : 0
             }
-        },
-        "CELossReg-Image-LL-Internal": {
+        },"Bedroom/CELoss-ML-Internal": {
             "model_def" : "home.wrapper.WrapedStyledGenerator",
-            "external_model" : "../checkpoint/faceparse_unet_512.pth",
+            "external_model" : "",
             "out_dim" : 3,
-            "output_size" : 1024,
+            "output_size" : 256,
             "model_args": {
-                "method" : "celossreg-image-LL-internal",
-                "load_path" : "../checkpoint/fixseg_conv-16-1.model",
-                "seg_cfg": "conv-16-1",
-                "gpu" : 0
-            }
-        },
-        "Baseline-Image-LL-External": {
-            "model_def" : "home.wrapper.WrapedStyledGenerator",
-            "external_model" : "../checkpoint/faceparse_unet_512.pth",
-            "out_dim" : 3,
-            "output_size" : 1024,
-            "model_args": {
-                "method" : "baseline-image-LL-external",
-                "load_path" : "../checkpoint/fixseg_conv-16-1.model",
-                "seg_cfg": "conv-16-1",
-                "gpu" : 0
-            }
-        },
-        "CELossReg-Image-LL-External": {
-            "model_def" : "home.wrapper.WrapedStyledGenerator",
-            "external_model" : "../checkpoint/faceparse_unet_512.pth",
-            "out_dim" : 3,
-            "output_size" : 1024,
-            "model_args": {
-                "method" : "celossreg-image-LL-external",
-                "load_path" : "../checkpoint/fixseg_conv-16-1.model",
+                "method" : "celossreg-ML-internal",
+                "resolution" : 256,
+                "load_path" : "../checkpoint/karras2019stylegan-bedrooms-256x256.for_g_all.pt",
                 "seg_cfg": "conv-16-1",
                 "gpu" : 0
             }

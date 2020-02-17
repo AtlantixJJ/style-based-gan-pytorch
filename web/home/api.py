@@ -62,14 +62,14 @@ class ImageGenerationAPI(object):
         device = model.device
         latent      = torch.from_numpy(latent).to(device)
         noise       = torch.from_numpy(noise).to(device)
-        image_stroke= preprocess_image(image_stroke).to(device)
-        image_mask  = preprocess_mask(image_mask).to(device)
+        image_stroke= preprocess_image(image_stroke, size).to(device)
+        image_mask  = preprocess_mask(image_mask, size).to(device)
         x = torch.from_numpy(imresize(label_stroke, (size, size)))
         t = torch.zeros(size, size)
         for i, c in enumerate(CELEBA_COLORS):
             t[color_mask(x, c)] = i
         label_stroke = t.unsqueeze(0).to(device)
-        label_mask  = preprocess_mask(label_mask).squeeze(1).to(device)
+        label_mask  = preprocess_mask(label_mask, size).squeeze(1).to(device)
         
         res = 0
         if label_mask.sum() < 1:

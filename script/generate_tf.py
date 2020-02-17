@@ -5,8 +5,13 @@ import torchvision.utils as vutils
 import numpy as np
 import model
 
-generator = model.tf.StyledGenerator()
 state_dict = torch.load(sys.argv[1])
+resolution = 0
+if "256x256" in sys.argv[1]:
+    resolution = 256
+elif "1024x1024" in sys.argv[1]:
+    resolution = 1024
+generator = model.tf.StyledGenerator(resolution)
 missed = generator.load_state_dict(state_dict, strict=False)
 print(missed)
 generator = generator.cuda()
@@ -14,7 +19,3 @@ x = torch.randn(4, 512).cuda()
 y = generator(x)
 y = (y.clamp(-1, 1) + 1) / 2
 vutils.save_image(y, "gen.png", nrow=2)
-ys = generator.all_layer_forward(x)
-for i, y in enumerate(ys):
-    y = (y.clamp(-1, 1) + 1) / 2
-    vutils.save_image(y, f"gen_{i}.png", nrow=2)

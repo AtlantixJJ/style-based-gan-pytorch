@@ -5,19 +5,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
 from datetime import datetime
-
-
-def parse_noise_stylegan(vec):
-    """
-    StyleGAN only
-    """
-    noise = []
-    prev = 0
-    for i in range(18):
-        size = 4 * 2 ** (i // 2)
-        noise.append(vec[prev : prev + size ** 2].view(1, 1, size, size))
-        prev += size ** 2
-    return noise
     
 
 def requires_grad(model, flag=True):

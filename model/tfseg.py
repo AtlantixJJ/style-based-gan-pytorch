@@ -452,10 +452,10 @@ class G_synthesis(nn.Module):
 
 
 class StyledGenerator(nn.Module):
-    def __init__(self, semantic="mul-16-sl0"):
+    def __init__(self, resolution=1024, semantic="mul-16-sl0"):
         super().__init__()
         self.g_mapping = G_mapping()
-        self.g_synthesis = G_synthesis()
+        self.g_synthesis = G_synthesis(resolution=resolution)
 
         res = semantic.split("-")
         self.segcfg, self.n_class = res[:2]
@@ -689,6 +689,17 @@ class StyledGenerator(nn.Module):
         for param in self.g_synthesis.parameters():
             param.requires_grad = train
 
+    def generate_noise(self):
+        if not hasattr(self, "noise_layers"):
+            self.noise_layers = [l for n,l in self.named_modules() if "noise" in n]
+        
+        noise = []
+        for i in range(len(self.noise_layers)):
+            size = 4 * 2 ** (i // 2)
+            noise.append(torch.randn(1, 1, size, size))
+
+        return noise
+
     def set_noise(self, noises):
         if not hasattr(self, "noise_layers"):
             self.noise_layers = [l for n,l in self.named_modules() if "noise" in n]
@@ -696,7 +707,7 @@ class StyledGenerator(nn.Module):
         if noises is None:
             for i in range(len(self.noise_layers)):
                 self.noise_layers[i].noise = None
-            return
+            return len(self.noise_layers)
 
         for i in range(len(noises)):
             self.noise_layers[i].noise = noises[i]
