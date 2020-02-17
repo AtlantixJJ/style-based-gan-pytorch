@@ -27,6 +27,8 @@ parser.add_argument(
     "--gpu", default="0")
 parser.add_argument(
     "--layer-index", default=4, type=int)
+parser.add_argument(
+    "--total-class", default=5, type=int)
 args = parser.parse_args()
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
@@ -41,7 +43,8 @@ ds = dataset.LatentSegmentationDataset(
 dl = torch.utils.data.DataLoader(ds, batch_size=1, shuffle=False)
 
 # build model
-generator = StyledGenerator(semantic="conv-16-1").to(device)
+resolution = utils.resolution_from_name(args.model)
+generator = StyledGenerator(resolution=resolution, semantic="conv-16-1").to(device)
 state_dict = torch.load(args.model, map_location='cpu')
 missing_dict = generator.load_state_dict(state_dict, strict=False)
 print(missing_dict)
@@ -50,7 +53,7 @@ generator.eval()
 # set up input
 latent = torch.randn(1, 512).to(device)
 layer_index = args.layer_index
-colorizer = utils.Colorize(16)
+colorizer = utils.Colorize(args.total_class)
 
 def fg_bg_idmap(x):
     return utils.idmap(x,
@@ -68,12 +71,12 @@ def full_idmap(x):
     return x
 
 
-idmap = fg_bg_idmap
-name = "fg_bg"
+idmap = full_idmap
+name = "fulll"
 
 test_size = 16
 test_latents = torch.randn(test_size, 512)
-test_noises = [utils.generate_noise_stylegan() for _ in range(test_size)]
+test_noises = [generator.generate_noise() for _ in range(test_size)]
 
 def test(generator, svm, test_latents, test_noises, N):
     result = []
@@ -109,37 +112,24 @@ for ind, sample in enumerate(tqdm(dl)):
     label = idmap(label)
     labels.append(label)
 
-    #noise = noise[0].to(device)
-    #generator.set_noise(utils.parse_noise_stylegan(noise))
     image = generator(latent, seg=False)
     feat = generator.stage[layer_index].detach()
     feats.append(feat)
+feats = torch.cat(feats)
+labels = torch.cat(labels)
 
-    if (ind + 1) % 4 != 0: # 4 images
-        continue
+print(f"=> Feature shape: {feats.shape}")
+print(f"=> Label shape: {labels.shape}")
+N, C, H, W = feats.shape
+feats = feats.permute(0, 2, 3, 1).reshape(-1, C).cpu()
+print(f"=> Feature for SVM shape: {feats.shape}")
+labels = F.interpolate(labels.float(), size=H, mode="nearest").long()
+svm = LinearSVC(
+    dual=(feats.shape[0] < feats.shape[1]),
+    fit_intercept=False)
+svm.fit(feats, labels.reshape(-1))
 
-    feats = torch.cat(feats)
-    labels = torch.cat(labels)
+images = test(generator, svm, test_latents, test_noises, test_size)
+images = [F.interpolate(img, size=256, mode="nearest") for img in images]
 
-    print(f"=> Feature shape: {feats.shape}")
-    print(f"=> Label shape: {labels.shape}")
-    N, C, H, W = feats.shape
-    feats = feats.permute(0, 2, 3, 1).reshape(-1, C).cpu()
-    print(f"=> Feature for SVM shape: {feats.shape}")
-    labels = F.interpolate(labels.float(), size=H, mode="nearest").long()
-    svm = LinearSVC(
-        dual=(feats.shape[0] < feats.shape[1]),
-        fit_intercept=False)
-    svm.fit(feats, labels.reshape(-1))
-
-    images = test(generator, svm, test_latents, test_noises, test_size)
-    images = [F.interpolate(img, size=256, mode="nearest") for img in images]
-
-    vutils.save_image(torch.cat(images), f"results/svm_l{layer_index}_idmap-{name}_result{ind}.png", nrow=3)
-
-    feats = []
-    labels = []
-
-    if ind > 16:
-        break
-
+vutils.save_image(torch.cat(images), f"results/svm_l{layer_index}_idmap-{name}_result{ind}.png", nrow=3)

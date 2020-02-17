@@ -56,7 +56,7 @@ colorizer = utils.Colorize(16)
 
 test_size = 3
 test_latents = torch.randn(test_size, 512)
-test_noises = [utils.generate_noise_stylegan() for _ in range(test_size)]
+test_noises = [generator.generate_stylegan() for _ in range(test_size)]
 
 def test(generator, test_latents, test_noises, svm, N):
     result = []
@@ -92,7 +92,7 @@ for ind, sample in enumerate(tqdm(dl)):
 
     if args.noise_aug == 1:
         noise = noise[0].to(device)
-        generator.set_noise(utils.parse_noise_stylegan(noise))
+        generator.set_noise(generator.parse_noise(noise))
         image = generator(latent, seg=False)
         feats = generator.stage[layer_index].detach()
     elif args.noise_aug > 1:

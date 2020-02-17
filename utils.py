@@ -227,28 +227,13 @@ def normalize_image(img):
 ######
 
 
-def parse_noise_stylegan(vec):
-    """
-    StyleGAN only
-    """
-    noise = []
-    prev = 0
-    for i in range(18):
-        size = 4 * 2 ** (i // 2)
-        noise.append(vec[prev : prev + size ** 2].view(1, 1, size, size))
-        prev += size ** 2
-    return noise
+def resolution_from_name(fpath):
+    if "256x256" in fpath:
+        resolution = 256
+    elif "1024x1024" in fpath:
+        resolution = 1024
+    return resolution
 
-
-def generate_noise_stylegan():
-    """
-    StyleGAN only
-    """
-    noise = []
-    for i in range(18):
-        size = 4 * 2 ** (i // 2)
-        noise.append(torch.randn(1, 1, size, size))
-    return noise
 
 
 def requires_grad(model, flag=True):
@@ -462,6 +447,13 @@ def color_mask_tensor(image, color):
 def celeba_rgb2label(image):
     t = torch.zeros(image.shape[1:]).float()
     for i, c in enumerate(CELEBA_COLORS):
+        t[color_mask_tensor(image, c)] = i
+    return t
+
+
+def rgb2label(image, color_list):
+    t = torch.zeros(image.shape[1:]).float()
+    for i, c in enumerate(color_list):
         t[color_mask_tensor(image, c)] = i
     return t
 
@@ -767,8 +759,9 @@ class LinearityEvaluator(object):
     """
     External model: a semantic segmentation network
     """
-    def __init__(self, external_model,
+    def __init__(self, model, external_model,
         N=1000, imsize=512, latent_dim=512, n_class=16, style_noise=False):
+        self.model = model
         self.external_model = external_model
         self.device = "cuda"
         self.N = N
@@ -781,7 +774,7 @@ class LinearityEvaluator(object):
 
         self.fix_latents = torch.randn(256, self.latent_dim)
         if self.style_noise:
-            self.fix_noises = [generate_noise_stylegan() for _ in range(256)]
+            self.fix_noises = [self.model.generate_noise() for _ in range(256)]
 
     def aggregate_process(self):
         global_dic = {}

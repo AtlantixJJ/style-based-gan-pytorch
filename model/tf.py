@@ -358,10 +358,11 @@ class G_synthesis(nn.Module):
 
 
 class StyledGenerator(nn.Module):
-    def __init__(self):
+    def __init__(self, resolution=1024):
         super().__init__()
+        self.resolution = resolution
         self.g_mapping = G_mapping()
-        self.g_synthesis = G_synthesis()
+        self.g_synthesis = G_synthesis(resolution=resolution)
 
     def forward(self, x,):
         return self.g_synthesis(self.g_mapping(x))
@@ -380,21 +381,21 @@ class StyledGenerator(nn.Module):
 
 
 if 0:
-    # this can be run to get the weights, but you need the reference implementation and weights
+    # Need to run this on StyleGAN repo
     import dnnlib, dnnlib.tflib, pickle, torch, collections
     dnnlib.tflib.init_tf()
-    weights = pickle.load(open('./karras2019stylegan-celebahq-1024x1024.pkl','rb'))
+    weights = pickle.load(open('../srgan/checkpoint/karras2019stylegan-bedrooms-256x256.pkl','rb'))
     weights_pt = [collections.OrderedDict([(k, torch.from_numpy(v.value().eval())) for k,v in w.trainables.items()]) for w in weights]
-    torch.save(weights_pt, './karras2019stylegan-celebahq-1024x1024.pt')
+    torch.save(weights_pt, '../srgan/checkpoint/karras2019stylegan-bedrooms-256x256.pt')
 
-if __name__ == "__main__":
+def build(raw_pt='checkpoint/karras2019stylegan-celebahq-1024x1024.pt', resolution=1024):
     g_all = torch.nn.Sequential(OrderedDict([
         ('g_mapping', G_mapping()),
         #('truncation', Truncation(avg_latent)),
-        ('g_synthesis', G_synthesis())    
+        ('g_synthesis', G_synthesis(resolution=resolution))    
     ]))
     # then on the PyTorch side run
-    state_G, state_D, state_Gs = torch.load('checkpoint/karras2019stylegan-celebahq-1024x1024.pt')
+    state_G, state_D, state_Gs = torch.load(raw_pt)
     def key_translate(k):
         k = k.lower().split('/')
         if k[0] == 'g_synthesis':
@@ -443,4 +444,10 @@ if __name__ == "__main__":
                 print ("mismatch!", k, pds, sds)
 
     g_all.load_state_dict(param_dict, strict=False) # needed for the blur kernels
-    torch.save(g_all.state_dict(), 'checkpoint/karras2019stylegan-celebahq-1024x1024.for_g_all.pt')
+    torch.save(g_all.state_dict(), raw_pt.replace(".pt", ".for_g_all.pt"))
+
+if __name__ == "__main__":
+    # celeba 1024
+    # build("checkpoint/karras2019stylegan-celebahq-1024x1024.pt")
+    # bedroom 256
+    build("checkpoint/karras2019stylegan-bedrooms-256x256.pt", 256)

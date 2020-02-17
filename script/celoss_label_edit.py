@@ -64,7 +64,7 @@ for ind, dic in enumerate(dl):
 
     latent_ = dic["origin_latent"]
     mix_latent_ = latent_.expand(18, -1).detach().clone()
-    noises_ = utils.parse_noise_stylegan(dic["origin_noise"][0])
+    noises_ = generator.parse_noise(dic["origin_noise"][0])
     label_stroke = dic["label_stroke"]
     label_mask = dic["label_mask"]
 
