@@ -5,7 +5,7 @@ import glob
 import utils
 
 
-files = glob.glob("results/var_metric/*.npy")
+files = glob.glob("results/var_metric/*class.npy")
 
 for f in files:
     arr = np.load(f, allow_pickle=True)[()]

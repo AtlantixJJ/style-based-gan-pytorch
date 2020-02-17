@@ -44,7 +44,7 @@ dl = torch.utils.data.DataLoader(ds, batch_size=1, shuffle=False)
 
 # build model
 resolution = utils.resolution_from_name(args.model)
-generator = StyledGenerator(resolution=resolution, semantic="conv-16-1").to(device)
+generator = StyledGenerator(resolution=resolution, semantic=f"conv-{args.total_class}-1").to(device)
 state_dict = torch.load(args.model, map_location='cpu')
 missing_dict = generator.load_state_dict(state_dict, strict=False)
 print(missing_dict)
@@ -70,11 +70,18 @@ def hair_face_bg_idmap(x):
 def full_idmap(x):
     return x
 
+def bedroom_bed_idmap(x):
+    return utils.idmap(x,
+        n=args.total_class,
+        map_from=[2, 3, 4],
+        map_to=[0, 0, 0]
+        )
 
-idmap = full_idmap
-name = "fulll"
 
-test_size = 16
+idmap = bedroom_bed_idmap
+name = "bedroom_bed"
+
+test_size = 8
 test_latents = torch.randn(test_size, 512)
 test_noises = [generator.generate_noise() for _ in range(test_size)]
 
@@ -102,7 +109,7 @@ def test(generator, svm, test_latents, test_noises, N):
             result.extend([image, label_viz, est_label_viz])
     return result
 
-
+images = []
 feats = []
 labels = []
 for ind, sample in enumerate(tqdm(dl)):
@@ -115,8 +122,11 @@ for ind, sample in enumerate(tqdm(dl)):
     image = generator(latent, seg=False)
     feat = generator.stage[layer_index].detach()
     feats.append(feat)
+    image = image.clamp(-1, 1).detach().cpu()
+    images.append((image + 1) / 2)
 feats = torch.cat(feats)
 labels = torch.cat(labels)
+labels_viz = [colorizer(l).unsqueeze(0).float() / 255. for l in labels]
 
 print(f"=> Feature shape: {feats.shape}")
 print(f"=> Label shape: {labels.shape}")
@@ -129,7 +139,15 @@ svm = LinearSVC(
     fit_intercept=False)
 svm.fit(feats, labels.reshape(-1))
 
+est_labels = torch.from_numpy(svm.predict(feats).reshape(N, H, W))
+est_labels_viz = [colorizer(l).unsqueeze(0).float() / 255. for l in est_labels]
+res = []
+for img, lbl, pred in zip(images, labels_viz, est_labels_viz):
+    res.extend([img, lbl, pred])
+res = [F.interpolate(r.detach().cpu(), size=256, mode="nearest") for r in res]
+vutils.save_image(torch.cat(res), f"results/svm_train_idmap-{name}.png", nrow=3)
+
 images = test(generator, svm, test_latents, test_noises, test_size)
 images = [F.interpolate(img, size=256, mode="nearest") for img in images]
 
-vutils.save_image(torch.cat(images), f"results/svm_l{layer_index}_idmap-{name}_result{ind}.png", nrow=3)
+vutils.save_image(torch.cat(images), f"results/svm_l{layer_index}_idmap-{name}_result.png", nrow=3)
