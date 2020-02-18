@@ -14,7 +14,7 @@ import torch.nn.functional as F
 from sklearn.svm import LinearSVC
 from torchvision import utils as vutils
 from lib.face_parsing import unet
-import utils, dataset
+import evaluate, utils, dataset
 import pickle
 
 
@@ -83,7 +83,7 @@ def bedroom_bed_idmap(x):
 idmap = full_idmap
 name = "full"
 
-test_size = 8
+test_size = 1000
 test_latents = torch.randn(test_size, 512)
 test_noises = [generator.generate_noise() for _ in range(test_size)]
 
@@ -97,7 +97,7 @@ def get_feature(generator, latent, noise, layer_index):
 
 def test(generator, svm, test_latents, test_noises, N):
     result = []
-    evaluator = utils.MaskCelebAEval()
+    evaluator = evaluate.MaskCelebAEval()
     for i in range(N):
         latent = test_latents[i:i+1].to(device)
         noise = [n.to(latent.device) for n in test_noises[i]]
@@ -110,6 +110,7 @@ def test(generator, svm, test_latents, test_noises, N):
         feat = feat.view(feat.shape[0], -1).permute(1, 0)
         feat = utils.torch2numpy(feat)
         est_label = svm.predict(feat).reshape(size, size)
+        evaluator.calc_single(est_label, label)
 
         if i < 8:
             label_viz = colorizer(label).unsqueeze(0).float() / 255.
@@ -117,9 +118,9 @@ def test(generator, svm, test_latents, test_noises, N):
             est_label_viz = est_label_viz.permute(2, 0, 1).unsqueeze(0).float() / 255.
             image = (image.detach().cpu().clamp(-1, 1) + 1) / 2
             result.extend([image, label_viz, est_label_viz])
-    return result
 
-
+    global_dic, class_dic = evaluator.aggregate()
+    return global_dic, class_dic, result
 
 
 images = []
@@ -166,7 +167,7 @@ for ind, sample in enumerate(tqdm(dl)):
     res = [F.interpolate(r.detach().cpu(), size=256, mode="nearest") for r in res]
     vutils.save_image(torch.cat(res), basename, nrow=3)
 
-    images = test(generator, svm, test_latents, test_noises, test_size)
+    global_dic, class_dic, images = test(generator, svm, test_latents, test_noises, test_size)
     images = [F.interpolate(img, size=256, mode="nearest") for img in images]
 
     vutils.save_image(torch.cat(images), basename.replace("train", "result"), nrow=3)

@@ -1,7 +1,7 @@
 import sys, argparse, torch, glob, os
 sys.path.insert(0, ".")
 import numpy as np
-import model, fid, utils
+import model, fid, utils, evaluate
 from lib.face_parsing.unet import unet
 
 parser = argparse.ArgumentParser()
@@ -50,12 +50,12 @@ faceparser.load_state_dict(state_dict)
 faceparser = faceparser.to(device)
 faceparser.eval()
 
-idmap = utils.CelebAIDMap()
+mapid = utils.CelebAIDMap().mapid
 
 def external_model(x):
-    return idmap.mapid(faceparser(x).argmax(1))
+    return mapid(faceparser(x).argmax(1))
 
-evaluator = utils.LinearityEvaluator(external_model, latent_dim=128)
+evaluator = evaluate.LinearityEvaluator(external_model, latent_dim=128)
 iou_std = evaluator(generator, model_name)
 with open(f"record/{model_name}_linearity_ioustd.txt", "w") as f:
     f.write(f"{model_name} {iou_std}\n")

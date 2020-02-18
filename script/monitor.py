@@ -11,7 +11,7 @@ import torch.nn.functional as F
 from torchvision import utils as vutils
 from os.path import join as osj
 from sklearn.metrics.pairwise import cosine_similarity
-import utils, config, dataset
+import evaluate, utils, config, dataset
 from lib.face_parsing import unet
 
 parser = argparse.ArgumentParser()
@@ -108,7 +108,7 @@ if "celeba-evaluator" in args.task:
     WINDOW = 100
 
     recordfile = args.model + "/training_evaluation.npy"
-    evaluator = utils.MaskCelebAEval()
+    evaluator = evaluate.MaskCelebAEval()
     evaluator.load(recordfile)
     evaluator.aggregate_process()
     global_dic = evaluator.dic["global_process"]
@@ -286,13 +286,14 @@ if "contribution" in args.task:
 if "agreement" in args.task:
     latent = torch.randn(batch_size, latent_size, device=device)
     dics = []
+    mapid = utils.CelebAIDMap().mapid
     for i, model_file in enumerate(model_files):
         print("=> Load from %s" % model_file)
         state_dict = torch.load(model_file, map_location='cpu')
         missed = generator.load_state_dict(state_dict)
         generator.eval()
 
-        evaluator = utils.MaskCelebAEval(map_id=True)
+        evaluator = evaluate.MaskCelebAEval()
         for i in tqdm.tqdm(range(32 * LEN // batch_size)):
             gen, gen_seg_logit = generator(latent)
             gen_seg_logit = F.interpolate(gen_seg_logit, imsize, mode="bilinear")
@@ -302,7 +303,7 @@ if "agreement" in args.task:
             with torch.no_grad():
                 gen = F.interpolate(gen, imsize, mode="bilinear")
                 label = faceparser(gen).argmax(1)
-                label = utils.idmap(label)
+                label = mapid(label)
             
             seg = utils.torch2numpy(seg)
             label = utils.torch2numpy(label)
@@ -321,7 +322,7 @@ if "agreement" in args.task:
 
 if "seg" in args.task:
     colorizer = utils.Colorize(16) #label to rgb
-
+    mapid = utils.CelebAIDMap().mapid
     for i, model_file in enumerate(model_files):
         print("=> Load from %s" % model_file)
         state_dict = torch.load(model_file, map_location='cpu')
@@ -338,7 +339,7 @@ if "seg" in args.task:
         with torch.no_grad():
             gen = F.interpolate(gen, imsize, mode="bilinear")
             label = faceparser(gen)[0].argmax(0)
-            label = utils.idmap(label)
+            label = mapid(label)
         
         segs += [label]
 

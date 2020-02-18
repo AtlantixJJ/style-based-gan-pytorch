@@ -9,8 +9,7 @@ import argparse
 import glob
 from tqdm import tqdm
 import numpy as np
-import utils
-import dataset
+import evaluate, utils, dataset
 from model.tfseg import StyledGenerator
 import config
 from lib.face_parsing import unet
@@ -80,7 +79,7 @@ def func(latent, noise):
     return gen, seg
 
 def evaluate_on_dataset(predict_func, ds, save_path="record.npy"):
-    evaluator = utils.MaskCelebAEval()
+    evaluator = evaluate.MaskCelebAEval()
 
     noise = None
     for ind, (latent_np, noise_np, image_np, label_np) in enumerate(tqdm(ds)):
