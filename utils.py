@@ -228,10 +228,9 @@ def normalize_image(img):
 
 
 def resolution_from_name(fpath):
+    resolution = 1024
     if "256x256" in fpath:
         resolution = 256
-    elif "1024x1024" in fpath:
-        resolution = 1024
     return resolution
 
 
