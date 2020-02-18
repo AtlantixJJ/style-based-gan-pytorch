@@ -1,26 +1,22 @@
 import os
 
-layer_index = [
-    "3",
-    "4",
-    "5",
-    "6",
-    "3,4",
-    "4,5",
-    "5,6",
-    "3,4,5",
-    "4,5,6",
-    "3,4,5,6"]
+train_size = [1, 2, 3, 4, 5, 6]
 
-basecmd = "python script/svm_multiple_image.py --layer-index %s"
+gpus = [2,3,4,5,6,7]
+basecmd = "python script/svm_multiple_image.py --layer-index 2,3,4,5,6 --train-size %d --gpu %d"
 
-def command():
-    for i, l in enumerate(layer_index):
-        yield i, basecmd % l
+def command(gpus):
+    count = 0
+    for j, ts in enumerate(train_size):
+        idx = count % len(gpus)
+        yield idx, basecmd % (ts, gpus[idx])
+        count += 1
 
-slot = []
-for i, c in command():
-    slot.append(c)
-cmd = " && ".join(slot)
-print(cmd)
-os.system(cmd)
+slots = [[] for _ in gpus]
+for i, c in command(gpus):
+    slots[i].append(c)
+
+for slot in slots:
+    cmd = " && ".join(slot)
+    print(cmd)
+    os.system(cmd + " &")

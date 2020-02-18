@@ -11,7 +11,7 @@ import numpy as np
 from torchvision import utils as vutils
 from lib.face_parsing import unet
 import config
-import utils
+import utils, evaluate
 import model
 
 
@@ -84,7 +84,7 @@ if cfg.trace_weight and "conv" in cfg.semantic_config:
 	vec = conv2vec(sg.semantic_branch.children())
 	trace_weight = np.zeros((cfg.n_iter, vec.shape[0], vec.shape[1]), dtype="float16")
 
-evaluator = utils.MaskCelebAEval()
+evaluator = evaluate.MaskCelebAEval()
 
 for ind in tqdm(range(cfg.n_iter)):
 	ind += 1
@@ -144,8 +144,7 @@ for ind in tqdm(range(cfg.n_iter)):
 	gen_label_np = gen_label.cpu().numpy()
 	label_np = label.cpu().numpy()
 	for i in range(latent.shape[0]):
-		scores = evaluator.compute_score(gen_label_np[i], label_np[i])
-		evaluator.accumulate(scores)
+		scores = evaluator.calc_single(gen_label_np[i], label_np[i])
 
 	if cfg.trace_weight:
 		trace_weight[ind - 1] = conv2vec(sg.semantic_branch.children())

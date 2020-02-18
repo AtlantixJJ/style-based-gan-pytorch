@@ -9,7 +9,7 @@ from torchvision.transforms import Compose, ToTensor, Normalize
 import argparse
 import glob
 import numpy as np
-import utils
+import utils, evaluate
 import dataset
 from model.tfseg import StyledGenerator
 import config
@@ -29,19 +29,17 @@ faceparser.load_state_dict(state_dict)
 faceparser = faceparser.cuda()
 faceparser.eval()
 del state_dict
-
-evaluator = utils.MaskCelebAEval(map_id=True)
+idmap = utils.CelebAIDMap().mapid
+evaluator = evaluate.MaskCelebAEval()
 for i, (x, y) in tqdm(enumerate(dl)):
     x = x.cuda()
     y = y.detach().cpu().numpy()
     with torch.no_grad():
         tar_seg = faceparser(x)
     tar_seg = tar_seg.argmax(1).detach().cpu().numpy()
-    if evaluator.map_id:
-        tar_seg = evaluator.idmap(tar_seg)
-        label = evaluator.idmap(y)
+    tar_seg = idmap(tar_seg)
+    label = idmap(y)
     for i in range(tar_seg.shape[0]):
-        tar_score = evaluator.compute_score(tar_seg[i], y[i])
-        evaluator.accumulate(tar_score)
+        tar_score = evaluator.calc_single(tar_seg[i], y[i])
 evaluator.aggregate()
 np.save("results/tar_record.npy", evaluator.summarize())
