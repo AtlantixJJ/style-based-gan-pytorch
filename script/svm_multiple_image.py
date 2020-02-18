@@ -32,17 +32,17 @@ parser.add_argument(
     "--test-size", default=1000, type=int)
 parser.add_argument(
     "--total-class", default=16, type=int)
-#parser.add_argument(
-#    "--ovo", default=1, type=int)
+parser.add_argument(
+    "--ovo", default=1, type=int)
 args = parser.parse_args()
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
-#if args.ovo:
-#    print("=> Use One v.s. One from thundersvm")
-#    from thundersvm import SVC as SVM
-#else:
-print("=> Use One v.s. Rest from liblinear (multicore)")
-import lib.liblinear.liblinearutil as svm
+if args.ovo:
+    print("=> Use One v.s. One from thundersvm")
+    from thundersvm import SVC as SVM
+else:
+    print("=> Use One v.s. Rest from liblinear (multicore)")
+    import lib.liblinear.liblinearutil as svm
 
 # constants setup
 torch.manual_seed(1)
@@ -179,29 +179,37 @@ for ind, sample in enumerate(tqdm(dl)):
         idmap = lambda x: utils.idmap(x,
             id2cid={fr:to for fr, to in zip(map_from, map_to)})
     
-    """
     if args.ovo:
-        svm = SVM(kernel="linear", decision_function_shape="ovr")
-        svm.fit(feats, labels.reshape(-1))
-        print(svm.coef_.shape)
-        print(svm.intercept_.shape)
+        svm_model = SVM(kernel="linear", decision_function_shape="ovr")
+        model_path = f"results/svm_ovo_{ind}_l{args.layer_index}_b{args.train_size}_idmap-{name}.model"
+        svm_model.save_to_file(model_path)
+        est_labels = svm_model.predict(feats)
+
+        svm_model.fit(feats, labels.reshape(-1))
         linear_model = model.linear.OVOLinearSemanticExtractor(
             len(contiguous_label),
             stylegan_dims,
             idmap).to(device)
-        linear_model.copy_weight_from(svm.coef_, svm.intercept_, layer_index)
+        linear_model.copy_weight_from(svm_model.coef_, svm_model.intercept_)
     else:
-    """
+        svm_model = svm.train(labels.reshape(-1), feats, "-n 8 -s 2 -B -1 -q")
+        model_path = f"results/svm_ovr_{ind}_l{args.layer_index}_b{args.train_size}_idmap-{name}.model"
+        svm.save_model(model_path, svm_model)
+        est_labels, accuracy, vals = svm.predict(labels.reshape(-1), feats, svm_model)
+        est_labels = np.array(est_labels)
 
-    svm_model = svm.train(labels.reshape(-1), feats, "-n 8 -s 2 -B -1")
-    n_class = svm_model.get_nr_class()
-    coef = np.array([svm_model.get_decfun(i)[0] for i in range(n_class)])
-    linear_model = model.linear.LinearSemanticExtractor(
-        args.total_class,
-        stylegan_dims).to(device)
-    linear_model.copy_weight_from(coef, layer_index)
+        n_class = svm_model.get_nr_class()
+        coef = np.array([svm_model.get_decfun(i)[0] for i in range(n_class)])
+        linear_model = model.linear.LinearSemanticExtractor(
+            n_class,
+            stylegan_dims).to(device)
+        linear_model.copy_weight_from(coef)
 
-    est_labels = torch.from_numpy(svm.predict(feats).reshape(N, H, W))
+    stage = [generator.stage[l] for l in layer_index]
+    res = linear_model.predict(stage, layer_index)
+    utils.imwrite("tmp.png", colorizer(res))
+    
+    est_labels = torch.from_numpy(est_labels.reshape(N, H, W))
     est_labels_viz = [colorizer(l).unsqueeze(0).float() / 255. for l in est_labels]
     res = []
     for img, lbl, pred in zip(images, labels_viz, est_labels_viz):
@@ -219,7 +227,6 @@ for ind, sample in enumerate(tqdm(dl)):
     vutils.save_image(torch.cat(images), fpath, nrow=3)
     np.save(fpath.replace(".png", "global.npy"), global_dic)
     np.save(fpath.replace(".png", "class.npy"), class_dic)
-    svm.save_model(fpath.replace(".png", ".model"), svm_model)
 
     feats = []
     labels = []

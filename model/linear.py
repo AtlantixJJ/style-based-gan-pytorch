@@ -24,19 +24,18 @@ class OVOLinearSemanticExtractor(torch.nn.Module):
         
         self.optim = torch.optim.Adam(self.semantic_extractor.parameters(), lr=1e-3)
 
-    def copy_weight_from(self, coef, intercept, layer_index):
+    def copy_weight_from(self, coef, intercept):
+        coef = torch.from_numpy(coef).view(coef.shape[0], coef.shape[1], 1, 1)
+        intercept = torch.from_numpy(intercept)
         for i, conv in enumerate(self.semantic_extractor.children()):
-            if i not in layer_index:
-                continue
             prev_dim, cur_dim = self.segments[i], self.segments[i+1]
-            w = conv[0].weight
-            w.requires_grad = False
-            w.data[:, prev_dim:cur_dim, 0, 0] = coef[:, prev_dim:cur_dim]
-            w.requires_grad = True
-            b = conv[0].bias
-            b.requires_grad = False
-            b.data[prev_dim:cur_dim] = intercept[prev_dim:cur_dim]
-            b.requires_grad = True
+
+            state_dict = conv[0].state_dict()
+            device = state_dict["weight"].device
+            state_dict["weight"] = torch.nn.Parameter(coef[:, prev_dim:cur_dim]).to(device)
+            if i == len(self.dims) - 1:
+                state_dict["bias"] = torch.nn.Parameter(intercept).to(device)
+            conv[0].load_state_dict(state_dict)
 
     def predict(self, stage, last_only=False):
         res = self.forward(stage, True)[0].argmax(1)
@@ -96,17 +95,17 @@ class LinearSemanticExtractor(torch.nn.Module):
         self.mapid = mapid
         self.n_class = n_class
         self.dims = dims
+        self.segments = [0] + list(np.cumsum(self.dims))
         self.build_extractor_conv()
 
-    def copy_weight_from(self, coef, layer_index):
+    def copy_weight_from(self, coef):
+        coef = torch.from_numpy(coef).view(coef.shape[0], coef.shape[1], 1, 1)
         for i, conv in enumerate(self.semantic_extractor.children()):
-            if i not in layer_index:
-                continue
             prev_dim, cur_dim = self.segments[i], self.segments[i+1]
-            w = conv[0].weight
-            w.requires_grad = False
-            w.data[:, prev_dim:cur_dim, 0, 0] = coef[:, prev_dim:cur_dim]
-            w.requires_grad = True
+            state_dict = conv[0].state_dict()
+            device = state_dict["weight"].device
+            state_dict["weight"] = torch.nn.Parameter(coef[:, prev_dim:cur_dim]).to(device)
+            conv[0].load_state_dict(state_dict)
 
     def build_extractor_conv(self):
         def conv_block(in_dim, out_dim, ksize):
