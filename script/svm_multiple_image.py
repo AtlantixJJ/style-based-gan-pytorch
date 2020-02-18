@@ -100,6 +100,11 @@ def bedroom_bed_idmap(x):
 idmap = full_idmap
 name = "full"
 
+test_size = 1000
+test_latents = torch.randn(test_size, 512)
+test_noises = [generator.generate_noise() for _ in range(test_size)]
+
+
 def get_feature(generator, latent, noise, layer_index):
     feat = [generator.stage[i].detach().cpu() for i in layer_index]
     maxsize = max([f.shape[2] for f in feat])
