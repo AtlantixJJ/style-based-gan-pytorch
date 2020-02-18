@@ -45,7 +45,7 @@ if args.recursive == "1":
 savepath = args.model.replace("expr/", "results/")
 
 device = 'cuda' if int(args.gpu) > -1 else 'cpu'
-idmap = dataset.CelebAIDMap()
+idmap = utils.CelebAIDMap()
 cfg = 0
 batch_size = 0
 if "simpleseg" in args.model:

@@ -20,7 +20,8 @@ ds = dataset.LatentSegmentationDataset(
     latent_dir=rootdir+"dlatent_test",
     noise_dir=rootdir+"noise_test",
     image_dir=rootdir+"CelebA-HQ-img",
-    seg_dir=rootdir+"CelebAMask-HQ-mask")
+    seg_dir=rootdir+"CelebAMask-HQ-mask",
+    idmap=utils.CelebAIDMap().mapid)
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--model", default="")
@@ -79,7 +80,7 @@ def func(latent, noise):
     return gen, seg
 
 def evaluate_on_dataset(predict_func, ds, save_path="record.npy"):
-    evaluator = utils.MaskCelebAEval(map_id=True)
+    evaluator = utils.MaskCelebAEval()
 
     noise = None
     for ind, (latent_np, noise_np, image_np, label_np) in enumerate(tqdm(ds)):
@@ -90,19 +91,16 @@ def evaluate_on_dataset(predict_func, ds, save_path="record.npy"):
             for i in range(len(noise)):
                 noise[i] = torch.from_numpy(noise_np[i]).float().cuda()
         gen, seg = predict_func(latent, noise)
-        if evaluator.map_id:
-            label = evaluator.idmap(label_np)
         gen = gen[0]
         seg_np = seg[0].detach().cpu().numpy()
-        score = evaluator.compute_score(seg_np, label)
-        evaluator.accumulate(score)
+        score = evaluator.calc_single(seg_np, label_np)
         
         if ind < 4:
             image = torch.from_numpy(image_np).float()
             image = image.permute(2, 0, 1).unsqueeze(0) / 255.
             genlabel = utils.tensor2label(seg, ds.n_class).unsqueeze(0)
             tarlabel = utils.tensor2label(
-                torch.from_numpy(label).unsqueeze(0),
+                torch.from_numpy(label_np).unsqueeze(0),
                 ds.n_class).unsqueeze(0)
             gen = gen.unsqueeze(0)
             res = [image, tarlabel, gen, genlabel]

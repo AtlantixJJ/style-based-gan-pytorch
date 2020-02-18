@@ -240,13 +240,16 @@ class LatentSegmentationDataset(torch.utils.data.Dataset):
     """
     Reconstructed latent and segmentation dataset.
     """
-    def __init__(self, latent_dir=None, noise_dir=None, image_dir=None, seg_dir=None, n_class=19):
+    def __init__(self,
+        latent_dir=None, noise_dir=None, image_dir=None, seg_dir=None,
+        n_class=19, idmap=None):
         super(LatentSegmentationDataset, self).__init__()
         self.n_class = n_class
         self.latent_dir = latent_dir
         self.noise_dir = noise_dir
         self.image_dir = image_dir
         self.seg_dir = seg_dir
+        self.idmap = idmap
         self.latent_files = [f for f in os.listdir(self.latent_dir) if ".npy" in f]
         self.latent_files.sort()
 
@@ -267,6 +270,8 @@ class LatentSegmentationDataset(torch.utils.data.Dataset):
         latent = np.load(latent_path)
         seg_path = osj(self.seg_dir, name.replace(".npy", ".png"))
         label = utils.imread(seg_path).copy()
+        if self.idmap:
+            label = self.idmap(label)
         if self.noise_dir is not None:
             noise_path = osj(self.noise_dir, name)
             noise = np.load(noise_path, allow_pickle=True)
