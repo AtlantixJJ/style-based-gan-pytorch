@@ -138,29 +138,27 @@ for ind, sample in enumerate(tqdm(dl)):
         stage = []
 
         prev = cur = 0
-        # equivalent to batch_size=1, in case memory is not sufficient
+        # equivalent to 1 iteration, in case memory is not sufficient
         for j in range(latents.shape[0]):
             generator(latents[j].to(device), seg=False)
             stages.append([s.detach() for s in generator.stage])
-
             cur += 1
             if (j + 1) % 4 != 0 and j + 1 != latents.shape[0]: # form a batch of 4
                 continue
-
             for k in range(len(stages[0])):
                 stage.append(torch.cat([s[k] for s in stages]))
-        
             # optimization
             segs = linear_model(stage) # (N, C, H, W)
             segloss = loss.segloss(segs, labels[prev:cur].to(device))
             segloss.backward()
-            linear_model.optim.step()
-            linear_model.optim.zero_grad()
             prev = cur
             stages = []
             stage = []
 
-        if (i + 1) % args.save_iter == 0 or args.debug == 1:
+        linear_model.optim.step()
+        linear_model.optim.zero_grad()
+
+        if (i + 1) % args.save_iter == 0 or (i + 1) == args.train_iter or args.debug == 1:
             fpath = f"results/linear_{ind}_i{i+1}_b{args.train_size}_idmap-{name}.model"
             torch.save(linear_model.state_dict(), fpath)
             global_dic, class_dic = test(generator, linear_model, test_dl)
@@ -170,7 +168,7 @@ for ind, sample in enumerate(tqdm(dl)):
         if i + 1 == args.train_iter or args.debug == 1:
             est_labels = segs[-1].argmax(1)
         
-        if args.debug == 1:
+        if args.debug == 1 and i > 10:
             break
 
     image = generator(latents[:4, 0, :].to(device), seg=False)
