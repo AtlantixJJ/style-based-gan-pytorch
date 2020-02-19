@@ -161,15 +161,21 @@ for ind, sample in enumerate(tqdm(dl)):
         linear_model.optim.step()
         linear_model.optim.zero_grad()
 
-        if (i + 1) % args.save_iter == 0 or (i + 1) == args.train_iter:
-            fpath = f"results/linear_{ind}_i{i+1}_b{args.train_size}_idmap-{name}.model"
-            torch.save(linear_model.state_dict(), fpath)
-            global_dic, class_dic, test_images = test(generator, linear_model, test_dl)
-            np.save(fpath.replace(".model", "_global.npy"), global_dic)
-            np.save(fpath.replace(".model", "_class.npy"), class_dic)
+        #if (i + 1) % args.save_iter == 0 or (i + 1) == args.train_iter:
+        #    fpath = f"results/linear_{ind}_i{i+1}_b{args.train_size}_idmap-{name}.model"
+        #    torch.save(linear_model.state_dict(), fpath)
+        #    global_dic, class_dic, test_images = test(generator, linear_model, test_dl)
+        #    np.save(fpath.replace(".model", "_global.npy"), global_dic)
+        #    np.save(fpath.replace(".model", "_class.npy"), class_dic)
 
         if i + 1 == args.train_iter:
             est_labels = segs[-1].argmax(1)
+
+    fpath = f"results/linear_{ind}_b{args.train_size}_idmap-{name}.model"
+    torch.save(linear_model.state_dict(), fpath)
+    global_dic, class_dic, test_images = test(generator, linear_model, test_dl)
+    np.save(fpath.replace(".model", "_global.npy"), global_dic)
+    np.save(fpath.replace(".model", "_class.npy"), class_dic)
 
     image = generator(latents[:4, 0, :].to(device), seg=False)
     image = (1 + image.clamp(-1, 1).detach().cpu()) / 2
