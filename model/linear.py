@@ -121,7 +121,7 @@ class LinearSemanticExtractor(torch.nn.Module):
         
         self.optim = torch.optim.Adam(self.semantic_extractor.parameters(), lr=1e-3)
 
-    def predict(self, stage, last_only=False):
+    def predict(self, stage):
         res = self.forward(stage, True)[0].argmax(1)
         if self.mapid:
             res = self.mapid(res)

@@ -3,7 +3,7 @@ Calculate the feature of StyleGAN and do RCC clustering.
 """
 import sys
 sys.path.insert(0, ".")
-import os
+import os, glob
 import matplotlib.pyplot as plt
 import torch
 import numpy as np
@@ -29,6 +29,8 @@ parser.add_argument(
     "--gpu", default="0")
 parser.add_argument(
     "--test-size", default=1000, type=int)
+parser.add_argument(
+    "--total-class", default=16, type=int)
 parser.add_argument(
     "--ovo", default=0, type=int)
 args = parser.parse_args()
@@ -60,17 +62,6 @@ missing_dict = generator.load_state_dict(state_dict, strict=False)
 print(missing_dict)
 generator.eval()
 
-# setup test
-test_latents = torch.randn(args.test_size, 512)
-test_noises = [generator.generate_noise() for _ in range(args.test_size)]
-
-# set up input
-latent = torch.randn(1, 512).to(device)
-layer_index = [int(i) for i in args.layer_index.split(",")]
-colorizer = utils.Colorize(args.total_class)
-stylegan_dims = [512, 512, 512, 512, 256, 128, 64, 32, 16]
-stylegan_dims = [stylegan_dims[l] for l in layer_index]
-linear_model = 0
 
 def fg_bg_idmap(x):
     return utils.idmap(x,
@@ -97,7 +88,7 @@ def bedroom_bed_idmap(x):
 idmap = full_idmap
 name = "full"
 
-test_size = 1000
+test_size = args.test_size
 test_latents = torch.randn(test_size, 512)
 test_noises = [generator.generate_noise() for _ in range(test_size)]
 
@@ -137,6 +128,25 @@ def test(generator, linear_model, test_latents, test_noises, N):
     return global_dic, class_dic, result
 
 
+def config_from_name(name):
+    ind = name.rfind("/")
+    name = name[ind+1:]
+    return name.split("_")[3][1:]
+
 model_files = glob.glob(args.svm_model + "/*.model")
 model_files.sort()
-svm_model = svm.load_model(model_files[-1])
+model_file = model_files[-1]
+svm_model = svm.load_model(model_file)
+
+# setup test
+test_latents = torch.randn(args.test_size, 512)
+test_noises = [generator.generate_noise() for _ in range(args.test_size)]
+
+# set up input
+latent = torch.randn(1, 512).to(device)
+layer_index = config_from_name(model_file)
+layer_index = [int(i) for i in layer_index.split(",")]
+colorizer = utils.Colorize(args.total_class)
+stylegan_dims = [512, 512, 512, 512, 256, 128, 64, 32, 16]
+stylegan_dims = [stylegan_dims[l] for l in layer_index]
+linear_model = 0

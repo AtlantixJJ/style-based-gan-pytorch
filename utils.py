@@ -512,11 +512,14 @@ def create_cid2id(n, map_from=[2], map_to=[1]):
 def idmap(x, id2cid=None, n=None, map_from=None, map_to=None):
     if id2cid is None:
         id2cid = create_id2cid(n, map_from, map_to)
+    y = 0
+    if isinstance(x, torch.Tensor):
+        y = torch.zeros_like(x)
+    elif isinstance(x, np.ndarray):
+        y = np.zeros_like(x)
     for fr,to in id2cid.items():
-        if fr == to:
-            continue
-        x[x == fr] = to
-    return x
+        y[x == fr] = to
+    return y
 
 
 def diff_idmap(x, cid2id=None, n=None, map_from=None, map_to=None):
