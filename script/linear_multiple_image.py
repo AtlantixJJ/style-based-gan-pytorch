@@ -96,7 +96,7 @@ generator.eval()
 latent = torch.randn(1, 512).to(device)
 colorizer = utils.Colorize(args.total_class)
 stylegan_dims = [512, 512, 512, 512, 256, 128, 64, 32, 16]
-train_iter = int(30000 / args.train_size)
+train_iter = min(int(30000 / args.train_size), 8000)
 
 def test(generator, linear_model, test_dl):
     result = []
@@ -134,7 +134,7 @@ for ind, sample in enumerate(tqdm(dl)):
     # Train a linear model based on train_size samples
     test_images = 0
     linear_model = LinearSemanticExtractor(args.total_class, stylegan_dims).to(device)
-    for i in tqdm(range(args.train_iter)):
+    for i in tqdm(range(train_iter)):
         # ensure we initialize different noise
         generator.set_noise(None)
         stages = []
@@ -168,7 +168,7 @@ for ind, sample in enumerate(tqdm(dl)):
         #    np.save(fpath.replace(".model", "_global.npy"), global_dic)
         #    np.save(fpath.replace(".model", "_class.npy"), class_dic)
 
-        if i + 1 == args.train_iter:
+        if i + 1 == train_iter:
             est_labels = segs[-1].argmax(1)
 
     fpath = f"results/linear_{ind}_b{args.train_size}_idmap-{name}.model"
