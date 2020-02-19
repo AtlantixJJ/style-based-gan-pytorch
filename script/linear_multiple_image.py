@@ -34,9 +34,11 @@ parser.add_argument(
 parser.add_argument(
     "--total-repeat", default=10, type=int)
 parser.add_argument(
-    "--test-size", default=1000, type=int)
+    "--test-dir", default="datasets/Synthesized_test")
 parser.add_argument(
     "--total-class", default=16, type=int)
+parser.add_argument(
+    "--debug", default=0, type=int)
 args = parser.parse_args()
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
@@ -74,7 +76,14 @@ ds = dataset.LatentSegmentationDataset(
     noise_dir=args.data_dir + "/noise",
     image_dir=None,
     seg_dir=args.data_dir + "/label")
-dl = torch.utils.data.DataLoader(ds, batch_size=1, shuffle=False)
+dl = torch.utils.data.DataLoader(ds, batch_size=args.train_size, shuffle=False)
+
+test_ds = dataset.LatentSegmentationDataset(
+    latent_dir=args.test_dir + "/latent",
+    noise_dir=args.test_dir + "/noise",
+    image_dir=None,
+    seg_dir=args.test_dir + "/label")
+test_dl = torch.utils.data.DataLoader(ds, batch_size=1, shuffle=False)
 
 # build model
 print("=> Setup generator")
@@ -85,30 +94,18 @@ missing_dict = generator.load_state_dict(state_dict, strict=False)
 print(missing_dict)
 generator.eval()
 
-# setup test
-print("=> Setup test data")
-test_latents = torch.randn(args.test_size, 512)
-test_noises = [generator.generate_noise() for _ in range(args.test_size)]
-
 # set up input
 latent = torch.randn(1, 512).to(device)
 colorizer = utils.Colorize(args.total_class)
 stylegan_dims = [512, 512, 512, 512, 256, 128, 64, 32, 16]
 
 
-test_size = args.test_size
-test_latents = torch.randn(test_size, 512)
-test_noises = [generator.generate_noise() for _ in range(test_size)]
-
-
-def test(generator, linear_model, test_latents, test_noises, N):
-    result = []
+def test(generator, linear_model, test_dl):
     evaluator = evaluate.MaskCelebAEval()
-    for i in tqdm(range(N)):
-        latent = test_latents[i:i+1].to(device)
-        noise = [n.to(latent.device) for n in test_noises[i]]
-        generator.set_noise(noise)
-        image, seg = generator(latent)
+    for i, sample in enumerate(tqdm(test_dl)):
+        latent, noise, image, label = sample
+        generator.set_noise(generator.parse_noise(noise[0].to(device)))
+        image, seg = generator(latent.to(device))
         est_label = linear_model.predict(generator.stage)
         size = est_label.shape[2]
         
@@ -117,35 +114,20 @@ def test(generator, linear_model, test_latents, test_noises, N):
         label = idmap(label)
         evaluator.calc_single(est_label, utils.torch2numpy(label))
 
-        if i < 8:
-            label_viz = colorizer(label).unsqueeze(0).float() / 255.
-            est_label_viz = torch.from_numpy(colorizer(est_label))
-            est_label_viz = est_label_viz.permute(2, 0, 1).unsqueeze(0).float() / 255.
-            image = (image.detach().cpu().clamp(-1, 1) + 1) / 2
-            result.extend([image, label_viz, est_label_viz])
+        if args.debug == 1 and i > 4:
+            break
 
     global_dic, class_dic = evaluator.aggregate()
     evaluator.summarize()
-    return global_dic, class_dic, result
+    return global_dic, class_dic
 
 
-images = []
-latents = []
-labels = []
 for ind, sample in enumerate(tqdm(dl)):
-    latent, noise, image, label = sample
-    label = label[:, :, :, 0].unsqueeze(0)
-    label = idmap(label)
-    labels.append(label)
-    latents.append(latent)
-
-    if (ind + 1) % args.train_size != 0:
-        continue
-    
-    print(labels[0].shape)
-    labels_viz = [colorizer(l).unsqueeze(0).float() / 255. for l in labels]
-    est_labels = 0
-    images = []
+    if ind > args.total_repeat:
+        break
+    latents, noises, images, labels = sample
+    labels = labels[:, :, :, 0]
+    labels = idmap(labels)
 
     # Train a linear model based on train_size samples
     linear_model = LinearSemanticExtractor(args.total_class, stylegan_dims).to(device)
@@ -155,14 +137,14 @@ for ind, sample in enumerate(tqdm(dl)):
         stages = []
         stage = []
 
+        prev = cur = 0
         # equivalent to batch_size=1, in case memory is not sufficient
-        N = len(latents)
-        for j in range(N):
-            latent = latents[i]
-            generator(latent, seg=False)
+        for j in range(latents.shape[0]):
+            generator(latents[j].to(device), seg=False)
             stages.append([s.detach() for s in generator.stage])
 
-            if (j + 1) % 4 != 0 or j + 1 == N: # form a batch of 4
+            cur += 1
+            if (j + 1) % 4 != 0 and j + 1 != latents.shape[0]: # form a batch of 4
                 continue
 
             for k in range(len(stages[0])):
@@ -170,38 +152,40 @@ for ind, sample in enumerate(tqdm(dl)):
         
             # optimization
             segs = linear_model(stage) # (N, C, H, W)
-            segloss = loss.segloss(segs, labels)
+            segloss = loss.segloss(segs, labels[prev:cur].to(device))
             segloss.backward()
             linear_model.optim.step()
             linear_model.optim.zero_grad()
+            prev = cur
             stages = []
             stage = []
 
-        if (i + 1) % args.save_iter == 0:
-            model_path = f"results/linear_{ind}_i{i+1}_b{args.train_size}_idmap-{name}.model"
-            torch.save(linear_model.state_dict(), model_path)
-            global_dic, class_dic, images = test(
-                generator, linear_model,
-                test_latents, test_noises, args.test_size)
-            np.save(fpath.replace(".png", "global.npy"), global_dic)
-            np.save(fpath.replace(".png", "class.npy"), class_dic)
+        if (i + 1) % args.save_iter == 0 or args.debug == 1:
+            fpath = f"results/linear_{ind}_i{i+1}_b{args.train_size}_idmap-{name}.model"
+            torch.save(linear_model.state_dict(), fpath)
+            global_dic, class_dic = test(generator, linear_model, test_dl)
+            np.save(fpath.replace(".model", "_global.npy"), global_dic)
+            np.save(fpath.replace(".model", "_class.npy"), class_dic)
 
-        if i + 1 == args.train_iter:
+        if i + 1 == args.train_iter or args.debug == 1:
             est_labels = segs[-1].argmax(1)
+        
+        if args.debug == 1:
+            break
 
-    img = image.clamp(-1, 1).detach().cpu()
-    images.append((1 + img) / 2)
-
+    image = generator(latents[:4, 0, :].to(device), seg=False)
+    image = (1 + image.clamp(-1, 1).detach().cpu()) / 2
+    est_labels = torch.from_numpy(linear_model.predict(generator.stage))
     est_labels_viz = [colorizer(l).unsqueeze(0).float() / 255. for l in est_labels]
+    labels_viz = [colorizer(l).unsqueeze(0).float() / 255. for l in labels[:4]]
     res = []
-    for img, lbl, pred in zip(images, labels_viz, est_labels_viz):
-        res.extend([img, lbl, pred])
+    for img, lbl, pred in zip(image, labels_viz, est_labels_viz):
+        res.extend([img.unsqueeze(0), lbl, pred])
     res = [F.interpolate(r.detach().cpu(), size=256, mode="nearest") for r in res]
     fpath = f"results/linear_train_{ind}_b{args.train_size}_idmap-{name}.png"
     vutils.save_image(torch.cat(res), fpath, nrow=3)
 
     labels = []
     latents = []
-    if (ind + 1) // args.train_size >= args.total_repeat:
-        break
+
 # model converges after 50 iterations, but train 100 iterations in default

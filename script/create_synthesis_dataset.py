@@ -21,7 +21,7 @@ parser.add_argument(
 parser.add_argument(
     "--number", default=1000, type=int)
 parser.add_argument(
-    "--seed", default=65537, type=int)
+    "--seed", default=65537, type=int) # 1314 for test
 args = parser.parse_args()
 
 

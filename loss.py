@@ -10,7 +10,7 @@ def segloss(segs, ext_label):
         # label is large : downsample label
         if s.size(2) < ext_label.size(2): 
             l_ = ext_label.float()
-            l_ = F.interpolate(l_, s.size(2), mode="nearest")[:, 0, :, :]
+            l_ = F.interpolate(l_.unsqueeze(1), s.size(2), mode="nearest").squeeze(1)
             layer_loss = F.cross_entropy(s, l_.long())
         # label is small : downsample seg
         elif s.size(2) > ext_label.size(2): 
