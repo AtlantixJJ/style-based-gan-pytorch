@@ -30,6 +30,8 @@ parser.add_argument(
 parser.add_argument(
     "--train-iter", default=100, type=int)
 parser.add_argument(
+    "--total-repeat", default=10, type=int)
+parser.add_argument(
     "--test-size", default=1000, type=int)
 parser.add_argument(
     "--total-class", default=16, type=int)
@@ -159,8 +161,8 @@ for ind, sample in enumerate(tqdm(dl)):
                 img = image.clamp(-1, 1).detach().cpu()
                 images.append((1 + img) / 2)
             stages.append([s.detach() for s in generator.stage])
-        for i in range(len(stages)):
-            stage.append(torch.cat([s[i] for s in stages]))
+        for j in range(len(stages[0])):
+            stage.append(torch.cat([s[j] for s in stages]))
         
         # optimization
         segs = linear_model(stage) # (N, C, H, W)
@@ -180,7 +182,7 @@ for ind, sample in enumerate(tqdm(dl)):
     for img, lbl, pred in zip(images, labels_viz, est_labels_viz):
         res.extend([img, lbl, pred])
     res = [F.interpolate(r.detach().cpu(), size=256, mode="nearest") for r in res]
-    fpath = f"results/svm_train_{ind}_b{args.train_size}_idmap-{name}.png"
+    fpath = f"results/linear_train_{ind}_b{args.train_size}_idmap-{name}.png"
     vutils.save_image(torch.cat(res), fpath, nrow=3)
 
     global_dic, class_dic, images = test(
@@ -193,9 +195,7 @@ for ind, sample in enumerate(tqdm(dl)):
     np.save(fpath.replace(".png", "global.npy"), global_dic)
     np.save(fpath.replace(".png", "class.npy"), class_dic)
 
-    feats = []
     labels = []
-    images = []
-    stages = []
-    if ind > args.train_size * 4:
+    latents = []
+    if (ind + 1) // args.train_size >= args.total_repeat:
         break

@@ -87,7 +87,6 @@ class DetectionMetric(object):
     # aggregate the result of given classes
     # need to be called after aggregate()
     def subset_aggregate(self, name, indice):
-        dic = {}
         for mname in self.class_metric_names:
             vals = self.result[mname][indice]
             self.result[f"m{mname}_{name}"] = vals[vals > -1].mean()
@@ -110,7 +109,7 @@ class DetectionMetric(object):
         self.result["pixelacc"].append(pixelacc)
         for i, s in enumerate(metrics): # i-th class, score
             for j, name in enumerate(self.class_metric_names): # j-th metric
-                self.result[name][i].append(s)
+                self.result[name][i].append(s[j])
 
         return pixelacc, metrics
 
