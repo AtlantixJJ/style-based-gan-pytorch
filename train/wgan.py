@@ -1,8 +1,8 @@
 """
 Semantic enhanced discriminator training.
 python script/wgan.py --imsize 64
-python train/wgan.py --imsize 64 --load expr/celeba_wgan64/gen_iter_050000.model --disc-net expr/celeba_wgan64/disc_iter_050000.model --batch-size 16 --gpu 2 --save-iter 100 --iter-num 5000 --dataset datasets/CelebAMask-HQ/hat/image --task celeba_hat_wgan
-python train/wgan.py --imsize 64 --load expr/celeba_wgan64/gen_iter_050000.model --disc-net expr/celeba_wgan64/disc_iter_050000.model --batch-size 16 --gpu 3 --save-iter 100 --iter-num 5000 --dataset datasets/CelebAMask-HQ/eye_g/image --task celeba_eyeg_wgan
+python train/wgan.py --imsize 64 --load expr/celeba_wgan64/gen_iter_050000.model --disc-net expr/celeba_wgan64/disc_iter_050000.model --batch-size 64 --gpu 0 --save-iter 50 --iter-num 1000 --dataset datasets/CelebAMask-HQ/hat/image --task celeba_hat_wgan
+python train/wgan.py --imsize 64 --load expr/celeba_wgan64/gen_iter_050000.model --disc-net expr/celeba_wgan64/disc_iter_050000.model --batch-size 64 --gpu 1 --save-iter 50 --iter-num 1000 --dataset datasets/CelebAMask-HQ/eye_g/image --task celeba_eyeg_wgan
 python train/wgan.py --imsize 128 --load expr/celeba_wgan128/gen_iter_050000.model --disc-net expr/celeba_wgan128/disc_iter_050000.model --batch-size 16 --gpu 2 --save-iter 100 --iter-num 5000 --dataset datasets/CelebAMask-HQ/hat/image --task celeba_hat_wgan
 python train/wgan.py --imsize 128 --load expr/celeba_wgan128/gen_iter_050000.model --disc-net expr/celeba_wgan128/disc_iter_050000.model --batch-size 16 --gpu 3 --save-iter 100 --iter-num 5000 --dataset datasets/CelebAMask-HQ/eye_g/image --task celeba_eyeg_wgan
 """
@@ -101,14 +101,15 @@ for ind, real_image in enumerate(pbar):
     d_optim.step()
 
     # Train gen
-    sg.zero_grad()
-    utils.requires_grad(disc, False)
-    latent.normal_()
-    gen = sg(latent)
-    gen_loss = -disc(gen).mean()
-    gen_loss.backward()
-    g_optim.step()
-    utils.requires_grad(disc, True)
+    if ind > cfg.warmup:
+        sg.zero_grad()
+        utils.requires_grad(disc, False)
+        latent.normal_()
+        gen = sg(latent)
+        gen_loss = -disc(gen).mean()
+        gen_loss.backward()
+        g_optim.step()
+        utils.requires_grad(disc, True)
 
     # display
     record['disc_loss'].append(utils.torch2numpy(disc_loss))

@@ -21,7 +21,7 @@ parser.add_argument(
 parser.add_argument(
     "--output", default="datasets/Synthesized")
 parser.add_argument(
-    "--number", default=30000, type=int)
+    "--number", default=10000, type=int)
 parser.add_argument(
     "--seed", default=65537, type=int) # 1314 for test
 args = parser.parse_args()
@@ -50,9 +50,9 @@ for folder in ["latent", "noise", "label"]:
 idmap = utils.CelebAIDMap()
 
 for ind in tqdm(range(args.number)):
-    latent_path = f"{args.output}/latent/{ind:03d}.npy"
-    noise_path = f"{args.output}/noise/{ind:03d}.npy"
-    label_path = f"{args.output}/label/{ind:03d}.png"
+    latent_path = f"{args.output}/latent/{ind:05d}.npy"
+    noise_path = f"{args.output}/noise/{ind:05d}.npy"
+    label_path = f"{args.output}/label/{ind:05d}.png"
     latent.normal_()
     image = generator(latent, seg=False)
     noise = generator.get_noise()

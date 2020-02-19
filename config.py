@@ -198,10 +198,13 @@ class BasicGANConfig(BaseConfig):
         self.parser.add_argument(
             "--dataset", default="datasets/CelebAMask-HQ")
         self.parser.add_argument(
+            "--warmup", default=0, type=int)
+        self.parser.add_argument(
             "--n-critic", type=int, default=2, help="Number of discriminator steps")
 
     def parse(self):
         super(BasicGANConfig, self).parse()
+        self.warmup = self.args.warmup
         self.n_critic = self.args.n_critic
         self.disc_load_path = self.args.disc_net
         self.gen_load_path = self.args.load
