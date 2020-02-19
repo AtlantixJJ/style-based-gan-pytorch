@@ -19,7 +19,7 @@ parser.add_argument(
 parser.add_argument(
     "--output", default="datasets/Synthesized")
 parser.add_argument(
-    "--number", default=100, type=int)
+    "--number", default=1000, type=int)
 args = parser.parse_args()
 
 

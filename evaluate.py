@@ -2,8 +2,7 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 from tqdm import tqdm
-import model, utils
-
+import model, utils, loss
 
 
 def compute_score_numpy(y_pred, y_true):
@@ -88,9 +87,11 @@ class DetectionMetric(object):
     # aggregate the result of given classes
     # need to be called after aggregate()
     def subset_aggregate(self, name, indice):
+        dic = {}
         for mname in self.class_metric_names:
             vals = self.result[mname][indice]
             self.result[f"m{mname}_{name}"] = vals[vals > -1].mean()
+            
 
     def __call__(self, y_pred, y_true):
         metrics = []
@@ -167,12 +168,14 @@ class MaskCelebAEval(object):
 
     def aggregate(self):
         self.metric.aggregate()
+        self.global_result = self.metric.global_result
+        self.class_result = self.metric.class_result
 
         for t in ["face", "other"]:
             self.metric.subset_aggregate(t, getattr(self, f"{t}_indice"))
-        
-        self.global_result = self.metric.global_result
-        self.class_result = self.metric.class_result
+            for name in self.metric.class_metric_names:
+                k = f"m{name}_{t}"
+                self.global_result[k] = self.metric.result[k]
 
         return self.global_result, self.class_result
 
@@ -180,17 +183,17 @@ class MaskCelebAEval(object):
         print("=> mAP  \t  mAR  \t  mIoU")
         res = [self.global_result[f"m{name}"]
             for name in self.metric.class_metric_names]
-        print("=> %.3f\t%.3f\t%.3f" % res)
+        print("=> %.3f\t%.3f\t%.3f" % tuple(res))
         print("=> Face accuracy:")
         print("=> mAP  \t  mAR  \t  mIoU")
         res = [self.global_result[f"m{name}_face"]
             for name in self.metric.class_metric_names]
-        print("=> %.3f\t%.3f\t%.3f" % res)
+        print("=> %.3f\t%.3f\t%.3f" % tuple(res))
         print("=> Other accuracy:")
         print("=> mAP  \t  mAR  \t  mIoU")
         res = [self.global_result[f"m{name}_other"]
             for name in self.metric.class_metric_names]
-        print("=> %.3f\t%.3f\t%.3f" % res)
+        print("=> %.3f\t%.3f\t%.3f" % tuple(res))
         print("=> Class wise metrics:")
         
         self.clean_dic = {}
@@ -200,7 +203,7 @@ class MaskCelebAEval(object):
         print("=> Name \t  AP \t  AR \t  IoU \t")
         for i in range(self.n_class):
             print("=> %s: \t%.3f\t%.3f\t%.3f" % (
-                self.class_result["class"][i],
+                self.dic["class"][i],
                 self.class_result["AP"][i],
                 self.class_result["AR"][i],
                 self.class_result["IoU"][i]))
@@ -285,21 +288,7 @@ class LinearityEvaluator(object):
 
             ext_label = self.external_model(image.clamp(-1, 1))
 
-            seglosses = []
-            for s in segs:
-                layer_loss = 0
-                # label is large : downsample label
-                if s.size(2) < ext_label.size(2): 
-                    l_ = ext_label.unsqueeze(0).float()
-                    l_ = F.interpolate(l_, s.size(2), mode="nearest")
-                    layer_loss = self.logsoftmax(s, l_.long()[0])
-                # label is small : downsample seg
-                elif s.size(2) > ext_label.size(2): 
-                    s_ = F.interpolate(s, ext_label.size(2), mode="bilinear")
-                    layer_loss = self.logsoftmax(s_, ext_label)
-                seglosses.append(layer_loss)
-            segloss = sum(seglosses) / len(seglosses)
-
+            segloss = loss.segloss(segs, ext_label)
             segloss.backward()
 
             self.extractor.optim.step()

@@ -1,6 +1,6 @@
 import os
 
-train_size = [1, 2, 3, 4, 5, 6]
+train_size = [1, 2]
 
 gpus = [0]
 basecmd = "python script/svm_multiple_image.py --layer-index 2,3,4,5,6 --train-size %d --gpu %d"

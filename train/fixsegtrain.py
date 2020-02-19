@@ -11,8 +11,7 @@ import numpy as np
 from torchvision import utils as vutils
 from lib.face_parsing import unet
 import config
-import utils, evaluate
-import model
+import utils, evaluate, loss, model
 
 
 cfg = config.FixSegConfig()
@@ -103,28 +102,12 @@ for ind in tqdm(range(cfg.n_iter)):
 	if not cfg.train_summation:
 		segs = segs[:len(sg.generator.stage)]
 
-	# calculate segmentation loss
-	seglosses = []
-	for s in segs:
-		layer_loss = 0
-		# label is large : downsample label
-		if s.size(2) < label.size(2): 
-			l_ = label.unsqueeze(0).float()
-			l_ = F.interpolate(l_, s.size(2), mode="nearest")
-			layer_loss = logsoftmax(s, l_.long()[0])
-		# label is small : downsample seg
-		elif s.size(2) > label.size(2): 
-			s_ = F.interpolate(s, label.size(2), mode="bilinear")
-			layer_loss = logsoftmax(s_, label)
-		seglosses.append(layer_loss)
-	segloss = sum(seglosses) / len(seglosses)
+	segloss = loss.segloss(segs, label)
 
 	regloss = 0
-
 	if cfg.ortho_reg > 0:
 		ortho_loss = ortho_convs(sg.semantic_branch.children())
 		regloss = regloss + cfg.ortho_reg * ortho_loss
-
 	if cfg.positive_reg > 0:
 		positive_loss = positive_convs(sg.semantic_branch.children())
 		regloss = regloss + cfg.positive_reg * positive_loss
