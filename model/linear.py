@@ -27,6 +27,7 @@ class OVOLinearSemanticExtractor(torch.nn.Module):
     def copy_weight_from(self, coef, intercept):
         coef = torch.from_numpy(coef).view(coef.shape[0], coef.shape[1], 1, 1)
         intercept = torch.from_numpy(intercept)
+        zeros = torch.zeros_like(intercept)
         for i, conv in enumerate(self.semantic_extractor.children()):
             prev_dim, cur_dim = self.segments[i], self.segments[i+1]
 
@@ -35,6 +36,8 @@ class OVOLinearSemanticExtractor(torch.nn.Module):
             state_dict["weight"] = torch.nn.Parameter(coef[:, prev_dim:cur_dim]).to(device)
             if i == len(self.dims) - 1:
                 state_dict["bias"] = torch.nn.Parameter(intercept).to(device)
+            else:
+                state_dict["bias"] = torch.nn.Parameter(zeros).to(device)
             conv[0].load_state_dict(state_dict)
 
     def predict(self, stage, last_only=False):
@@ -74,7 +77,7 @@ class OVOLinearSemanticExtractor(torch.nn.Module):
             count = 0
             for i in range(self.n_class):
                 for j in range(i+1, self.n_class):
-                    mask = o[:, count, :, :] > 0
+                    mask = (o[:, count, :, :] > 0).bool()
                     res[:, i, :, :][mask] += 1
                     res[:, j, :, :][~mask] += 1
                     count += 1

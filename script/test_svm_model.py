@@ -22,17 +22,13 @@ parser = argparse.ArgumentParser()
 parser.add_argument(
     "--model", default="checkpoint/fixseg_conv-16-1.model")
 parser.add_argument(
+    "--svm-model", default="results/svm_model")
+parser.add_argument(
     "--data-dir", default="datasets/Synthesized")
 parser.add_argument(
     "--gpu", default="0")
 parser.add_argument(
-    "--layer-index", default="4", type=str)
-parser.add_argument(
-    "--train-size", default=4, type=int)
-parser.add_argument(
     "--test-size", default=1000, type=int)
-parser.add_argument(
-    "--total-class", default=16, type=int)
 parser.add_argument(
     "--ovo", default=0, type=int)
 args = parser.parse_args()
@@ -141,93 +137,6 @@ def test(generator, linear_model, test_latents, test_noises, N):
     return global_dic, class_dic, result
 
 
-images = []
-feats = []
-labels = []
-for ind, sample in enumerate(tqdm(dl)):
-    latent, noise, image, label = sample
-    latent = latent[0].to(device)
-    label = label[:, :, :, 0].unsqueeze(0)
-    label = idmap(label)
-    labels.append(label)
-
-    image = generator(latent, seg=False)
-    feat = get_feature(generator, latent, noise, layer_index)
-    feats.append(feat)
-    image = image.clamp(-1, 1).detach().cpu()
-    images.append((image + 1) / 2)
-
-    if (ind + 1) % args.train_size != 0:
-        continue
-
-    feats = torch.cat(feats)
-    labels = torch.cat(labels)
-    labels_viz = [colorizer(l).unsqueeze(0).float() / 255. for l in labels]
-
-    print(f"=> Feature shape: {feats.shape}")
-    print(f"=> Label shape: {labels.shape}")
-    N, C, H, W = feats.shape
-    feats = feats.permute(0, 2, 3, 1).reshape(-1, C).float().cpu().numpy()
-    print(f"=> Feature for SVM shape: {feats.shape}")
-    labels = F.interpolate(labels.float(), size=H, mode="nearest").long().numpy()
-    contiguous_label = np.unique(labels)
-    if len(contiguous_label) < args.total_class:
-        map_from = list(range(len(contiguous_label)))
-        map_to = contiguous_label.tolist()
-        print("=> The classes are reduced")
-        print(map_from)
-        print(map_to)
-        inv_idmap = lambda x: utils.idmap(x,
-            id2cid={fr:to for fr, to in zip(map_from, map_to)})
-    
-    if args.ovo:
-        svm_model = SVM(kernel="linear")
-        svm_model.fit(feats, labels.reshape(-1))
-        model_path = f"results/svm_ovo_{ind}_l{args.layer_index}_b{args.train_size}_idmap-{name}.model"
-        svm_model.save_to_file(model_path)
-        est_labels = svm_model.predict(feats)
-
-        linear_model = OVOLinearSemanticExtractor(
-            len(contiguous_label),
-            stylegan_dims,
-            inv_idmap).to(device)
-        linear_model.copy_weight_from(svm_model.coef_, svm_model.intercept_)
-    else:
-        svm_model = svm.train(labels.reshape(-1), feats, "-n 8 -s 2 -B -1 -q")
-        model_path = f"results/svm_ovr_{ind}_l{args.layer_index}_b{args.train_size}_idmap-{name}.model"
-        svm.save_model(model_path, svm_model)
-        est_labels, accuracy, vals = svm.predict(labels.reshape(-1), feats, svm_model)
-        est_labels = np.array(est_labels)
-
-        n_class = svm_model.get_nr_class()
-        coef = np.array([svm_model.get_decfun(i)[0] for i in range(n_class)])
-        linear_model = LinearSemanticExtractor(
-            n_class,
-            stylegan_dims,
-            inv_idmap).to(device)
-        linear_model.copy_weight_from(coef)
-    
-    est_labels = torch.from_numpy(est_labels.reshape(N, H, W))
-    est_labels_viz = [colorizer(l).unsqueeze(0).float() / 255. for l in est_labels]
-    res = []
-    for img, lbl, pred in zip(images, labels_viz, est_labels_viz):
-        res.extend([img, lbl, pred])
-    res = [F.interpolate(r.detach().cpu(), size=256, mode="nearest") for r in res]
-    fpath = f"results/svm_train_{ind}_l{args.layer_index}_b{args.train_size}_idmap-{name}.png"
-    vutils.save_image(torch.cat(res), fpath, nrow=3)
-
-    global_dic, class_dic, images = test(
-        generator, linear_model,
-        test_latents, test_noises, args.test_size)
-    images = [F.interpolate(img, size=256, mode="nearest") for img in images]
-
-    fpath = fpath.replace("train", "result")
-    vutils.save_image(torch.cat(images), fpath, nrow=3)
-    np.save(fpath.replace(".png", "global.npy"), global_dic)
-    np.save(fpath.replace(".png", "class.npy"), class_dic)
-
-    feats = []
-    labels = []
-    images = []
-    if ind > args.train_size * 4:
-        break
+model_files = glob.glob(args.svm_model + "/*.model")
+model_files.sort()
+svm_model = svm.load_model(model_files[-1])
