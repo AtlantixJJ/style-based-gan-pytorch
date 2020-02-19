@@ -1,5 +1,10 @@
 """
 Semantic enhanced discriminator training.
+python script/wgan.py --imsize 64
+python train/wgan.py --imsize 64 --load expr/celeba_wgan64/gen_iter_050000.model --disc-net expr/celeba_wgan64/disc_iter_050000.model --batch-size 16 --gpu 2 --save-iter 100 --iter-num 5000 --dataset datasets/CelebAMask-HQ/hat/image --task celeba_hat_wgan
+python train/wgan.py --imsize 64 --load expr/celeba_wgan64/gen_iter_050000.model --disc-net expr/celeba_wgan64/disc_iter_050000.model --batch-size 16 --gpu 3 --save-iter 100 --iter-num 5000 --dataset datasets/CelebAMask-HQ/eye_g/image --task celeba_eyeg_wgan
+python train/wgan.py --imsize 128 --load expr/celeba_wgan128/gen_iter_050000.model --disc-net expr/celeba_wgan128/disc_iter_050000.model --batch-size 16 --gpu 2 --save-iter 100 --iter-num 5000 --dataset datasets/CelebAMask-HQ/hat/image --task celeba_hat_wgan
+python train/wgan.py --imsize 128 --load expr/celeba_wgan128/gen_iter_050000.model --disc-net expr/celeba_wgan128/disc_iter_050000.model --batch-size 16 --gpu 3 --save-iter 100 --iter-num 5000 --dataset datasets/CelebAMask-HQ/eye_g/image --task celeba_eyeg_wgan
 """
 import sys
 sys.path.insert(0, ".")
