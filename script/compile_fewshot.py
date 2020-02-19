@@ -23,7 +23,7 @@ def parse_key(key):
 bs = []
 for f in files:
     name = get_name(f)
-    bs.append(int(name.split("_")[1][1:]))
+    bs.append(int(name.split("_")[2][1:]))
     dic = np.load(f, allow_pickle=True)[()]
     arr = np.array(dic["IoU"])
     arr[0] = arr[13] = -1 # doesn't count background & necklace

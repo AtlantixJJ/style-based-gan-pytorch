@@ -1,8 +1,8 @@
 import os
 
-train_size = list(range(3, 12)); gpus = [0]
-#train_size = list(range(12, 101, 4)); gpus = [4,5,6,7]
-
+#train_size = list(range(1, 4)); gpus = [0]
+train_size = list(range(4, 69, 4)); gpus = [4,5,6,7]
+#train_size = list(range(72, 105, 8)); gpus = [0, 1]
 basecmd = "python script/linear_multiple_image.py --train-size %d --gpu %d"
 
 def command(gpus):

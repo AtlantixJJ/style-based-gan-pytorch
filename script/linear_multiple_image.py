@@ -101,25 +101,29 @@ stylegan_dims = [512, 512, 512, 512, 256, 128, 64, 32, 16]
 
 
 def test(generator, linear_model, test_dl):
+    result = []
     evaluator = evaluate.MaskCelebAEval()
     for i, sample in enumerate(tqdm(test_dl)):
         latent, noise, image, label = sample
+        label = idmap(label[:, :, :, 0])
         generator.set_noise(generator.parse_noise(noise[0].to(device)))
-        image, seg = generator(latent.to(device))
-        est_label = linear_model.predict(generator.stage)
-        size = est_label.shape[2]
-        
-        seg = F.interpolate(seg, size=size, mode="bilinear")
-        label = seg.argmax(1).detach().cpu()
-        label = idmap(label)
+        image = generator(latent[0].to(device), seg=False)
+        est_label = linear_model.predict(generator.stage) 
         evaluator.calc_single(est_label, utils.torch2numpy(label))
+
+        if i < 4:
+            label_viz = colorizer(label).unsqueeze(0).float() / 255.
+            est_label_viz = torch.from_numpy(colorizer(est_label))
+            est_label_viz = est_label_viz.permute(2, 0, 1).unsqueeze(0).float() / 255.
+            image = (image.detach().cpu().clamp(-1, 1) + 1) / 2
+            result.extend([image, label_viz, est_label_viz])
 
         if args.debug == 1 and i > 4:
             break
 
     global_dic, class_dic = evaluator.aggregate()
     evaluator.summarize()
-    return global_dic, class_dic
+    return global_dic, class_dic, result
 
 
 for ind, sample in enumerate(tqdm(dl)):
@@ -130,6 +134,7 @@ for ind, sample in enumerate(tqdm(dl)):
     labels = idmap(labels)
 
     # Train a linear model based on train_size samples
+    test_images = 0
     linear_model = LinearSemanticExtractor(args.total_class, stylegan_dims).to(device)
     for i in tqdm(range(args.train_iter)):
         # ensure we initialize different noise
@@ -158,18 +163,15 @@ for ind, sample in enumerate(tqdm(dl)):
         linear_model.optim.step()
         linear_model.optim.zero_grad()
 
-        if (i + 1) % args.save_iter == 0 or (i + 1) == args.train_iter or args.debug == 1:
+        if (i + 1) % args.save_iter == 0 or (i + 1) == args.train_iter:
             fpath = f"results/linear_{ind}_i{i+1}_b{args.train_size}_idmap-{name}.model"
             torch.save(linear_model.state_dict(), fpath)
-            global_dic, class_dic = test(generator, linear_model, test_dl)
+            global_dic, class_dic, test_images = test(generator, linear_model, test_dl)
             np.save(fpath.replace(".model", "_global.npy"), global_dic)
             np.save(fpath.replace(".model", "_class.npy"), class_dic)
 
-        if i + 1 == args.train_iter or args.debug == 1:
+        if i + 1 == args.train_iter:
             est_labels = segs[-1].argmax(1)
-        
-        if args.debug == 1 and i > 10:
-            break
 
     image = generator(latents[:4, 0, :].to(device), seg=False)
     image = (1 + image.clamp(-1, 1).detach().cpu()) / 2
@@ -182,6 +184,11 @@ for ind, sample in enumerate(tqdm(dl)):
     res = [F.interpolate(r.detach().cpu(), size=256, mode="nearest") for r in res]
     fpath = f"results/linear_train_{ind}_b{args.train_size}_idmap-{name}.png"
     vutils.save_image(torch.cat(res), fpath, nrow=3)
+
+    test_images = [F.interpolate(img.detach().cpu(), size=256, mode="nearest")
+        for img in test_images]
+    fpath = f"results/linear_test_{ind}_b{args.train_size}_idmap-{name}.png"
+    vutils.save_image(torch.cat(test_images), fpath, nrow=3)
 
     labels = []
     latents = []
