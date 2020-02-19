@@ -20,6 +20,8 @@ parser.add_argument(
     "--output", default="datasets/Synthesized")
 parser.add_argument(
     "--number", default=1000, type=int)
+parser.add_argument(
+    "--seed", default=65537, type=int)
 args = parser.parse_args()
 
 
@@ -32,7 +34,7 @@ missing_dict = generator.load_state_dict(state_dict, strict=False)
 generator.eval()
 
 # setup
-torch.manual_seed(65537)
+torch.manual_seed(args.seed)
 latent = torch.randn(1, 512, device=device)
 for folder in ["latent", "noise", "label"]:
     os.system(f"mkdir {args.output}/{folder}")

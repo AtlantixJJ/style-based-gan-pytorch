@@ -28,7 +28,9 @@ parser.add_argument(
 parser.add_argument(
     "--train-size", default=4, type=int)
 parser.add_argument(
-    "--train-iter", default=100, type=int)
+    "--train-iter", default=200, type=int)
+parser.add_argument(
+    "--save-iter", default=50, type=int)
 parser.add_argument(
     "--total-repeat", default=10, type=int)
 parser.add_argument(
@@ -139,14 +141,13 @@ for ind, sample in enumerate(tqdm(dl)):
 
     if (ind + 1) % args.train_size != 0:
         continue
-
-    labels = torch.cat(labels).to(device)
-    latents = torch.cat(latents).to(device)
+    
+    print(labels[0].shape)
     labels_viz = [colorizer(l).unsqueeze(0).float() / 255. for l in labels]
     est_labels = 0
     images = []
 
-    # Train a linear model
+    # Train a linear model based on train_size samples
     linear_model = LinearSemanticExtractor(args.total_class, stylegan_dims).to(device)
     for i in tqdm(range(args.train_iter)):
         # ensure we initialize different noise
@@ -155,28 +156,42 @@ for ind, sample in enumerate(tqdm(dl)):
         stage = []
 
         # equivalent to batch_size=1, in case memory is not sufficient
-        for latent in latents:
-            image = generator(latent, seg=False)
-            if i + 1 == args.train_iter:
-                img = image.clamp(-1, 1).detach().cpu()
-                images.append((1 + img) / 2)
+        N = len(latents)
+        for j in range(N):
+            latent = latents[i]
+            generator(latent, seg=False)
             stages.append([s.detach() for s in generator.stage])
-        for j in range(len(stages[0])):
-            stage.append(torch.cat([s[j] for s in stages]))
+
+            if (j + 1) % 4 != 0 or j + 1 == N: # form a batch of 4
+                continue
+
+            for k in range(len(stages[0])):
+                stage.append(torch.cat([s[k] for s in stages]))
         
-        # optimization
-        segs = linear_model(stage) # (N, C, H, W)
-        segloss = loss.segloss(segs, labels)
-        segloss.backward()
-        linear_model.optim.step()
-        linear_model.optim.zero_grad()
+            # optimization
+            segs = linear_model(stage) # (N, C, H, W)
+            segloss = loss.segloss(segs, labels)
+            segloss.backward()
+            linear_model.optim.step()
+            linear_model.optim.zero_grad()
+            stages = []
+            stage = []
+
+        if (i + 1) % args.save_iter == 0:
+            model_path = f"results/linear_{ind}_i{i+1}_b{args.train_size}_idmap-{name}.model"
+            torch.save(linear_model.state_dict(), model_path)
+            global_dic, class_dic, images = test(
+                generator, linear_model,
+                test_latents, test_noises, args.test_size)
+            np.save(fpath.replace(".png", "global.npy"), global_dic)
+            np.save(fpath.replace(".png", "class.npy"), class_dic)
 
         if i + 1 == args.train_iter:
             est_labels = segs[-1].argmax(1)
 
-    model_path = f"results/linear_{ind}_b{args.train_size}_idmap-{name}.model"
-    torch.save(linear_model.state_dict(), model_path)
-    
+    img = image.clamp(-1, 1).detach().cpu()
+    images.append((1 + img) / 2)
+
     est_labels_viz = [colorizer(l).unsqueeze(0).float() / 255. for l in est_labels]
     res = []
     for img, lbl, pred in zip(images, labels_viz, est_labels_viz):
@@ -185,17 +200,8 @@ for ind, sample in enumerate(tqdm(dl)):
     fpath = f"results/linear_train_{ind}_b{args.train_size}_idmap-{name}.png"
     vutils.save_image(torch.cat(res), fpath, nrow=3)
 
-    global_dic, class_dic, images = test(
-        generator, linear_model,
-        test_latents, test_noises, args.test_size)
-    images = [F.interpolate(img, size=256, mode="nearest") for img in images]
-
-    fpath = fpath.replace("train", "result")
-    vutils.save_image(torch.cat(images), fpath, nrow=3)
-    np.save(fpath.replace(".png", "global.npy"), global_dic)
-    np.save(fpath.replace(".png", "class.npy"), class_dic)
-
     labels = []
     latents = []
     if (ind + 1) // args.train_size >= args.total_repeat:
         break
+# model converges after 50 iterations, but train 100 iterations in default
