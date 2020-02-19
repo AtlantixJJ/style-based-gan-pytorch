@@ -28,9 +28,7 @@ parser.add_argument(
 parser.add_argument(
     "--train-size", default=4, type=int)
 parser.add_argument(
-    "--train-iter", default=200, type=int)
-parser.add_argument(
-    "--save-iter", default=50, type=int)
+    "--save-iter", default=100, type=int)
 parser.add_argument(
     "--total-repeat", default=10, type=int)
 parser.add_argument(
@@ -98,7 +96,7 @@ generator.eval()
 latent = torch.randn(1, 512).to(device)
 colorizer = utils.Colorize(args.total_class)
 stylegan_dims = [512, 512, 512, 512, 256, 128, 64, 32, 16]
-
+train_iter = int(30000 / args.train_size)
 
 def test(generator, linear_model, test_dl):
     result = []

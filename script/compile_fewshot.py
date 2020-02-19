@@ -4,10 +4,20 @@ import copy
 import numpy as np
 import glob
 import utils
+import matplotlib.pyplot as plt
 
+
+import matplotlib
+import matplotlib.style as style
+style.use('seaborn-poster') #sets the size of the charts
+style.use('ggplot')
+colors = list(matplotlib.colors.cnames.keys())
+
+
+data_dir = sys.argv[1]
 
 # analyze global data
-files = glob.glob("results/*class.npy")
+files = glob.glob(f"{data_dir}/*class.npy")
 result = {}
 
 def get_name(name):
@@ -45,3 +55,16 @@ for i in ib_dic.keys():
         std_dic[i][b] = ib_dic[i][b].std()
 print(mean_dic)
 print(std_dic)
+
+xs = []
+ys = []
+cs = []
+for i, iter in enumerate([50, 100, 150, 200]):
+    for b in mean_dic[iter].keys():
+        xs.append(b)
+        ys.append(mean_dic[iter][b])
+        cs.append(colors[i])
+plt.scatter(xs, ys, c=cs)
+plt.savefig("scatter.png")
+plt.legend([50, 100, 150, 200])
+plt.close()
