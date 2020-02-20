@@ -105,4 +105,4 @@ for ind in tqdm(range(cfg.n_iter)):
     
     if (ind + 1) % cfg.save_iter == 0:
         torch.save(linear_model.state_dict(), f"{cfg.expr_dir}/iter_{ind+1:06d}.model")
-        #np.save(f"{cfg.expr_dir}/training_evaluation.npy", [metrics[i].result for i in range(len(metrics))])
+        np.save(f"{cfg.expr_dir}/training_evaluation.npy", [metrics[i].result for i in range(len(metrics))])

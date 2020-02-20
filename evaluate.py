@@ -58,8 +58,9 @@ class SimpleIoUMetric(object):
 
     def aggregate(self, start=0):
         # pixel acc
-        arr = self.result["pixelacc"][start:]
-        self.global_result["pixelacc"] = float(sum(arr)) / len(arr) if len(arr) > 0 else 0
+        arr = np.array(self.result["pixelacc"][start:])
+        tmp = arr[arr > -1]
+        self.global_result["pixelacc"] = tmp.mean() if len(tmp) > 0 else -1
 
         # convert to numpy array
         res = np.array(self.result["IoU"])[:, start:]
@@ -75,7 +76,8 @@ class SimpleIoUMetric(object):
     
         # calculate global metric
         vals = np.array(self.class_result["IoU"]) # get rid of invalid classes
-        self.global_result[f"mIoU"] = vals[vals > -1].mean()
+        tmp = vals[vals > -1]
+        self.global_result[f"mIoU"] = tmp.mean() if len(tmp) > 0 else -1
 
     def __str__(self):
         strs = []
@@ -87,8 +89,6 @@ class SimpleIoUMetric(object):
         self.num += 1
         c_pred = np.unique(y_pred)
         c_true = np.unique(y_true)
-        correct_mask = y_pred == y_true
-        total = np.prod(y_pred.shape)
         iou = 0
         for i in range(self.n_class):
             if i in self.ignore_classes or (i not in c_pred and i not in c_true):
@@ -98,7 +98,13 @@ class SimpleIoUMetric(object):
                 iou = tp / (tp + fp + fn)
             self.result["IoU"][i].append(iou)
 
-        self.result["pixelacc"].append(correct_mask.sum() / float(total))
+        mask = (y_pred > 0) & (y_true > 0)
+        correct_mask = (y_pred[mask] == y_true[mask])
+        total = mask.sum()
+        pixelacc = -1
+        if total > 0:
+            pixelacc = correct_mask.sum() / float(total)
+        self.result["pixelacc"].append(pixelacc)
 
 
 
