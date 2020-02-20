@@ -105,8 +105,6 @@ class ProgressiveGenerator(nn.Sequential):
             x = layer(x)
             if i + 1 == len(self.sequence):
                 break
-            if x.size(2) <= 8:
-                continue
 
             if detach == True:
                 stage.append(x.detach())

@@ -1,5 +1,18 @@
 import numpy, scipy
 
+def segment_visualization_single(seg, size):
+    if seg.shape[0] == 1:
+        seg = seg[0]
+    result = numpy.zeros((seg.shape[0], seg.shape[1], 3), dtype=numpy.uint8)
+    labels = numpy.unique(seg)
+    for label in labels:
+        if label == 0:
+            continue
+        bitmap = (seg == label)
+        result[bitmap] = high_contrast_arr[label % len(high_contrast_arr)]
+    return result
+
+
 def segment_visualization(seg, size):
     result = numpy.zeros((seg.shape[1] * seg.shape[2], 3), dtype=numpy.uint8)
     flatseg = seg.reshape(seg.shape[0], seg.shape[1] * seg.shape[2])
