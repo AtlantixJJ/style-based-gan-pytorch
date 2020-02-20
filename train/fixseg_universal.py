@@ -69,7 +69,8 @@ for ind in tqdm(range(cfg.n_iter)):
 
     record['segloss'].append(utils.torch2numpy(segloss))
 
-    if (ind + 1) % cfg.disp_iter == 0 or ind == cfg.n_iter or cfg.debug:
+    if (ind + 1) % cfg.disp_iter == 0 or cfg.debug:
+        # visualization
         res = []
         size = gen.shape[2:]
         for i in range(label.shape[0]): # label (N, M, H, W)
@@ -84,6 +85,8 @@ for ind in tqdm(range(cfg.n_iter)):
                 res.extend([seg_viz, label_viz])
         res = torch.from_numpy(np.stack(res)).permute(0, 3, 1, 2).float() / 255.
         vutils.save_image(res, f"{cfg.expr_dir}/{ind+1:05d}.png", nrow=1 + 2 * label.shape[1])
-    
-    if (ind + 1) % cfg.save_iter == 0:
-        torch.save(linear_model.state_dict(), cfg.expr_dir + "/iter_%06d.model" % ind)
+
+		utils.write_log(cfg.expr_dir, record)
+
+    if (ind + 1) % cfg.save_iter == 0 or ind == cfg.n_iter:
+        torch.save(linear_model.state_dict(), f"{cfg.expr_dir}/iter_{ind:06d}.model")
