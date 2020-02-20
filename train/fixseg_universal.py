@@ -1,4 +1,4 @@
-import sys
+import torch, numpy, os, argparse, sys, shutil
 sys.path.insert(0, ".")
 import os
 import torch
@@ -10,96 +10,72 @@ from lib.face_parsing import unet
 import config
 import utils, evaluate, loss, model
 
+from lib.netdissect.segviz import segment_visualization
+from lib.netdissect.segmenter import UnifiedParsingSegmenter
+from lib.netdissect import proggan
+from lib.netdissect.zdataset import standard_z_sample, z_dataset_for_model
 
 cfg = config.FixSegConfig()
 cfg.parse()
 s = str(cfg)
 cfg.setup()
 print(s)
+        
+latent = torch.randn(1, 512).to(cfg.device)
+generator = proggan.from_pth_file(cfg.load_path).to(cfg.device)
+generator.eval()
+image, stage = generator.get_stage(latent, True)
+dims = [s.shape[1] for s in stage]
+#z_dataset = z_dataset_for_model(generator, size=cfg.n_iter)
+#with torch.no_grad():
+#    z_loader = torch.utils.data.DataLoader(z_dataset,
+#                    batch_size=cfg.batch_size, num_workers=2,
+#                    pin_memory=True)
+segmenter = UnifiedParsingSegmenter()
+labels, cats = segmenter.get_label_and_category_names()
 with open(cfg.expr_dir + "/config.txt", "w") as f:
-	f.write(s)
+    f.write(s)
+    for i, (label, cat) in enumerate(labels):
+        f.write('%s %s\n' % (label, cat))
 
-state_dict = torch.load(cfg.seg_net_path, map_location='cpu')
-faceparser = unet.unet()
-faceparser.load_state_dict(state_dict)
-faceparser = faceparser.to(cfg.device2)
-faceparser.eval()
-del state_dict
 
-state_dicts = torch.load(cfg.load_path, map_location='cpu')
-if cfg.arch == "simple":
-	upsample = int(np.log2(cfg.imsize // 4))
-	sg = model.simple.Generator(upsample=upsample, semantic=cfg.semantic_config)
-	LATENT_SIZE = 128
-else:
-	sg = getattr(model, cfg.arch).StyledGenerator(semantic=cfg.semantic_config)
-	LATENT_SIZE = 512
-sg.load_state_dict(state_dicts, strict=False)
-sg.train()
-sg = sg.to(cfg.device1)
-sg.semantic_branch = sg.semantic_branch.to(cfg.device2)
-sg.freeze() # fix main trunk
-del state_dicts
+def get_group(labels):
+    prev_cat = labels[0][1]
+    prev_idx = 0
+    cur_idx = 0
+    groups = []
 
-# new parameter adaption stage
-g_optim = torch.optim.Adam(sg.semantic_branch.parameters(),
-	lr=cfg.lr,
-	betas=(0.9, 0.9))
-logsoftmax = torch.nn.CrossEntropyLoss()
-logsoftmax = logsoftmax.cuda()
+    for label, cat in labels:
+        if cat != prev_cat:
+            cur_idx += 1 # plus one for unlabeled class
+            groups.append([prev_idx, cur_idx])
+            prev_cat = cat
+            prev_idx = cur_idx
+        cur_idx += 1
+    groups.append([prev_idx, cur_idx + 1])
+    return groups
 
-latent = torch.randn(cfg.batch_size, LATENT_SIZE).cuda()
 
-def conv2vec(convs):
-	vecs = [utils.torch2numpy(conv[0].weight)[:, :, 0, 0] for conv in convs]
-	return np.concatenate(vecs, 1)
+category_groups = get_group(labels)
+n_class = category_groups[-1][1]
 
-def positive_convs(convs):
-	ortho_loss = 0
-	count = 0
-	for conv in convs:
-		w = conv[0].weight[:, :, 0, 0] # (out_dim, in_dim)
-		ortho_loss = ortho_loss + F.relu(w).mean()
-		count += 1
-	return ortho_loss / count
-
-def ortho_convs(convs):
-	ortho_loss = 0
-	count = 0
-	for conv in convs:
-		w = conv[0].weight[:, :, 0, 0] # (out_dim, in_dim)
-		ww = torch.matmul(w, w.permute(1, 0))
-		I = torch.eye(ww.shape[0], device=ww.device)
-		ortho_loss += F.mse_loss(ww, I)
-		count += 1
-	return ortho_loss / count
-
-record = cfg.record
-trace_weight = 0
-if cfg.trace_weight and "conv" in cfg.semantic_config:
-	vec = conv2vec(sg.semantic_branch.children())
-	trace_weight = np.zeros((cfg.n_iter, vec.shape[0], vec.shape[1]), dtype="float16")
-
-evaluator = evaluate.MaskCelebAEval()
+seg = segmenter.segment_batch(image)
+linear_model = model.linear.LinearSemanticExtractor(
+    n_class, dims, None, category_groups).to(cfg.device)
+output = linear_model(stage)
 
 for ind in tqdm(range(cfg.n_iter)):
 	ind += 1
 	latent.normal_()
 
 	with torch.no_grad(): # fix main network
-		gen = sg(latent, seg=False).clamp(-1, 1)
-		gen = F.interpolate(gen, cfg.seg_net_imsize, mode="bilinear")
-		label = faceparser(gen).argmax(1)
-		if cfg.map_id:
-			label = cfg.idmap(label.detach())
+		gen, stage = generator.get_stage(latent, seg=False, detach=True)
+		label = segmenter.segment_batch(gen).argmax(1)
 
-	segs = sg.extract_segmentation(sg.stage)
-
-	# The last one is usually summation of previous one
-	if not cfg.train_summation:
-		segs = segs[:len(sg.generator.stage)]
-
-	segloss = loss.segloss(segs, label)
+	multi_segs = linear_model(stage)
+    segloss = 0
+    for i,segs in enumerate(multi_segs):
+	    segloss = segloss + loss.segloss(segs, label[])
 
 	regloss = 0
 	if cfg.ortho_reg > 0:
@@ -168,5 +144,3 @@ for ind in tqdm(range(cfg.n_iter)):
 		torch.save(sg.state_dict(), cfg.expr_dir + "/iter_%06d.model" % ind)
 		if cfg.trace_weight:
 			np.save(cfg.expr_dir + "/trace_weight.npy", trace_weight[:ind])
-
-#os.system(f"python script/monitor.py --task log,seg,celeba-evaluator,agreement --gpu {cfg.gpu[0]} --model {cfg.expr_dir}")

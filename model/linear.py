@@ -93,11 +93,14 @@ class LinearSemanticExtractor(torch.nn.Module):
         n_class:    The predict class number
         dims:       The dimenstions of a list of feature maps
     """
-    def __init__(self, n_class, dims=[], mapid=None):
+    def __init__(self, n_class, dims=[], mapid=None, category_groups=None):
         super(LinearSemanticExtractor, self).__init__()
         self.mapid = mapid
         self.n_class = n_class
         self.dims = dims
+        if category_groups is None:
+            category_groups = [[0, self.n_class]]
+        self.category_groups = category_groups
         self.segments = [0] + list(np.cumsum(self.dims))
         self.build_extractor_conv()
 
@@ -127,9 +130,37 @@ class LinearSemanticExtractor(torch.nn.Module):
             res = self.mapid(res)
         return res.detach().cpu().numpy().astype("int32")
 
-    # The output is series of segmentation maps: individual layers, aggregated sum of layers
-    # The last one is the final formal segmentation
-    def forward(self, stage, last_only=False):
+
+    def forward_category_group(self, stage, last_only=False):
+        outputs = [[] for _ in range(len(self.category_groups))]
+
+        for i, seg_input in enumerate(stage):
+            x = self.semantic_extractor[i](seg_input)
+            for cat_id, (bg, ed) in enumerate(self.category_groups):
+                outputs[cat_id].append(x[:, bg:ed])
+
+        size = outputs[0][-1].shape[2]
+
+        if last_only:
+            res = []
+            for cat_id in range(len(self.category_groups)):
+                r = [F.interpolate(s, size=size, mode="bilinear")
+                    for s in outputs[cat_id]]
+                res.append(sum(r))
+            return res
+
+        # summation series
+        for i in range(1, len(stage)):
+            size = stage[i].shape[2]
+            for cat_id in range(len(self.category_groups)):
+                layers = [F.interpolate(s, size=size, mode="bilinear")
+                    for s in outputs[cat_id][:i]]
+                sum_layers = sum(layers) + outputs[cat_id][i]
+                outputs[cat_id].append(sum_layers)
+
+        return outputs
+        
+    def forward_single_group(self, stage, last_only=False):
         count = 0
         outputs = []
         for i, seg_input in enumerate(stage):
@@ -151,3 +182,9 @@ class LinearSemanticExtractor(torch.nn.Module):
             outputs.append(sum_layers)
 
         return outputs
+
+    def forward(self, stage, last_only=False):
+        if len(self.category_groups) == 1:
+            return self.forward_single_group(stage, last_only)
+        else:
+            return self.forward_category_group(stage, last_only)

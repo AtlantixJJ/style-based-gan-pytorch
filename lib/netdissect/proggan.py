@@ -88,12 +88,32 @@ class ProgressiveGenerator(nn.Sequential):
         # Allow the sequence to be modified
         if modify_sequence is not None:
             sequence = modify_sequence(sequence)
+        self.sequence = sequence
+        self.sizes = sizes
+        self.resolution = resolution
         super().__init__(OrderedDict(sequence))
 
     def forward(self, x):
         # Convert vector input to 1x1 featuremap.
         x = x.view(x.shape[0], x.shape[1], 1, 1)
         return super().forward(x)
+    
+    def get_stage(self, x, detach=False):
+        stage = []
+        x = x.view(x.shape[0], x.shape[1], 1, 1)
+        for i, (name, layer) in enumerate(self.sequence):
+            x = layer(x)
+            if i + 1 == len(self.sequence):
+                break
+            if x.size(2) <= 16:
+                continue
+
+            if detach == True:
+                stage.append(x.detach())
+            else:
+                stage.append(x)
+
+        return x, stage
 
 class PixelNormLayer(nn.Module):
     def __init__(self):

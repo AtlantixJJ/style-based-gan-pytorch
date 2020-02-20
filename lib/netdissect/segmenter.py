@@ -481,7 +481,7 @@ def component_masks(segmentation_batch):
             yield i, (labeled == label)
 
 def load_unified_parsing_segmentation_model(segmodel_arch, segvocab, epoch):
-    segmodel_dir = 'dataset/segmodel/%s-%s-%s' % ((segvocab,) + segmodel_arch)
+    segmodel_dir = '/mnt/disk1/gandissect/dataset/segmodel/%s-%s-%s' % ((segvocab,) + segmodel_arch)
     # Load json of class names and part/object structure
     with open(os.path.join(segmodel_dir, 'labels.json')) as f:
         labeldata = json.load(f)
