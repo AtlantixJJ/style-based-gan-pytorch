@@ -137,7 +137,7 @@ class FixSegConfig(BaseConfig):
         self.parser.add_argument(
             "--seg-net", default="checkpoint/faceparse_unet_512.pth", help="The load path of semantic segmentation network")
         self.parser.add_argument(
-            "--seg-cfg", default="conv-16-1", help="Configure of segmantic segmentation extractor")
+            "--seg-cfg", default="linear", help="Configure of segmantic segmentation extractor")
         self.parser.add_argument(
             "--upsample", default="bilinear", help="Upsample method of feature map. bilinear, nearest.")
         self.parser.add_argument(
@@ -146,16 +146,18 @@ class FixSegConfig(BaseConfig):
             "--trace", type=int, default=0, help="If to save the weight evolution of semantic branch")
         self.parser.add_argument(
             "--train-summation", type=int, default=1, help="If to train the summation of segmentation maps.")
+        """
         self.parser.add_argument(
             "--ortho-reg", type=float, default=-1, help="The coef of using ortho reg. < 0 means not to use.")
         self.parser.add_argument(
             "--positive-reg", type=float, default=-1, help="The coef of using positive regularization.")
+        """
 
     def parse(self):
         super(FixSegConfig, self).parse()
         self.train_summation = self.args.train_summation
-        self.ortho_reg = self.args.ortho_reg
-        self.positive_reg = self.args.positive_reg
+        #self.ortho_reg = self.args.ortho_reg
+        #self.positive_reg = self.args.positive_reg
         self.upsample = self.args.upsample
         self.n_class = self.args.n_class
         self.seg_net_path = self.args.seg_net
@@ -169,7 +171,7 @@ class FixSegConfig(BaseConfig):
             self.id2cid = {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 4, 6: 5, 7: 5, 8: 6, 9: 6, 10: 7, 11: 8, 12: 9, 13: 10, 14: 11, 15: 12, 16: 13, 17: 14, 18: 15}
         else:
             self.map_id = False
-        self.name = f"{self.task}_{self.semantic_config}_{self.ortho_reg}_{self.positive_reg}"
+        self.name = f"{self.task}_{self.model_name}_{self.semantic_config}"
         self.expr_dir = osj(self.args.expr, self.name)
 
     def idmap(self, x):
@@ -185,8 +187,8 @@ class FixSegConfig(BaseConfig):
         strs.append("=> Segmentation network: %s" % self.seg_net_path)
         strs.append("=> Segmentation configure: %s" % self.semantic_config)
         strs.append("=> Train summation: %d" % self.train_summation)
-        strs.append("=> Orthogonal regularization: %f" % self.ortho_reg)
-        strs.append("=> Positive regularization: %f" % self.positive_reg)
+        #strs.append("=> Orthogonal regularization: %f" % self.ortho_reg)
+        #strs.append("=> Positive regularization: %f" % self.positive_reg)
         return "\n".join(strs)
 
 

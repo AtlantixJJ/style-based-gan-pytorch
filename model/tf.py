@@ -6,7 +6,7 @@ import pickle
 import numpy as np
 
 
-def load_from_pth(fpath):
+def from_pth_file(fpath):
     resolution = 1024
     if "256x256" in fpath:
         resolution = 256

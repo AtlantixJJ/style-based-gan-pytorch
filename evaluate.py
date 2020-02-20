@@ -39,11 +39,75 @@ def compute_all_metric(tp, fp, fn):
     return pixelcorrect, pixeltotal, precision, recall, iou
 
 
+class SimpleIoUMetric(object):
+    def __init__(self, ignore_classes=[0], n_class=16):
+        self.num = 0
+        self.n_class = n_class
+        self.ignore_classes = ignore_classes
+        self.result = {}
+        self.reset()
+    
+    def reset(self):
+        self.num = 0
+        self.global_result = {}
+        self.class_result = {}
+        self.class_result["IoU"] = [-1] * self.n_class
+        self.result = {}
+        self.result["pixelacc"] = []
+        self.result["IoU"] = [[] for _ in range(self.n_class)]
+
+    def aggregate(self, start=0):
+        # pixel acc
+        arr = self.result["pixelacc"][start:]
+        self.global_result["pixelacc"] = float(sum(arr)) / len(arr) if len(arr) > 0 else 0
+
+        # convert to numpy array
+        res = np.array(self.result["IoU"])[:, start:]
+
+        # average over samples for each class and metric
+        for i in range(self.n_class):
+            arr = res[i]
+            arr = arr[arr > -1]
+            if arr.shape[0] == 0:
+                self.class_result["IoU"][i] = -1
+            else:
+                self.class_result["IoU"][i] = arr.mean()
+    
+        # calculate global metric
+        vals = np.array(self.class_result["IoU"]) # get rid of invalid classes
+        self.global_result[f"mIoU"] = vals[vals > -1].mean()
+
+    def __str__(self):
+        strs = []
+        strs.append("=> pixelacc: %.3f\tmIoU: %.3f" % 
+            (self.global_result["pixelacc"], self.global_result["mIoU"]))
+        return "\n".join(strs)
+
+    def __call__(self, y_pred, y_true):
+        self.num += 1
+        c_pred = np.unique(y_pred)
+        c_true = np.unique(y_true)
+        correct_mask = y_pred == y_true
+        total = np.prod(y_pred.shape)
+        iou = 0
+        for i in range(self.n_class):
+            if i in self.ignore_classes or (i not in c_pred and i not in c_true):
+                iou = -1
+            else:
+                tp, fp, fn = compute_score_numpy(y_pred == i, y_true == i)
+                iou = tp / (tp + fp + fn)
+            self.result["IoU"][i].append(iou)
+
+        self.result["pixelacc"].append(correct_mask.sum() / float(total))
+
+
+
 class DetectionMetric(object):
     """
     Manage common detection evaluation metric
     """
     def __init__(self, ignore_classes=[0], n_class=16):
+        self.num = 0
         self.n_class = n_class
         self.ignore_classes = ignore_classes
         self.class_metric_names = ["AP", "AR", "IoU"]
@@ -51,6 +115,7 @@ class DetectionMetric(object):
         self.reset()
 
     def reset(self):
+        self.num = 0
         del self.result
         self.result = {}
         self.global_result = {}
@@ -91,8 +156,8 @@ class DetectionMetric(object):
             vals = self.result[mname][indice]
             self.result[f"m{mname}_{name}"] = vals[vals > -1].mean()
             
-
     def __call__(self, y_pred, y_true):
+        self.num += 1
         metrics = []
         pixelcorrect = pixeltotal = 0
         for i in range(self.n_class):
@@ -112,6 +177,16 @@ class DetectionMetric(object):
                 self.result[name][i].append(s[j])
 
         return pixelacc, metrics
+
+    def __str__(self):
+        strs = []
+        strs.append(f"=> Detection metric result on {self.num} results")
+        strs.append("=> pixelacc    \t  mAP  \t  mAR  \t  mIoU")
+        res = [self.global_result["pixelacc"]]
+        res.extend([self.global_result[f"m{name}"]
+            for name in self.class_metric_names])
+        strs.append("=> %.3f\t%.3f\t%.3f\t%.3f" % tuple(res))
+        return "\n".join(strs)
 
 
 class MaskCelebAEval(object):

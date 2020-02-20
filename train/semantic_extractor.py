@@ -33,17 +33,20 @@ with open(cfg.expr_dir + "/config.txt", "w") as f:
     for i, (label, cat) in enumerate(labels):
         f.write('%s %s\n' % (label, cat))
 
-
 category_groups = utils.get_group(labels)
 category_groups_label = utils.get_group(labels, False)
 n_class = category_groups[-1][1]
 
 seg = segmenter.segment_batch(image)
-linear_model = model.linear.LinearSemanticExtractor(
-    n_class, dims, None, category_groups).to(cfg.device)
+linear_model = model.semantic_extractor.LinearSemanticExtractor(
+    n_class=n_class,
+    dims=dims,
+    mapid=None,
+    category_groups=category_groups).to(cfg.device)
 output = linear_model(stage)
 
 record = {"segloss": []}
+metrics = [evaluate.SimpleIoUMetric(n_class=cg[1]-cg[0]) for i, cg in enumerate(category_groups)]
 
 for ind in tqdm(range(cfg.n_iter)):
     ind += 1
@@ -63,6 +66,11 @@ for ind in tqdm(range(cfg.n_iter)):
         l[l<0] = 0
         segloss = segloss + loss.segloss(segs, l)
 
+        # collect training statistic
+        est_label = segs[-1].argmax(1)
+        for j in range(est_label.shape[0]):
+            metrics[i](utils.torch2numpy(est_label[j]), utils.torch2numpy(l[j]))
+
     segloss.backward()
     linear_model.optim.step()
     linear_model.optim.zero_grad()
@@ -70,6 +78,7 @@ for ind in tqdm(range(cfg.n_iter)):
     record['segloss'].append(utils.torch2numpy(segloss))
 
     if (ind + 1) % cfg.disp_iter == 0 or ind == cfg.n_iter or cfg.debug:
+        # visualize training
         res = []
         size = gen.shape[2:]
         for i in range(label.shape[0]): # label (N, M, H, W)
@@ -84,6 +93,16 @@ for ind in tqdm(range(cfg.n_iter)):
                 res.extend([seg_viz, label_viz])
         res = torch.from_numpy(np.stack(res)).permute(0, 3, 1, 2).float() / 255.
         vutils.save_image(res, f"{cfg.expr_dir}/{ind+1:05d}.png", nrow=1 + 2 * label.shape[1])
+
+        # write log
+        utils.write_log(cfg.expr_dir, record)
+        utils.plot_dic(record, "loss", f"{cfg.expr_dir}/loss.png")
+
+        # show metric
+        for i in range(len(category_groups)):
+            metrics[i].aggregate(ind + 1 - cfg.disp_iter)
+            print(metrics[i])
     
     if (ind + 1) % cfg.save_iter == 0:
-        torch.save(linear_model.state_dict(), cfg.expr_dir + "/iter_%06d.model" % ind)
+        torch.save(linear_model.state_dict(), f"{cfg.expr_dir}/iter_{ind+1:06d}.model")
+        #np.save(f"{cfg.expr_dir}/training_evaluation.npy", [metrics[i].result for i in range(len(metrics))])

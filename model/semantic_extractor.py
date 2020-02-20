@@ -13,8 +13,7 @@ class BaseSemanticExtractor(torch.nn.Module):
             category_groups = [[0, self.n_class]]
         self.category_groups = category_groups
         self.segments = [0] + list(np.cumsum(self.dims))
-        self.build_extractor_conv()
-
+        
     def predict(self, stage):
         res = self.forward(stage, True)[0].argmax(1)
         if self.mapid:
@@ -83,9 +82,6 @@ class GenerativeSemanticExtractor(BaseSemanticExtractor):
 class LinearSemanticExtractor(BaseSemanticExtractor):
     """
     Extract the semantic segmentation from internal representation using 1x1 conv.
-    Args:
-        n_class:    The predict class number
-        dims:       The dimenstions of a list of feature maps
     """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
