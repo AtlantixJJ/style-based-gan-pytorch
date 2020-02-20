@@ -227,6 +227,24 @@ def normalize_image(img):
 ######
 
 
+def get_group(labels, bg=True):
+    prev_cat = labels[0][1]
+    prev_idx = 0
+    cur_idx = 0
+    groups = []
+
+    for label, cat in labels:
+        if cat != prev_cat:
+            if bg:
+                cur_idx += 1 # plus one for unlabeled class
+            groups.append([prev_idx, cur_idx])
+            prev_cat = cat
+            prev_idx = cur_idx
+        cur_idx += 1
+    groups.append([prev_idx, cur_idx + 1])
+    return groups
+    
+
 def resolution_from_name(fpath):
     resolution = 1024
     if "256x256" in fpath:

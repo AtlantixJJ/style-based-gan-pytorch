@@ -6,6 +6,17 @@ import pickle
 import numpy as np
 
 
+def load_from_pth(fpath):
+    resolution = 1024
+    if "256x256" in fpath:
+        resolution = 256
+    model = StyledGenerator(resolution)
+    state_dict = torch.load(fpath, map_location="cpu")
+    missed = model.load_state_dict(state_dict)
+    print(missed)
+    return model
+
+
 class MyLinear(nn.Module):
     """Linear layer with equalized learning rate and custom learning rate multiplier."""
     def __init__(self, input_size, output_size, gain=2**(0.5), use_wscale=False, lrmul=1, bias=True):
@@ -347,7 +358,7 @@ class G_synthesis(nn.Module):
         #self.torgbs.append(self.torgb)
         self.blocks = nn.ModuleDict(OrderedDict(blocks))
         
-    def forward(self, dlatents_in, orthogonal=None, ortho_bias=0):
+    def forward(self, dlatents_in):
         for i, m in enumerate(self.blocks.values()):
             if i == 0:
                 x = m(dlatents_in[:, 2*i:2*i+2])
@@ -355,6 +366,21 @@ class G_synthesis(nn.Module):
                 x = m(x, dlatents_in[:, 2*i:2*i+2])
         rgb = self.torgb(x)
         return rgb
+
+    def get_stage(self, dlatents_in, detach):
+        stage = []
+        for i, m in enumerate(self.blocks.values()):
+            if i == 0:
+                x = m(dlatents_in[:, 2*i:2*i+2])
+            else:
+                x = m(x, dlatents_in[:, 2*i:2*i+2])
+            
+            if detach:
+                stage.append(x.detach())
+            else:
+                stage.append(x)
+        rgb = self.torgb(x)
+        return rgb, stage
 
 
 class StyledGenerator(nn.Module):
@@ -364,8 +390,11 @@ class StyledGenerator(nn.Module):
         self.g_mapping = G_mapping()
         self.g_synthesis = G_synthesis(resolution=resolution)
 
-    def forward(self, x,):
+    def forward(self, x):
         return self.g_synthesis(self.g_mapping(x))
+
+    def get_stage(self, x, detach=False):
+        return self.g_synthesis.get_stage(self.g_mapping(x), detach)
 
     def set_noise(self, noises):
         if not hasattr(self, "noise_layers"):

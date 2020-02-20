@@ -22,15 +22,11 @@ cfg.setup()
 print(s)
         
 latent = torch.randn(1, 512).to(cfg.device)
-generator = proggan.from_pth_file(cfg.load_path).to(cfg.device)
+generator = model.load_model_from_pth_file(cfg.model_name, cfg.load_path).to(cfg.device)
 generator.eval()
 image, stage = generator.get_stage(latent, True)
 dims = [s.shape[1] for s in stage]
-#z_dataset = z_dataset_for_model(generator, size=cfg.n_iter)
-#with torch.no_grad():
-#    z_loader = torch.utils.data.DataLoader(z_dataset,
-#                    batch_size=cfg.batch_size, num_workers=2,
-#                    pin_memory=True)
+
 segmenter = UnifiedParsingSegmenter()
 labels, cats = segmenter.get_label_and_category_names()
 with open(cfg.expr_dir + "/config.txt", "w") as f:
@@ -39,26 +35,8 @@ with open(cfg.expr_dir + "/config.txt", "w") as f:
         f.write('%s %s\n' % (label, cat))
 
 
-def get_group(labels, bg=True):
-    prev_cat = labels[0][1]
-    prev_idx = 0
-    cur_idx = 0
-    groups = []
-
-    for label, cat in labels:
-        if cat != prev_cat:
-            if bg:
-                cur_idx += 1 # plus one for unlabeled class
-            groups.append([prev_idx, cur_idx])
-            prev_cat = cat
-            prev_idx = cur_idx
-        cur_idx += 1
-    groups.append([prev_idx, cur_idx + 1])
-    return groups
-
-
-category_groups = get_group(labels)
-category_groups_label = get_group(labels, False)
+category_groups = utils.get_group(labels)
+category_groups_label = utils.get_group(labels, False)
 n_class = category_groups[-1][1]
 
 seg = segmenter.segment_batch(image)
