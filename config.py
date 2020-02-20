@@ -41,7 +41,7 @@ class BaseConfig(object):
         self.parser.add_argument(
             "--arch", default="tfseg", help="Network definition file")
         self.parser.add_argument(
-            "--name", default="", help="Name of experiment, auto inference name if leave empty")
+            "--model-name", default="", help="Name of model, used as identifier.")
         self.parser.add_argument(
             "--imsize", default=512, type=int, help="Train image size")
         # Training environment options
@@ -78,7 +78,7 @@ class BaseConfig(object):
         self.imsize = self.args.imsize
         self.arch = self.args.arch
         self.lr = self.args.lr
-        self.name = self.args.name
+        self.model_name = self.args.model_name
         self.load = self.args.load
         self.batch_size = self.args.batch_size
         self.gpu = list(range(len(self.args.gpu.split(","))))
