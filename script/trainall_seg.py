@@ -145,24 +145,19 @@ def assign_run(command_generator, gpus, false_exec=False):
 
 def direct_run(gpus):
     commands = [
-        "python train/fixsegtrain.py --ortho-reg -1 --train-last 0 --task fixseg --seg-cfg conv-16-1 --batch-size 1 --gpu %s --trace 1 --load checkpoint/karras2019stylegan-celebahq-1024x1024.for_g_all.pt",
-        #"python train/fixsegtrain.py --task fixsegsimple --seg-cfg mul-16 --arch simple --batch-size 1 --load expr/celeba_wgan_64/gen_iter_100000.model --imsize 64 --seg-net checkpoint/faceparse_unet_128.pth --gpu %s --trace 1 &",
-        #"python train/simplesdtrain.py --task simplesd --seg-cfg mul-16 --arch simple --batch-size 64 --imsize 256 --load \"\" --disc-net \"\" --gpu %s --iter-num 100000 &",
-        #"python train/simplesdtrain.py --task simplesd --seg-cfg mul-16 --seg 0 --arch simple --batch-size 64 --imsize 256 --load \"\" --disc-net \"\" --gpu %s --iter-num 100000 &",
-        #"python train/segtrain.py --task simpleseg --arch simple --batch-size 64 --imsize 64 --load \"\" --disc-net \"\" --gpu %s &",
-        #"python train/guidesdtrain.py --task simplesd --seg-cfg mul-16 --arch simple --batch-size 64 --imsize 64 --load \"\" --disc-net \"\" --gpu %s --guide norm &",
-        #"python train/guidesdtrain.py --task simplesd --seg-cfg mul-16 --arch simple --batch-size 64 --imsize 64 --load \"\" --disc-net \"\" --gpu %s --guide delta &",
-    ]
+        "python train/semantic_extractor.py --load checkpoint/bedroom_lsun_256x256_proggan.pth --model-name proggan --batch-size 2 --iter-num 16000 --task bedroom --gpu %s",
+        "python train/semantic_extractor.py --load checkpoint/bedroom_lsun_256x256_stylegan.pth --model-name stylegan --batch-size 2 --iter-num 16000 --task bedroom --gpu %s"]
     for i in range(len(commands)):
         index = i % len(gpus)
         gpu = gpus[index]
         c = commands[i]
         yield index, c % gpu
 
-#gpus = ["0"]; assign_run(direct_run, gpus)
+
 uname = subprocess.run(["uname", "-a"], capture_output=True)
 uname = uname.stdout.decode("ascii")
 if "jericho" in uname:
-    gpus = ["0"]; assign_run(FixSegCore().command, gpus)
+    #gpus = ["0"]; assign_run(FixSegCore().command, gpus)
+    gpus = ["0"]; assign_run(direct_run, gpus)
 elif "instance" in uname:
     gpus = ["0", "1", "2", "3"]; assign_run(FixSegReg().command, gpus)
