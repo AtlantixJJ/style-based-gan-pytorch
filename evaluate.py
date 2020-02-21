@@ -3,6 +3,7 @@ import torch.nn.functional as F
 import numpy as np
 from tqdm import tqdm
 import model, utils, loss
+from model.semantic_extractor import LinearSemanticExtractor
 
 
 def compute_score_numpy(y_pred, y_true):
@@ -302,22 +303,13 @@ class LinearityEvaluator(object):
     """
     External model: a semantic segmentation network
     """
-    def __init__(self, model, external_model,
-        N=1000, imsize=512, latent_dim=512, n_class=16, stylegan_noise=False):
-        self.model = model
-        self.external_model = external_model
+    def __init__(self, train_dl, test_dl, n_class=16, stylegan_noise=False):
+        self.model = None
         self.device = "cuda"
-        self.N = N
-        self.latent_dim = latent_dim
-        self.imsize = 512
+        self.train_dl = train_dl
+        self.test_dl = test_dl
         self.n_class = n_class
         self.stylegan_noise = stylegan_noise
-        self.logsoftmax = torch.nn.CrossEntropyLoss()
-        self.logsoftmax.to(self.device)
-
-        self.fix_latents = torch.randn(256, self.latent_dim)
-        if self.stylegan_noise:
-            self.fix_noises = [self.model.generate_noise() for _ in range(256)]
 
         self.metric = DetectionMetric()
 
@@ -334,17 +326,20 @@ class LinearityEvaluator(object):
 
     def eval_fix(self):
         segms = []
-        for i in range(self.fix_latents.shape[0]):
-            latent = self.fix_latents[i:i+1].detach().clone().to(self.device)
+        for i, sample in enumerate(tqdm(self.test_dl)):
+            if i > 1000: # at most 1000 samples
+                break
+            latent, noise, image, label = sample
+            label = label[:, :, :, 0]
             # stylegan need a noise
             if self.stylegan_noise:
-                noise = [n.detach().clone().to(self.device) for n in self.fix_noises[i]]
+                noise = self.model.parse_noise(noise[0].to(self.device))
                 self.model.set_noise(noise)
-            self.model(latent)
-            seg = self.extractor(self.model.stage)[-1]
-            label = seg.argmax(1)
-            segms.append(label.detach().clone())
-        segms = utils.torch2numpy(torch.cat(segms))
+            image, stage = self.model.get_stage(latent[0].to(self.device), detach=True)
+            est_label = self.extractor.predict(stage) 
+            segms.append(utils.torch2numpy(est_label))
+        segms = np.concatenate(segms)
+        print(segms.shape)
         if self.prev_segm is 0:
             self.prev_segm = segms
             return 0
@@ -356,19 +351,19 @@ class LinearityEvaluator(object):
 
     def __call__(self, model, name):
         self.model = model
-        latent = torch.randn(1, self.latent_dim, device=self.device)
-        for ind in tqdm(range(self.N)):
-            latent.normal_()
-            image = self.model(latent)
+        for ind, sample in tqdm(enumerate(self.train_dl)):
+            latents, noises, images, labels = sample
+            labels = labels[:, :, :, 0]
+
+            image, stage = self.model.get_stage(latents.to(self.device))
             if ind == 0:
                 self.prev_segm = 0
-                self.dims = [s.shape[1] for s in self.model.stage]
-                self.extractor = model.linear.LinearSemanticExtractor(self.n_class, self.dims)
-            segs = self.extractor(self.model.stage)
-
-            ext_label = self.external_model(image.clamp(-1, 1))
-
-            segloss = loss.segloss(segs, ext_label)
+                self.dims = [s.shape[1] for s in stage]
+                self.extractor = LinearSemanticExtractor(
+                    n_class=self.n_class,
+                    dims=self.dims)
+            segs = self.extractor(stage)
+            segloss = loss.segloss(segs, labels)
             segloss.backward()
 
             self.extractor.optim.step()

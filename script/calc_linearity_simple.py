@@ -1,19 +1,25 @@
 """
-python script/calc_linearity_simple.py --imsize 64 --dataset ../datasets/CelebAMask-HQ/CelebA-HQ-img-64 --model expr/celeba_hat_wgan64 
+python script/calc_linearity_simple.py --imsize 64 --data-dir datasets/Synthesized --test-dir datasets/Synthesized_test --model expr/celeba_hat_wgan64/gen_iter_001000.model --recursive 0
 """
 import sys, argparse, torch, glob, os
 sys.path.insert(0, ".")
 import numpy as np
-import model, fid, utils, evaluate
+import model, fid, utils, evaluate, dataset
 from lib.face_parsing.unet import unet
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset", default="../datasets/CelebAMask-HQ/CelebA-HQ-img-128")
-parser.add_argument("--imsize", default=128, type=int)
-parser.add_argument("--model", default="checkpoint/fixseg_conv-16-1.model")
-parser.add_argument("--external-model", default="checkpoint/faceparse_unet_512.pth")
-parser.add_argument("--recursive", default=1, type=int)
-parser.add_argument("--gpu", default="0")
+parser.add_argument(
+    "--data-dir", default="datasets/Synthesized")
+parser.add_argument(
+    "--test-dir", default="datasets/Synthesized_test")
+parser.add_argument(
+    "--imsize", default=128, type=int)
+parser.add_argument(
+    "--model", default="checkpoint/fixseg_conv-16-1.model")
+parser.add_argument(
+    "--recursive", default=1, type=int)
+parser.add_argument(
+    "--gpu", default="0")
 args = parser.parse_args()
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
@@ -47,8 +53,12 @@ missed = generator.load_state_dict(torch.load(args.model), strict=False)
 print(missed)
 generator.to(device)
 
+"""
 state_dict = torch.load(args.external_model, map_location='cpu')
-faceparser = unet()
+train_size = 512
+if "128" in args.external_model:
+    train_size = 128
+faceparser = unet(train_size=train_size)
 faceparser.load_state_dict(state_dict)
 faceparser = faceparser.to(device)
 faceparser.eval()
@@ -57,8 +67,22 @@ mapid = utils.CelebAIDMap().mapid
 
 def external_model(x):
     return mapid(faceparser(x).argmax(1))
+"""
 
-evaluator = evaluate.LinearityEvaluator(external_model, latent_dim=128)
-iou_std = evaluator(generator, model_name)
-with open(f"record/{model_name}_linearity_ioustd.txt", "w") as f:
-    f.write(f"{model_name} {iou_std}\n")
+train_ds = dataset.LatentSegmentationDataset(
+    latent_dir=args.data_dir + "/latent",
+    noise_dir=args.data_dir + "/noise",
+    image_dir=None,
+    seg_dir=args.data_dir + "/label")
+train_dl = torch.utils.data.DataLoader(train_ds, batch_size=2, shuffle=False)
+
+test_ds = dataset.LatentSegmentationDataset(
+    latent_dir=args.test_dir + "/latent",
+    noise_dir=args.test_dir + "/noise",
+    image_dir=None,
+    seg_dir=args.test_dir + "/label")
+test_dl = torch.utils.data.DataLoader(test_ds, batch_size=1, shuffle=False)
+
+
+evaluator = evaluate.LinearityEvaluator(train_dl, test_dl)
+evaluator(generator, model_name)

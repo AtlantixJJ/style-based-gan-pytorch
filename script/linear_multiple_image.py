@@ -81,7 +81,7 @@ test_ds = dataset.LatentSegmentationDataset(
     noise_dir=args.test_dir + "/noise",
     image_dir=None,
     seg_dir=args.test_dir + "/label")
-test_dl = torch.utils.data.DataLoader(ds, batch_size=1, shuffle=False)
+test_dl = torch.utils.data.DataLoader(test_ds, batch_size=1, shuffle=False)
 
 # build model
 print("=> Setup generator")
@@ -105,8 +105,8 @@ def test(generator, linear_model, test_dl):
         latent, noise, image, label = sample
         label = idmap(label[:, :, :, 0])
         generator.set_noise(generator.parse_noise(noise[0].to(device)))
-        image = generator(latent[0].to(device), seg=False)
-        est_label = linear_model.predict(generator.stage) 
+        image, stage = generator.get_stage(latent[0].to(device), detach=True)
+        est_label = linear_model(stage) 
         evaluator.calc_single(est_label, utils.torch2numpy(label))
 
         if i < 4:
