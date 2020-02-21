@@ -13,7 +13,7 @@ def command(gpus):
             if ts > 100 and ind > 3:
                 continue
             idx = count % len(gpus)
-            yield idx, basecmd % (ts, gpus[idx])
+            yield idx, basecmd % (ts, gpus[idx], ind)
             count += 1
 
 slots = [[] for _ in gpus]
