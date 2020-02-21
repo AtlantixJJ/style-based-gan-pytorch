@@ -30,7 +30,7 @@ parser.add_argument(
 parser.add_argument(
     "--save-iter", default=100, type=int)
 parser.add_argument(
-    "--total-repeat", default=10, type=int)
+    "--total-idx", default=0, type=int)
 parser.add_argument(
     "--test-dir", default="datasets/Synthesized_test")
 parser.add_argument(
@@ -125,76 +125,77 @@ def test(generator, linear_model, test_dl):
 
 
 for ind, sample in enumerate(tqdm(dl)):
-    if ind > args.total_repeat:
+    if ind == args.repeat_idx:
         break
-    latents, noises, images, labels = sample
-    labels = labels[:, :, :, 0]
-    labels = idmap(labels)
 
-    # Train a linear model based on train_size samples
-    test_images = 0
-    linear_model = LinearSemanticExtractor(args.total_class, stylegan_dims).to(device)
-    for i in tqdm(range(train_iter)):
-        # ensure we initialize different noise
-        generator.set_noise(None)
+latents, noises, images, labels = sample
+labels = labels[:, :, :, 0]
+labels = idmap(labels)
+
+# Train a linear model based on train_size samples
+test_images = 0
+linear_model = LinearSemanticExtractor(
+    n_class=args.total_class,
+    dims=stylegan_dims).to(device)
+for i in tqdm(range(train_iter)):
+    # ensure we initialize different noise
+    generator.set_noise(None)
+    stages = []
+    stage = []
+
+    prev = cur = 0
+    # equivalent to 1 iteration, in case memory is not sufficient
+    for j in range(latents.shape[0]):
+        generator(latents[j].to(device), seg=False)
+        stages.append([s.detach() for s in generator.stage])
+        cur += 1
+        if (j + 1) % 4 != 0 and j + 1 != latents.shape[0]: # form a batch of 4
+            continue
+        for k in range(len(stages[0])):
+            stage.append(torch.cat([s[k] for s in stages]))
+        # optimization
+        segs = linear_model(stage) # (N, C, H, W)
+        segloss = loss.segloss(segs, labels[prev:cur].to(device))
+        segloss.backward()
+        prev = cur
         stages = []
         stage = []
 
-        prev = cur = 0
-        # equivalent to 1 iteration, in case memory is not sufficient
-        for j in range(latents.shape[0]):
-            generator(latents[j].to(device), seg=False)
-            stages.append([s.detach() for s in generator.stage])
-            cur += 1
-            if (j + 1) % 4 != 0 and j + 1 != latents.shape[0]: # form a batch of 4
-                continue
-            for k in range(len(stages[0])):
-                stage.append(torch.cat([s[k] for s in stages]))
-            # optimization
-            segs = linear_model(stage) # (N, C, H, W)
-            segloss = loss.segloss(segs, labels[prev:cur].to(device))
-            segloss.backward()
-            prev = cur
-            stages = []
-            stage = []
+    linear_model.optim.step()
+    linear_model.optim.zero_grad()
 
-        linear_model.optim.step()
-        linear_model.optim.zero_grad()
+    #if (i + 1) % args.save_iter == 0 or (i + 1) == args.train_iter:
+    #    fpath = f"results/linear_{ind}_i{i+1}_b{args.train_size}_idmap-{name}.model"
+    #    torch.save(linear_model.state_dict(), fpath)
+    #    global_dic, class_dic, test_images = test(generator, linear_model, test_dl)
+    #    np.save(fpath.replace(".model", "_global.npy"), global_dic)
+    #    np.save(fpath.replace(".model", "_class.npy"), class_dic)
 
-        #if (i + 1) % args.save_iter == 0 or (i + 1) == args.train_iter:
-        #    fpath = f"results/linear_{ind}_i{i+1}_b{args.train_size}_idmap-{name}.model"
-        #    torch.save(linear_model.state_dict(), fpath)
-        #    global_dic, class_dic, test_images = test(generator, linear_model, test_dl)
-        #    np.save(fpath.replace(".model", "_global.npy"), global_dic)
-        #    np.save(fpath.replace(".model", "_class.npy"), class_dic)
+    if i + 1 == train_iter:
+        est_labels = segs[-1].argmax(1)
 
-        if i + 1 == train_iter:
-            est_labels = segs[-1].argmax(1)
+fpath = f"results/linear_{ind}_b{args.train_size}_idmap-{name}.model"
+torch.save(linear_model.state_dict(), fpath)
+global_dic, class_dic, test_images = test(generator, linear_model, test_dl)
+np.save(fpath.replace(".model", "_global.npy"), global_dic)
+np.save(fpath.replace(".model", "_class.npy"), class_dic)
 
-    fpath = f"results/linear_{ind}_b{args.train_size}_idmap-{name}.model"
-    torch.save(linear_model.state_dict(), fpath)
-    global_dic, class_dic, test_images = test(generator, linear_model, test_dl)
-    np.save(fpath.replace(".model", "_global.npy"), global_dic)
-    np.save(fpath.replace(".model", "_class.npy"), class_dic)
+image = generator(latents[:4, 0, :].to(device), seg=False)
+image = (1 + image.clamp(-1, 1).detach().cpu()) / 2
+est_labels = torch.from_numpy(linear_model.predict(generator.stage))
+est_labels_viz = [colorizer(l).unsqueeze(0).float() / 255. for l in est_labels]
+labels_viz = [colorizer(l).unsqueeze(0).float() / 255. for l in labels[:4]]
+res = []
+for img, lbl, pred in zip(image, labels_viz, est_labels_viz):
+    res.extend([img.unsqueeze(0), lbl, pred])
+res = [F.interpolate(r.detach().cpu(), size=256, mode="nearest") for r in res]
+fpath = f"results/linear_train_{ind}_b{args.train_size}_idmap-{name}.png"
+vutils.save_image(torch.cat(res), fpath, nrow=3)
 
-    image = generator(latents[:4, 0, :].to(device), seg=False)
-    image = (1 + image.clamp(-1, 1).detach().cpu()) / 2
-    est_labels = torch.from_numpy(linear_model.predict(generator.stage))
-    est_labels_viz = [colorizer(l).unsqueeze(0).float() / 255. for l in est_labels]
-    labels_viz = [colorizer(l).unsqueeze(0).float() / 255. for l in labels[:4]]
-    res = []
-    for img, lbl, pred in zip(image, labels_viz, est_labels_viz):
-        res.extend([img.unsqueeze(0), lbl, pred])
-    res = [F.interpolate(r.detach().cpu(), size=256, mode="nearest") for r in res]
-    fpath = f"results/linear_train_{ind}_b{args.train_size}_idmap-{name}.png"
-    vutils.save_image(torch.cat(res), fpath, nrow=3)
+test_images = [F.interpolate(img.detach().cpu(), size=256, mode="nearest")
+    for img in test_images]
+fpath = f"results/linear_test_{ind}_b{args.train_size}_idmap-{name}.png"
+vutils.save_image(torch.cat(test_images), fpath, nrow=3)
 
-    test_images = [F.interpolate(img.detach().cpu(), size=256, mode="nearest")
-        for img in test_images]
-    fpath = f"results/linear_test_{ind}_b{args.train_size}_idmap-{name}.png"
-    vutils.save_image(torch.cat(test_images), fpath, nrow=3)
-
-    labels = []
-    latents = []
-
-# model converges after 50 iterations, but train 100 iterations in default
+labels = []
+latents = []
