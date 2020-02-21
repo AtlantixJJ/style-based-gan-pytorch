@@ -61,6 +61,4 @@ def external_model(x):
     return mapid(faceparser(x).argmax(1))
 
 evaluator = evaluate.LinearityEvaluator(external_model, N=1000, latent_dim=128)
-iou_std = evaluator(generator, model_name)
-with open(f"record/{model_name}_linearity_ioustd.txt", "w") as f:
-    f.write(f"{model_name} {iou_std}\n")
+evaluator(generator, model_name)

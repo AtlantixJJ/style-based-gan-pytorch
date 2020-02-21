@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import torch
 import numpy as np
 from tqdm import tqdm
-from model.tfseg import StyledGenerator
+from model.tf import StyledGenerator
 import argparse
 import torch.nn.functional as F
 from torchvision import utils as vutils
@@ -86,7 +86,7 @@ test_dl = torch.utils.data.DataLoader(test_ds, batch_size=1, shuffle=False)
 # build model
 print("=> Setup generator")
 resolution = utils.resolution_from_name(args.model)
-generator = StyledGenerator(resolution=resolution, semantic=f"conv-{args.total_class}-1").to(device)
+generator = StyledGenerator(resolution=resolution).to(device)
 state_dict = torch.load(args.model, map_location='cpu')
 missing_dict = generator.load_state_dict(state_dict, strict=False)
 print(missing_dict)
@@ -146,8 +146,8 @@ for i in tqdm(range(train_iter)):
     prev = cur = 0
     # equivalent to 1 iteration, in case memory is not sufficient
     for j in range(latents.shape[0]):
-        generator(latents[j].to(device), seg=False)
-        stages.append([s.detach() for s in generator.stage])
+        image, stage = generator.get_stage(latents[j].to(device), detach=True)
+        stages.append(stage)
         cur += 1
         if (j + 1) % 4 != 0 and j + 1 != latents.shape[0]: # form a batch of 4
             continue
