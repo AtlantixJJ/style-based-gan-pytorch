@@ -14,7 +14,7 @@ import torch.nn.functional as F
 from torchvision import utils as vutils
 from lib.face_parsing import unet
 import evaluate, utils, dataset, loss
-from model.linear import LinearSemanticExtractor, OVOLinearSemanticExtractor
+from model.semantic_extractor import LinearSemanticExtractor
 import pickle
 
 

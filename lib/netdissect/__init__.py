@@ -33,7 +33,9 @@ Example:
             recover_image=ReverseNormalize(IMAGE_MEAN, IMAGE_STDEV),
             examples_per_unit=10)
 '''
-
+import sys
+sys.path.insert(0, ".")
+sys.path.insert(0, "lib")
 from .dissection import dissect, ReverseNormalize
 from .dissection import ClassifierSegRunner, GeneratorSegRunner
 from .dissection import ImageOnlySegRunner
