@@ -3,6 +3,7 @@ import torch.nn.functional as F
 import numpy as np
 from tqdm import tqdm
 import model, utils, loss
+from model.semantic_extractor import LinearSemanticExtractor
 
 
 def compute_score_numpy(y_pred, y_true):
@@ -133,17 +134,14 @@ class DetectionMetric(object):
 
     def aggregate(self):
         # pixel acc
-        arr = self.result["pixelacc"]
-        self.global_result["pixelacc"] = float(sum(arr)) / len(arr)
-
-        # convert to numpy array
-        for name in self.class_metric_names:
-            self.result[name] = np.array(self.result[name])
+        arr = np.array(self.result["pixelacc"])
+        v = arr[arr > -1]
+        self.global_result["pixelacc"] = v.mean() if len(v) > 0 else -1
 
         # average over samples for each class and metric
         for i in range(self.n_class):
             for j, name in enumerate(self.class_metric_names):
-                arr = self.result[name][i]
+                arr = np.array(self.result[name][i])
                 arr = arr[arr > -1]
                 if arr.shape[0] == 0:
                     self.class_result[name][i] = -1
@@ -152,14 +150,14 @@ class DetectionMetric(object):
         
         # calculate global metric
         for j, name in enumerate(self.class_metric_names):
-            vals = self.result[name] # get rid of invalid classes
+            vals = np.array(self.result[name]) # get rid of invalid classes
             self.global_result[f"m{name}"] = vals[vals > -1].mean()
 
     # aggregate the result of given classes
     # need to be called after aggregate()
     def subset_aggregate(self, name, indice):
         for mname in self.class_metric_names:
-            vals = self.result[mname][indice]
+            vals = np.array(self.result[mname][indice])
             self.result[f"m{mname}_{name}"] = vals[vals > -1].mean()
             
     def __call__(self, y_pred, y_true):
@@ -175,7 +173,7 @@ class DetectionMetric(object):
                 pixelcorrect += pc
                 pixeltotal += pt
             metrics.append([precision, recall, iou])
-        pixelacc = float(pixelcorrect) / pixeltotal
+        pixelacc = float(pixelcorrect) / pixeltotal if pixeltotal > 0 else -1
 
         self.result["pixelacc"].append(pixelacc)
         for i, s in enumerate(metrics): # i-th class, score
@@ -302,19 +300,14 @@ class LinearityEvaluator(object):
     """
     External model: a semantic segmentation network
     """
-    def __init__(self, model, external_model,
-        N=1000, imsize=512, latent_dim=512, n_class=16, stylegan_noise=False):
-        self.model = model
+    def __init__(self, external_model, N=1000, latent_dim=512, n_class=16, stylegan_noise=False):
+        self.model = None
         self.external_model = external_model
         self.device = "cuda"
         self.N = N
         self.latent_dim = latent_dim
-        self.imsize = 512
         self.n_class = n_class
         self.stylegan_noise = stylegan_noise
-        self.logsoftmax = torch.nn.CrossEntropyLoss()
-        self.logsoftmax.to(self.device)
-
         self.fix_latents = torch.randn(256, self.latent_dim)
         if self.stylegan_noise:
             self.fix_noises = [self.model.generate_noise() for _ in range(256)]
@@ -335,15 +328,14 @@ class LinearityEvaluator(object):
     def eval_fix(self):
         segms = []
         for i in range(self.fix_latents.shape[0]):
-            latent = self.fix_latents[i:i+1].detach().clone().to(self.device)
+            latent = self.fix_latents[i:i+1].to(self.device)
             # stylegan need a noise
             if self.stylegan_noise:
-                noise = [n.detach().clone().to(self.device) for n in self.fix_noises[i]]
+                noise = [n.to(self.device) for n in self.fix_noises[i]]
                 self.model.set_noise(noise)
-            self.model(latent)
-            seg = self.extractor(self.model.stage)[-1]
-            label = seg.argmax(1)
-            segms.append(label.detach().clone())
+            image, stage = self.model.get_stage(latent, detach=True)
+            seg = self.extractor(stage)[-1]
+            segms.append(seg.argmax(1))
         segms = utils.torch2numpy(torch.cat(segms))
         if self.prev_segm is 0:
             self.prev_segm = segms
@@ -356,19 +348,19 @@ class LinearityEvaluator(object):
 
     def __call__(self, model, name):
         self.model = model
-        latent = torch.randn(1, self.latent_dim, device=self.device)
+        latent = torch.randn(4, self.latent_dim, device=self.device)
         for ind in tqdm(range(self.N)):
             latent.normal_()
-            image = self.model(latent)
+            image, stage = self.model.get_stage(latent)
+            label = self.external_model(image.clamp(-1, 1))
             if ind == 0:
                 self.prev_segm = 0
-                self.dims = [s.shape[1] for s in self.model.stage]
-                self.extractor = model.linear.LinearSemanticExtractor(self.n_class, self.dims)
-            segs = self.extractor(self.model.stage)
-
-            ext_label = self.external_model(image.clamp(-1, 1))
-
-            segloss = loss.segloss(segs, ext_label)
+                self.dims = [s.shape[1] for s in stage]
+                self.extractor = LinearSemanticExtractor(
+                    n_class=self.n_class,
+                    dims=self.dims).to(self.device)
+            segs = self.extractor(stage)
+            segloss = loss.segloss(segs, label)
             segloss.backward()
 
             self.extractor.optim.step()

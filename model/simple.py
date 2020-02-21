@@ -142,6 +142,23 @@ class Generator(nn.Module):
         elif "mul" in self.segcfg:
             return self.extract_segmentation_mul(stage)  
 
+    def get_stage(self, x, detach=False):
+        x = self.relu(self.fc(x)).view(-1, self.dims[0], 4, 4)
+
+        stage = []
+        for layers in self.deconvs:
+            x = layers(x)
+            if detach:
+                stage.append(x.detach())
+            else:
+                stage.append(x)
+
+        x = self.visualize(x)
+        if self.out_act == "tanh":
+            x = self.tanh(x)
+
+        return x, stage
+
     def forward(self, x, seg=True, detach=False):
         x = self.relu(self.fc(x)).view(-1, self.dims[0], 4, 4)
 

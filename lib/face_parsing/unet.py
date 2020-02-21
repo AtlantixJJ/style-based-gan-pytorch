@@ -14,8 +14,10 @@ class unet(nn.Module):
         is_deconv=True,
         in_channels=3,
         is_batchnorm=True,
+        train_size=512
     ):
         super(unet, self).__init__()
+        self.train_size = train_size
         self.is_deconv = is_deconv
         self.in_channels = in_channels
         self.is_batchnorm = is_batchnorm
@@ -49,10 +51,9 @@ class unet(nn.Module):
         self.final = nn.Conv2d(filters[0], n_classes, 1)
 
     def forward(self, inputs):
-        train_size = 512
         input_size = inputs.shape[3]
-        if input_size != train_size:
-            inputs = F.interpolate(inputs, train_size, mode="bilinear")
+        if input_size != self.train_size:
+            inputs = F.interpolate(inputs, self.train_size, mode="bilinear")
 
         conv1 = self.conv1(inputs)
         maxpool1 = self.maxpool1(conv1)
@@ -74,7 +75,7 @@ class unet(nn.Module):
 
         final = self.final(up1)
 
-        if input_size != train_size:
+        if input_size != self.train_size:
             final = F.interpolate(final, input_size, mode="bilinear")
 
         return final

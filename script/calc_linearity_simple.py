@@ -1,3 +1,6 @@
+"""
+python script/calc_linearity_simple.py --imsize 64 --model expr/celeba_eyeg_wgan64/
+"""
 import sys, argparse, torch, glob, os
 sys.path.insert(0, ".")
 import numpy as np
@@ -5,7 +8,6 @@ import model, fid, utils, evaluate
 from lib.face_parsing.unet import unet
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset", default="../datasets/CelebAMask-HQ/CelebA-HQ-img-128")
 parser.add_argument("--imsize", default=128, type=int)
 parser.add_argument("--model", default="checkpoint/fixseg_conv-16-1.model")
 parser.add_argument("--external-model", default="checkpoint/faceparse_unet_512.pth")
@@ -26,8 +28,8 @@ if args.recursive == 1:
     gpus = args.gpu.split(",")
     slots = [[] for _ in gpus]
     for i, model in enumerate(model_files):
-        basecmd = "python script/calc_linearity_simple.py --dataset %s --imsize %d --model %s --gpu %s --recursive 0"
-        basecmd = basecmd % (args.dataset, args.imsize, model, gpus[i % len(gpus)])
+        basecmd = "python script/calc_linearity_simple.py --imsize %d --model %s --gpu %s --recursive 0"
+        basecmd = basecmd % (args.imsize, model, gpus[i % len(gpus)])
         slots[i % len(gpus)].append(basecmd)
     
     for s in slots:
@@ -45,7 +47,10 @@ print(missed)
 generator.to(device)
 
 state_dict = torch.load(args.external_model, map_location='cpu')
-faceparser = unet()
+train_size = 512
+if "128" in args.external_model:
+    train_size = 128
+faceparser = unet(train_size=train_size)
 faceparser.load_state_dict(state_dict)
 faceparser = faceparser.to(device)
 faceparser.eval()
@@ -55,7 +60,5 @@ mapid = utils.CelebAIDMap().mapid
 def external_model(x):
     return mapid(faceparser(x).argmax(1))
 
-evaluator = evaluate.LinearityEvaluator(external_model, latent_dim=128)
-iou_std = evaluator(generator, model_name)
-with open(f"record/{model_name}_linearity_ioustd.txt", "w") as f:
-    f.write(f"{model_name} {iou_std}\n")
+evaluator = evaluate.LinearityEvaluator(external_model, N=1000, latent_dim=128)
+evaluator(generator, model_name)
