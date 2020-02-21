@@ -142,7 +142,7 @@ for i in tqdm(range(train_iter)):
     # ensure we initialize different noise
     generator.set_noise(None)
     stages = []
-    stage = []
+    stage_input = []
 
     prev = cur = 0
     # equivalent to 1 iteration, in case memory is not sufficient
@@ -153,11 +153,9 @@ for i in tqdm(range(train_iter)):
         if (j + 1) % 4 != 0 and j + 1 != latents.shape[0]: # form a batch of 4
             continue
         for k in range(len(stages[0])):
-            stage.append(torch.cat([s[k] for s in stages]))
-        for s in stage:
-            print(s.shape)
+            stage_input.append(torch.cat([s[k] for s in stages]))
         # optimization
-        segs = linear_model(stage) # (N, C, H, W)
+        segs = linear_model(stage_input) # (N, C, H, W)
         segloss = loss.segloss(segs, labels[prev:cur].to(device))
         segloss.backward()
         prev = cur
