@@ -1,8 +1,7 @@
 """
 Semantic enhanced discriminator training.
 python script/wgan.py --imsize 64
-python train/wgan.py --imsize 64 --load expr/celeba_wgan64/gen_iter_050000.model --disc-net expr/celeba_wgan64/disc_iter_050000.model --batch-size 64 --gpu 0 --save-iter 50 --iter-num 1000 --dataset datasets/CelebAMask-HQ/hat/image --task celeba_hat_wgan
-python train/wgan.py --imsize 64 --load expr/celeba_wgan64/gen_iter_050000.model --disc-net expr/celeba_wgan64/disc_iter_050000.model --batch-size 64 --gpu 1 --save-iter 50 --iter-num 1000 --dataset datasets/CelebAMask-HQ/eye_g/image --task celeba_eyeg_wgan
+python train/wgan.py --imsize 64 --load expr/celeba_wgan64/gen_iter_050000.model --disc-net expr/celeba_wgan64/disc_iter_050000.model --batch-size 64 --gpu 0 --save-iter 100 --iter-num 5000 --dataset ../datasets/CelebAMask-HQ/CelebA-HQ-img-64 --task celeba_resume_wgan --warmup 100 --lr 0.0002 && python train/wgan.py --imsize 64 --load expr/celeba_wgan64/gen_iter_050000.model --disc-net expr/celeba_wgan64/disc_iter_050000.model --batch-size 64 --gpu 0 --save-iter 100 --iter-num 5000 --dataset ../datasets/CelebAMask-HQ/hat/image --task celeba_hat_wgan --warmup 100 --lr 0.0002 && python train/wgan.py --imsize 64 --load expr/celeba_wgan64/gen_iter_050000.model --disc-net expr/celeba_wgan64/disc_iter_050000.model --batch-size 64 --gpu 1 --save-iter 100 --iter-num 5000 --dataset ../datasets/CelebAMask-HQ/eye_g/image --task celeba_eyeg_wgan --warmup 100 --lr 0.0002
 python train/wgan.py --imsize 128 --load expr/celeba_wgan128/gen_iter_050000.model --disc-net expr/celeba_wgan128/disc_iter_050000.model --batch-size 16 --gpu 2 --save-iter 100 --iter-num 5000 --dataset datasets/CelebAMask-HQ/hat/image --task celeba_hat_wgan
 python train/wgan.py --imsize 128 --load expr/celeba_wgan128/gen_iter_050000.model --disc-net expr/celeba_wgan128/disc_iter_050000.model --batch-size 16 --gpu 3 --save-iter 100 --iter-num 5000 --dataset datasets/CelebAMask-HQ/eye_g/image --task celeba_eyeg_wgan
 """
@@ -50,6 +49,14 @@ sg.train()
 
 g_optim = torch.optim.Adam(sg.module.parameters(), lr=cfg.lr, betas=(0.0, 0.9))
 d_optim = torch.optim.Adam(disc.module.parameters(), lr=cfg.lr * 2, betas=(0.0, 0.9))
+
+
+g_sched = torch.optim.lr_scheduler.LambdaLR(
+    g_optim,
+    lambda step: min((float(step) + 1) / (cfg.warmup + 1), 1))
+d_sched = torch.optim.lr_scheduler.LambdaLR(
+    d_optim,
+    lambda step: min((float(step) + 1) / (cfg.warmup + 1), 1))
 
 latent = torch.randn(cfg.batch_size, 128).cuda()
 eps = torch.rand(cfg.batch_size, 1, 1, 1).cuda()
@@ -100,16 +107,21 @@ for ind, real_image in enumerate(pbar):
     disc_loss, grad_penalty = wgan_gp(disc, real_image, fake_image)
     d_optim.step()
 
+    flag = (disc_loss + grad_penalty > 500)
+
     # Train gen
-    if ind > cfg.warmup:
-        sg.zero_grad()
-        utils.requires_grad(disc, False)
-        latent.normal_()
-        gen = sg(latent)
-        gen_loss = -disc(gen).mean()
-        gen_loss.backward()
-        g_optim.step()
-        utils.requires_grad(disc, True)
+    sg.zero_grad()
+    utils.requires_grad(disc, False)
+    latent.normal_()
+    gen = sg(latent)
+    gen_loss = -disc(gen).mean()
+    gen_loss.backward()
+    g_optim.step()
+    utils.requires_grad(disc, True)
+
+    # schedule lr for warm start
+    g_sched.step()
+    d_sched.step()
 
     # display
     record['disc_loss'].append(utils.torch2numpy(disc_loss))
@@ -130,10 +142,19 @@ for ind, real_image in enumerate(pbar):
 
     if ind % cfg.save_iter == 0 or ind == cfg.n_iter:
         print(f"=> Snapshot model {ind}")
+        #torch.save(g_optim.state_dict(), cfg.expr_dir + "/gen_iter_%06d.state" % ind)
+        #torch.save(d_optim.state_dict(), cfg.expr_dir + "/disc_iter_%06d.state" % ind)
         torch.save(sg.module.state_dict(), cfg.expr_dir + "/gen_iter_%06d.model" % ind)
         torch.save(disc.module.state_dict(), cfg.expr_dir + "/disc_iter_%06d.model" % ind)
 
-    if ind % cfg.disp_iter == 0 or ind == cfg.n_iter or cfg.debug:
+    if flag:
+        print(f"!> Abnormal loss at {ind}")
+        vutils.save_image(gen[:16], cfg.expr_dir + '/gen_%06d.png' % ind,
+                            nrow=4, normalize=True, range=(-1, 1))
+        vutils.save_image(real_image[:16], cfg.expr_dir + '/real_%06d.png' % ind,
+                            nrow=4, normalize=True, range=(-1, 1))
+
+    if flag or ind % cfg.disp_iter == 0 or ind == cfg.n_iter or cfg.debug:
         vutils.save_image(gen[:4], cfg.expr_dir + '/gen_%06d.png' % ind,
                             nrow=2, normalize=True, range=(-1, 1))
         vutils.save_image(real_image[:4], cfg.expr_dir + '/real_%06d.png' % ind,
