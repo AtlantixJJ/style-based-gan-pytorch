@@ -30,7 +30,7 @@ parser.add_argument(
 parser.add_argument(
     "--save-iter", default=100, type=int)
 parser.add_argument(
-    "--total-idx", default=0, type=int)
+    "--repeat-idx", default=0, type=int)
 parser.add_argument(
     "--test-dir", default="datasets/Synthesized_test")
 parser.add_argument(
