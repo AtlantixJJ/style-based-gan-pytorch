@@ -396,6 +396,17 @@ class StyledGenerator(nn.Module):
     def get_stage(self, x, detach=False):
         return self.g_synthesis.get_stage(self.g_mapping(x), detach)
 
+    def generate_noise(self):
+        if not hasattr(self, "noise_layers"):
+            self.noise_layers = [l for n,l in self.named_modules() if "noise" in n]
+        
+        noise = []
+        for i in range(len(self.noise_layers)):
+            size = 4 * 2 ** (i // 2)
+            noise.append(torch.randn(1, 1, size, size))
+
+        return noise
+
     def set_noise(self, noises):
         if not hasattr(self, "noise_layers"):
             self.noise_layers = [l for n,l in self.named_modules() if "noise" in n]
@@ -403,11 +414,32 @@ class StyledGenerator(nn.Module):
         if noises is None:
             for i in range(len(self.noise_layers)):
                 self.noise_layers[i].noise = None
-            return
+            return len(self.noise_layers)
 
         for i in range(len(noises)):
             self.noise_layers[i].noise = noises[i]
 
+    def get_noise(self):
+        noises = []
+        if not hasattr(self, "noise_layers"):
+            self.noise_layers = [l for n,l in self.named_modules() if "noise" in n]
+
+        for i in range(len(self.noise_layers)):
+            noises.append(self.noise_layers[i].noise.detach().view(-1))
+        return torch.cat(noises)
+
+    def parse_noise(self, vec): # from vec to list
+        if not hasattr(self, "noise_layers"):
+            self.noise_layers = [l for n,l in self.named_modules() if "noise" in n]
+        
+        noise = []
+        prev = 0
+        for i in range(len(self.noise_layers)):
+            size = 4 * 2 ** (i // 2)
+            noise.append(vec[prev : prev + size ** 2].view(1, 1, size, size))
+            prev += size ** 2
+        return noise
+        
 
 if 0:
     # Need to run this on StyleGAN repo

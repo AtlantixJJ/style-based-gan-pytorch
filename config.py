@@ -130,6 +130,45 @@ class BaseConfig(object):
         return "\n".join(strs)
 
 
+class SemanticExtractorConfig(BaseConfig):
+    def __init__(self):
+        super().__init__()
+
+        self.parser.add_argument(
+            "--seg-net", default="checkpoint/faceparse_unet_512.pth", help="The load path of semantic segmentation network")
+        self.parser.add_argument(
+            "--seg-cfg", default="linear", help="Configure of segmantic segmentation extractor")
+        self.parser.add_argument(
+            "--upsample", default="bilinear", help="Upsample method of feature map. bilinear, nearest.")
+        self.parser.add_argument(
+            "--n-class", type=int, default=16, help="Class num")
+        self.parser.add_argument(
+            "--ortho-reg", type=float, default=-1, help="The coef of using ortho reg. < 0 means not to use.")
+        self.parser.add_argument(
+            "--positive-reg", type=float, default=-1, help="The coef of using positive regularization.")
+
+    def parse(self):
+        super().parse()
+        self.ortho_reg = self.args.ortho_reg
+        self.positive_reg = self.args.positive_reg
+        self.upsample = self.args.upsample
+        self.n_class = self.args.n_class
+        self.seg_net_path = self.args.seg_net
+        self.semantic_config = self.args.seg_cfg
+        self.record = {'loss': [], 'segloss': [], 'regloss': []}
+        self.name = f"{self.task}_{self.model_name}_{self.semantic_config}"
+        self.expr_dir = osj(self.args.expr, self.name)
+
+    def __str__(self):
+        prev_str = super().__str__()
+        strs = [prev_str]
+        strs.append("=> Segmentation network: %s" % self.seg_net_path)
+        strs.append("=> Segmentation configure: %s" % self.semantic_config)
+        strs.append("=> Orthogonal regularization: %f" % self.ortho_reg)
+        strs.append("=> Positive regularization: %f" % self.positive_reg)
+        return "\n".join(strs)
+
+
 class FixSegConfig(BaseConfig):
     def __init__(self):
         super(FixSegConfig, self).__init__()

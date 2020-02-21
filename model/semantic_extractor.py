@@ -1,9 +1,22 @@
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
 
-class BaseSemanticExtractor(torch.nn.Module):
+def get_semantic_extractor(config):
+    if config == "linear":
+        return LinearSemanticExtractor
+    elif config == "nonlinear":
+        return NonlinearSemanticExtractor
+    elif config == "generative":
+        return GenerativeSemanticExtractor
+    elif config == "cascade":
+        return CascadeSemanticExtractor
+
+
+
+class BaseSemanticExtractor(nn.Module):
     def __init__(self, n_class, dims=[], mapid=None, category_groups=None):
         super().__init__()
         self.mapid = mapid
@@ -39,28 +52,28 @@ class GenerativeSemanticExtractor(BaseSemanticExtractor):
         def conv_block(in_dim, out_dim):
             midim = (in_dim + out_dim) // 2
             if self.n_layer == 1:
-                _m = [torch.nn.Conv2d(in_dim, out_dim, self.ksize), torch.nn.ReLU(inplace=True)]
+                _m = [nn.Conv2d(in_dim, out_dim, self.ksize), nn.ReLU(inplace=True)]
             else:
                 _m = []
-                _m.append(torch.nn.Conv2d(in_dim, midim, self.ksize))
-                _m.append(torch.nn.ReLU(inplace=True))
+                _m.append(nn.Conv2d(in_dim, midim, self.ksize))
+                _m.append(nn.ReLU(inplace=True))
                 for i in range(self.n_layer - 2):
-                    _m.append(torch.nn.Conv2d(midim, midim, self.ksize))
-                    _m.append(torch.nn.ReLU(inplace=True))
-                _m.append(torch.nn.Conv2d(midim, out_dim, self.ksize))
-                _m.append(torch.nn.ReLU(inplace=True))
-            return torch.nn.Sequential(*_m)
+                    _m.append(nn.Conv2d(midim, midim, self.ksize))
+                    _m.append(nn.ReLU(inplace=True))
+                _m.append(nn.Conv2d(midim, out_dim, self.ksize))
+                _m.append(nn.ReLU(inplace=True))
+            return nn.Sequential(*_m)
 
         # transform generative representation to semantic embedding
-        self.semantic_extractor = torch.nn.ModuleList([
+        self.semantic_extractor = nn.ModuleList([
             conv_block(dim, dim) for dim in self.dims])
         # learning residual between different layers of generative representation
         self.semantic_reviser = nn.ModuleList([
             conv_block(prev, cur)
             for prev, cur in zip(self.dims[:-1], self.dims[1:])])
         # transform semantic embedding to label
-        self.semantic_visualizer = torch.nn.ModuleList([
-            torch.nn.Conv2d(dim, self.n_class, self.ksize) for dim in self.dims])
+        self.semantic_visualizer = nn.ModuleList([
+            nn.Conv2d(dim, self.n_class, self.ksize) for dim in self.dims])
     
     def forward(self, stage, last_only=True):
         hidden = 0
@@ -89,10 +102,10 @@ class LinearSemanticExtractor(BaseSemanticExtractor):
 
     def build(self):
         def conv_block(in_dim, out_dim, ksize):
-            _m = [torch.nn.Conv2d(in_dim, out_dim, ksize, bias=False)]
-            return torch.nn.Sequential(*_m)
+            _m = [nn.Conv2d(in_dim, out_dim, ksize, bias=False)]
+            return nn.Sequential(*_m)
 
-        self.semantic_extractor = torch.nn.ModuleList([
+        self.semantic_extractor = nn.ModuleList([
             conv_block(dim, self.n_class, 1)
                 for dim in self.dims])
         
@@ -161,13 +174,38 @@ class LinearSemanticExtractor(BaseSemanticExtractor):
             prev_dim, cur_dim = self.segments[i], self.segments[i+1]
             state_dict = conv[0].state_dict()
             device = state_dict["weight"].device
-            state_dict["weight"] = torch.nn.Parameter(coef[:, prev_dim:cur_dim]).to(device)
+            state_dict["weight"] = nn.Parameter(coef[:, prev_dim:cur_dim]).to(device)
             conv[0].load_state_dict(state_dict)
     """
 
 
+class NonLinearSemanticExtractor(LinearSemanticExtractor):
+    """
+    Extract the semantic segmentation from internal representation using 1x1 conv.
+    """
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.build()
+
+    def build(self):
+        def conv_block(in_dim, out_dim, ksize):
+            midim = (in_dim + out_dim) // 2
+            _m = []
+            _m.append(nn.Conv2d(in_dim, midim, ksize))
+            _m.append(nn.ReLU(inplace=True))
+            _m.append(nn.Conv2d(midim, midim, ksize))
+            _m.append(nn.Conv2d(midim, out_dim, ksize))
+            return nn.Sequential(*_m)
+
+        self.semantic_extractor = nn.ModuleList([
+            conv_block(dim, self.n_class, 1)
+                for dim in self.dims])
+        
+        self.optim = torch.optim.Adam(self.semantic_extractor.parameters(), lr=1e-3)
+
+
 """
-class OVOLinearSemanticExtractor(torch.nn.Module):
+class OVOLinearSemanticExtractor(nn.Module):
     def __init__(self, n_class, dims=[], mapid=None):
         super(OVOLinearSemanticExtractor, self).__init__()
         self.n_class = n_class
@@ -179,10 +217,10 @@ class OVOLinearSemanticExtractor(torch.nn.Module):
 
     def build_extractor_conv(self):
         def conv_block(in_dim, out_dim, ksize):
-            _m = [torch.nn.Conv2d(in_dim, out_dim, ksize)]
-            return torch.nn.Sequential(*_m)
+            _m = [nn.Conv2d(in_dim, out_dim, ksize)]
+            return nn.Sequential(*_m)
 
-        self.semantic_extractor = torch.nn.ModuleList([
+        self.semantic_extractor = nn.ModuleList([
             conv_block(dim, self.n_ovo, 1)
                 for dim in self.dims])
         
@@ -197,11 +235,11 @@ class OVOLinearSemanticExtractor(torch.nn.Module):
 
             state_dict = conv[0].state_dict()
             device = state_dict["weight"].device
-            state_dict["weight"] = torch.nn.Parameter(coef[:, prev_dim:cur_dim]).to(device)
+            state_dict["weight"] = nn.Parameter(coef[:, prev_dim:cur_dim]).to(device)
             if i == len(self.dims) - 1:
-                state_dict["bias"] = torch.nn.Parameter(intercept).to(device)
+                state_dict["bias"] = nn.Parameter(intercept).to(device)
             else:
-                state_dict["bias"] = torch.nn.Parameter(zeros).to(device)
+                state_dict["bias"] = nn.Parameter(zeros).to(device)
             conv[0].load_state_dict(state_dict)
 
     def predict(self, stage, last_only=False):

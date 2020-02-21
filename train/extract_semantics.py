@@ -8,44 +8,44 @@ import numpy as np
 from torchvision import utils as vutils
 from lib.face_parsing import unet
 import config
-import utils, evaluate, loss, model
+import utils, evaluate, loss, segmenter
 
+from model.semantic_extractor import get_semantic_extractor
 from lib.netdissect.segviz import segment_visualization, segment_visualization_single
-from lib.netdissect.segmenter import UnifiedParsingSegmenter
 from lib.netdissect import proggan
 from lib.netdissect.zdataset import standard_z_sample, z_dataset_for_model
 
-cfg = config.FixSegConfig()
+cfg = config.SemanticExtractorConfig()
 cfg.parse()
-s = str(cfg)
 cfg.setup()
-print(s)
-        
-latent = torch.randn(cfg.batch_size, 512).to(cfg.device)
-generator = model.load_model_from_pth_file(cfg.model_name, cfg.load_path)
-generator.to(cfg.device).eval()
-image, stage = generator.get_stage(latent, True)
-dims = [s.shape[1] for s in stage]
-segmenter = UnifiedParsingSegmenter()
-labels, cats = segmenter.get_label_and_category_names()
-with open(cfg.expr_dir + "/config.txt", "w") as f:
-    f.write(s)
-    for i, (label, cat) in enumerate(labels):
-        f.write('%s %s\n' % (label, cat))
 
+segmenter = segmenter.get_segmenter(cfg.task, cfg.seg_net_path)
+labels, cats = segmenter.get_label_and_category_names()
 category_groups = utils.get_group(labels)
 category_groups_label = utils.get_group(labels, False)
 n_class = category_groups[-1][1]
+with open(cfg.expr_dir + "/config.txt", "w") as f:
+    f.write(str(cfg))
+    f.write("\n\n")
+    for i, (label, cat) in enumerate(labels):
+        f.write('%s %s\n' % (label, cat))
+    f.write("\n%s\n" % str(category_groups))
+    f.write("\n%s\n" % str(category_groups_label))
 
-seg = segmenter.segment_batch(image)
-linear_model = model.semantic_extractor.LinearSemanticExtractor(
+latent = torch.randn(cfg.batch_size, 512).to(cfg.device)
+generator = model.load_model_from_pth_file(cfg.model_name, cfg.load_path)
+generator.to(cfg.device).eval()
+
+image, stage = generator.get_stage(latent, True)
+dims = [s.shape[1] for s in stage]
+linear_model = get_semantic_extractor(cfg.semantic_config)(
     n_class=n_class,
     dims=dims,
     mapid=None,
     category_groups=category_groups).to(cfg.device)
-output = linear_model(stage)
 
-record = {"segloss": []}
+
+record = cfg.record
 metrics = [evaluate.SimpleIoUMetric(n_class=cg[1]-cg[0]) for i, cg in enumerate(category_groups)]
 
 for ind in tqdm(range(cfg.n_iter)):
