@@ -154,6 +154,8 @@ for i in tqdm(range(train_iter)):
             continue
         for k in range(len(stages[0])):
             stage.append(torch.cat([s[k] for s in stages]))
+        for s in stage:
+            print(s.shape)
         # optimization
         segs = linear_model(stage) # (N, C, H, W)
         segloss = loss.segloss(segs, labels[prev:cur].to(device))
