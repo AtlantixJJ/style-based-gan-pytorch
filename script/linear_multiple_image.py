@@ -95,8 +95,8 @@ generator.eval()
 # set up input
 latent = torch.randn(1, 512).to(device)
 colorizer = utils.Colorize(args.total_class)
-stages = generator.get_stage(latent, True)
-stylegan_dims = [s.shape[1] for s in stages]
+image, stage = generator.get_stage(latent, True)
+stylegan_dims = [s.shape[1] for s in stage]
 train_iter = min(int(30000 / args.train_size), 8000)
 
 def test(generator, linear_model, test_dl):
