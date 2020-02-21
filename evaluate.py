@@ -296,45 +296,38 @@ class MaskCelebAEval(object):
         self.dic = np.load(fpath, allow_pickle=True)[()]
 
 
-class LinearityEvaluator(object):
-    """
-    External model: a semantic segmentation network
-    """
-    def __init__(self, external_model, N=1000, latent_dim=512, n_class=16, stylegan_noise=False):
-        self.model = None
-        self.external_model = external_model
+class SeparabilityEvaluator(object):
+    def __init__(self, model, sep_model, external_model,
+            latent_dim=512, test_size=256, n_class=16):
         self.device = "cuda"
-        self.N = N
+        self.model = model
+        self.sep_model = sep_model
+        self.external_model = self.external_model
         self.latent_dim = latent_dim
-        self.n_class = n_class
-        self.stylegan_noise = stylegan_noise
-        self.fix_latents = torch.randn(256, self.latent_dim)
-        if self.stylegan_noise:
-            self.fix_noises = [self.model.generate_noise() for _ in range(256)]
+        self.test_size = test_size
+        self.metric = DetectionMetric(n_class=n_class)
+        self.fix_latents = torch.randn(test_size, self.latent_dim)
+        op = getattr(self.model, "generator_noise", None)
+        if callable(op):
+            self.has_noise = True
+            self.fix_noises = [op() for _ in range(test_size)]
+        else:
+            self.has_noise = False
+        self.reset()
 
-        self.metric = DetectionMetric()
+    def reset(self):
+        self.prev_segm = 0
+        self.metric.reset()
 
-    def aggregate(self):
-        self.metric.aggregate()
-
-        for t in ["face", "other"]:
-            self.metric.subset_aggregate(t, getattr(self, f"{t}_indice"))
-        
-        self.global_result = self.metric.global_result
-        self.class_result = self.metric.class_result
-
-        return self.global_result, self.class_result
-
-    def eval_fix(self):
+    def __call__(self):
         segms = []
         for i in range(self.fix_latents.shape[0]):
             latent = self.fix_latents[i:i+1].to(self.device)
-            # stylegan need a noise
-            if self.stylegan_noise:
+            if self.has_noise:
                 noise = [n.to(self.device) for n in self.fix_noises[i]]
                 self.model.set_noise(noise)
             image, stage = self.model.get_stage(latent, detach=True)
-            seg = self.extractor(stage)[-1]
+            seg = self.sep_model(stage)[-1]
             segms.append(seg.argmax(1))
         segms = utils.torch2numpy(torch.cat(segms))
         if self.prev_segm is 0:
@@ -346,29 +339,54 @@ class LinearityEvaluator(object):
 
         self.prev_segm = segms
 
+    def aggregate(self):
+        self.metric.aggregate()
+        self.global_result = self.metric.global_result
+        self.class_result = self.metric.class_result
+        return self.global_result, self.class_result
+
+
+class LinearityEvaluator(object):
+    """
+    External model: a semantic segmentation network
+    """
+    def __init__(self, model, external_model,
+            train_iter=1000, batch_size=4, latent_dim=512,
+            test_size=256, n_class=16):
+        self.model = model
+        self.external_model = external_model
+        self.device = "cuda"
+        self.train_iter = train_iter
+        self.batch_size = batch_size
+        self.latent_dim = latent_dim
+        latent = torch.randn(1, latent_dim, device=self.device)
+        image, stage = self.model.get_stage(latent, detach=True)
+        self.dims = [s.shape[1] for s in stage]
+        self.sep_model = LinearSemanticExtractor(
+            n_class=n_class,
+            dims=self.dims)
+        self.sep_eval = SeparabilityEvaluator(
+            self.model, self.sep_model, self.external_model,
+            latent_dim, test_size, n_class)
+
+
     def __call__(self, model, name):
         self.model = model
         latent = torch.randn(4, self.latent_dim, device=self.device)
-        for ind in tqdm(range(self.N)):
+        for ind in tqdm(range(self.train_iter)):
             latent.normal_()
             image, stage = self.model.get_stage(latent)
             label = self.external_model(image.clamp(-1, 1))
-            if ind == 0:
-                self.prev_segm = 0
-                self.dims = [s.shape[1] for s in stage]
-                self.extractor = LinearSemanticExtractor(
-                    n_class=self.n_class,
-                    dims=self.dims).to(self.device)
-            segs = self.extractor(stage)
+            segs = self.sep_model(stage)
             segloss = loss.segloss(segs, label)
             segloss.backward()
 
             self.extractor.optim.step()
             self.extractor.optim.zero_grad()
-            self.eval_fix()
+            self.sep_eval()
 
-        self.metric.aggregate()
-        global_dic, class_dic = self.metric.global_result, self.metric.class_result
+        self.sep_eval.aggregate()
+        global_dic, class_dic = self.sep_eval.global_result, self.sep_eval.class_result
         np.save(f"results/{name}_global_dic.npy", global_dic)
         np.save(f"results/{name}_class_dic.npy", class_dic)
         return np.array(global_dic["mIoU"]).std()
