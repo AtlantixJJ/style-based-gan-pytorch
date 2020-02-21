@@ -1,3 +1,6 @@
+"""
+python script/calc_linearity_simple.py --imsize 64 --dataset ../datasets/CelebAMask-HQ/CelebA-HQ-img-64 --model expr/celeba_hat_wgan64 
+"""
 import sys, argparse, torch, glob, os
 sys.path.insert(0, ".")
 import numpy as np
