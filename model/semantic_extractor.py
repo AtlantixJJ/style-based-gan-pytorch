@@ -128,11 +128,9 @@ class LinearSemanticExtractor(BaseSemanticExtractor):
         return outputs
         
     def forward_single_group(self, stage, last_only=False):
-        count = 0
         outputs = []
         for i, seg_input in enumerate(stage):
-            outputs.append(self.semantic_extractor[count](seg_input))
-            count += 1
+            outputs.append(self.semantic_extractor[i](seg_input))
         size = outputs[-1].shape[2]
 
         if last_only:

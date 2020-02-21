@@ -20,7 +20,7 @@ import pickle
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "--model", default="checkpoint/fixseg_conv-16-1.model")
+    "--model", default="checkpoint/karras2019stylegan-celebahq-1024x1024.for_g_all.pt")
 parser.add_argument(
     "--data-dir", default="datasets/Synthesized")
 parser.add_argument(

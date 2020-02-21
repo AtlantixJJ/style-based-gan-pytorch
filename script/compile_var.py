@@ -11,6 +11,8 @@ style.use('seaborn-poster') #sets the size of the charts
 style.use('ggplot')
 colors = list(matplotlib.colors.cnames.keys())
 
+data_dir = sys.argv[1]
+
 # plot fid data
 fids = {}
 with open("/Users/jianjinxu/temp/var_metric/wgan128/wgan128_fid.txt", "r") as f:
