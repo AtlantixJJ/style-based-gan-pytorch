@@ -21,7 +21,7 @@ class CelebAMaskHQSegmenter(object):
         self.model.cuda().eval()
         del state_dict
         self.idmap = utils.CelebAIDMap()
-        self.labels = utils.CELEBA_REDUCED_CATEGORY
+        self.labels = utils.CELEBA_REDUCED_CATEGORY[1:]
         self.categories = ["face"] * len(self.labels)
     
     def get_label_and_category_names(self):

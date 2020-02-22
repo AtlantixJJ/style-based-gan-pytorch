@@ -38,7 +38,7 @@ generator.to(cfg.device).eval()
 
 image, stage = generator.get_stage(latent, True)
 dims = [s.shape[1] for s in stage]
-linear_model = get_semantic_extractor(cfg.semantic_extractor)(
+sep_model = get_semantic_extractor(cfg.semantic_extractor)(
     n_class=n_class,
     dims=dims,
     mapid=None,
@@ -56,7 +56,7 @@ for ind in tqdm(range(cfg.n_iter)):
         gen, stage = generator.get_stage(latent, detach=True)
         label = segmenter.segment_batch(gen)
 
-    multi_segs = linear_model(stage)
+    multi_segs = sep_model(stage)
     if len(category_groups_label) == 1:
         multi_segs = [multi_segs]
         label = label.unsqueeze(1)
@@ -75,8 +75,8 @@ for ind in tqdm(range(cfg.n_iter)):
             metrics[i](utils.torch2numpy(est_label[j]), utils.torch2numpy(l[j]))
 
     segloss.backward()
-    linear_model.optim.step()
-    linear_model.optim.zero_grad()
+    sep_model.optim.step()
+    sep_model.optim.zero_grad()
 
     record['segloss'].append(utils.torch2numpy(segloss))
 
@@ -107,5 +107,5 @@ for ind in tqdm(range(cfg.n_iter)):
             print(metrics[i])
     
     if (ind + 1) % cfg.save_iter == 0:
-        torch.save(linear_model.state_dict(), f"{cfg.expr_dir}/iter_{ind+1:06d}.model")
+        torch.save(sep_model.state_dict(), f"{cfg.expr_dir}/iter_{ind+1:06d}.model")
         np.save(f"{cfg.expr_dir}/training_evaluation.npy", [metrics[i].result for i in range(len(metrics))])

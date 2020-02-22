@@ -8,7 +8,7 @@ def get_semantic_extractor(config):
     if config == "linear":
         return LinearSemanticExtractor
     elif config == "nonlinear":
-        return NonlinearSemanticExtractor
+        return NonLinearSemanticExtractor
     elif config == "generative":
         return GenerativeSemanticExtractor
     elif config == "cascade":
@@ -65,30 +65,37 @@ class GenerativeSemanticExtractor(BaseSemanticExtractor):
             return nn.Sequential(*_m)
 
         # transform generative representation to semantic embedding
-        self.semantic_extractor = nn.ModuleList([
+        semantic_extractor = nn.ModuleList([
             conv_block(dim, dim) for dim in self.dims])
         # learning residual between different layers of generative representation
-        self.semantic_reviser = nn.ModuleList([
+        semantic_reviser = nn.ModuleList([
             conv_block(prev, cur)
             for prev, cur in zip(self.dims[:-1], self.dims[1:])])
         # transform semantic embedding to label
-        self.semantic_visualizer = nn.ModuleList([
+        semantic_visualizer = nn.ModuleList([
             nn.Conv2d(dim, self.n_class, self.ksize) for dim in self.dims])
-    
+
+        self.semantic_branch = nn.ModuleList([
+            semantic_extractor,
+            semantic_reviser,
+            semantic_visualizer])
+        self.optim = torch.optim.Adam(self.semantic_branch.parameters(), lr=1e-3)
+
     def forward(self, stage, last_only=True):
+        extractor, reviser, visualizer = self.semantic_branch
         hidden = 0
         outputs = []
         for i, seg_input in enumerate(stage):
             if i == 0:
-                hidden = self.semantic_extractor[i](seg_input)
+                hidden = extractor[i](seg_input)
             else:
                 hidden = F.interpolate(hidden, scale_factor=2, mode="nearest")
-                hidden = self.semantic_reviser[i - 1](hidden)
-                hidden = hidden + self.semantic_extractor[i](seg_input)
+                hidden = reviser[i - 1](hidden)
+                hidden = hidden + extractor[i](seg_input)
             if not last_only:
-                outputs.append(self.semantic_visualizer[i](hidden))
+                outputs.append(visualizer[i](hidden))
         if last_only:
-            return [self.semantic_visualizer[-1](hidden)]
+            return [visualizer[-1](hidden)]
         return outputs
 
 
