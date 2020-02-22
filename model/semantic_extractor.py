@@ -42,7 +42,7 @@ class GenerativeSemanticExtractor(BaseSemanticExtractor):
                     generative representation to semantic embedding
         ksize:      kernel size of convolution
     """
-    def __init__(self, n_layer=1, ksize=1, **kwargs):
+    def __init__(self, ksize=3, **kwargs):
         super().__init__(**kwargs)
         self.n_layer = n_layer
         self.ksize = ksize

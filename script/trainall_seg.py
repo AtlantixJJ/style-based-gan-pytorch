@@ -139,10 +139,9 @@ class FixSegFull(object):
 class SENonlinear(object):
     def __init__(self):
         self.extractors = [
-            "linear",
+            #"linear",
             "nonlinear",
             "generative",
-            "cascade",
         ]
         self.basecmd = "python train/extract_semantics.py --task celebahq --model-name stylegan --extractor %s --gpu %s --batch-size 2 --iter-num 15000 --expr record/celebahq"
 

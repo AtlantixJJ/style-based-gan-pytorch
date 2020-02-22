@@ -131,7 +131,7 @@ for ind, sample in enumerate(tqdm(dl)):
 
 latents, noises, images, labels = sample
 latents = latents.squeeze(1)
-labels = labels[:, :, :, 0]
+labels = labels[:, :, :, 0].long()
 labels = idmap(labels)
 
 # Train a linear model based on train_size samples
@@ -144,7 +144,7 @@ for i in tqdm(range(train_iter)):
     generator.set_noise(None)
 
     # equivalent to 1 iteration, in case memory is not sufficient
-    for j in range(min(latents.shape[0] // 2, 1)):
+    for j in range(max(latents.shape[0] // 2, 1)):
         bg, ed = j * 2, j * 2 + 2
         ed = min(ed, latents.shape[0])
         image, stage = generator.get_stage(latents[bg:ed].to(device), detach=True)
