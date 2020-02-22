@@ -19,8 +19,8 @@ cfg = config.SemanticExtractorConfig()
 cfg.parse()
 cfg.setup()
 
-segmenter = segmenter.get_segmenter(cfg.task, cfg.seg_net_path)
-labels, cats = segmenter.get_label_and_category_names()
+external_model = segmenter.get_segmenter(cfg.task, cfg.seg_net_path)
+labels, cats = external_model.get_label_and_category_names()
 category_groups = utils.get_group(labels)
 category_groups_label = utils.get_group(labels, False)
 n_class = category_groups[-1][1]
@@ -54,7 +54,7 @@ for ind in tqdm(range(cfg.n_iter)):
 
     with torch.no_grad(): # fix main network
         gen, stage = generator.get_stage(latent, detach=True)
-        label = segmenter.segment_batch(gen)
+        label = external_model.segment_batch(gen)
 
     multi_segs = sep_model(stage)
     if len(category_groups_label) == 1:

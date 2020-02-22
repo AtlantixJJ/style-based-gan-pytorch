@@ -13,6 +13,7 @@ from os.path import join as osj
 from sklearn.metrics.pairwise import cosine_similarity
 import evaluate, utils, config, dataset
 from lib.face_parsing import unet
+import model, segmenter
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--task", default="log,seg,fastagreement", help="")
@@ -48,35 +49,48 @@ device = 'cuda' if int(args.gpu) > -1 else 'cpu'
 idmap = utils.CelebAIDMap()
 cfg = 0
 batch_size = 0
+model_path = ""
+task = ""
 if "simpleseg" in args.model:
     from model.simple import Generator
     generator = Generator(upsample=4, out_act="none", out_dim=16).to(device)
-    imsize = 128
+    model_path = "checkpoint/faceparse_unet_128.pth"
     batch_size = 64
     latent_size = 128
 elif "simple" in args.model:
     from model.simple import Generator
     generator = Generator(upsample=4).to(device)
-    imsize = 128
+    model_path = "checkpoint/faceparse_unet_128.pth"
     batch_size = 64
     latent_size = 128
-else:
-    cfg = config.config_from_name(args.model)
-    print(cfg)
-    from model.tfseg import StyledGenerator
-    generator = StyledGenerator(**cfg).to(device)
-    imsize = 512
+elif "stylegan" in args.model:
+    if "bedroom" in args.model:
+        task = "bedroom"
+        model_path = "checkpoint/bedroom_lsun_256x256_stylegan.pth"
+    elif "celebahq" in args.model:
+        task = "celebahq"
+        model_path = "checkpoint/face_celebahq_1024x1024_stylegan.pth"
+    generator = model.load_stylegan(model_path).to(device)
+    model_path = "checkpoint/faceparse_unet_512.pth"
     batch_size = 2
     latent_size = 512
-faceparser_path = f"checkpoint/faceparse_unet_{imsize}.pth"
+elif "proggan" in args.model:
+    if "bedroom" in args.model:
+        task = "bedroom"
+        model_path = "checkpoint/bedroom_lsun_256x256_proggan.pth"
+    generator = model.load_proggan(model_path).to(device)
+    model_path = "checkpoint/faceparse_unet_512.pth"
+    batch_size = 2
+    latent_size = 512
+
+external_model = segmenter.get_segmenter(task, model_path)
 
 utils.set_seed(65537)
 latent = torch.randn(1, latent_size).to(device)
-latent.requires_grad = True
-noise = []
-for i in range(18):
-    size = 4 * 2 ** (i // 2)
-    noise.append(torch.randn(1, 1, size, size, device=device))
+noise = False
+op = getattr(generator, "generator_noise", None)
+if callable(op):
+    noise = op()
 
 model_files = glob.glob(args.model + "/*.model")
 model_files = [m for m in model_files if "disc" not in m]
@@ -84,13 +98,6 @@ model_files.sort()
 if len(model_files) == 0:
     print("!> No model found, exit")
     exit(0)
-
-state_dict = torch.load(faceparser_path, map_location='cpu')
-faceparser = unet.unet()
-faceparser.load_state_dict(state_dict)
-faceparser = faceparser.to(device)
-faceparser.eval()
-del state_dict
 
 if "fast" in args.task:
     LEN = 50
@@ -286,35 +293,38 @@ if "contribution" in args.task:
 if "agreement" in args.task:
     latent = torch.randn(batch_size, latent_size, device=device)
     dics = []
-    mapid = utils.CelebAIDMap().mapid
-    for i, model_file in enumerate(model_files):
-        print("=> Load from %s" % model_file)
-        state_dict = torch.load(model_file, map_location='cpu')
-        missed = generator.load_state_dict(state_dict)
-        generator.eval()
+    #for i, model_file in enumerate(model_files):
+    gen, stage = generator.get_stage(latent, detach=True)
+    dims = [s.shape[1] for s in stage]
+    model_file = model_files[-1]
+    print("=> Load from %s" % model_file)
+    state_dict = torch.load(model_file, map_location='cpu')
+    missed = generator.load_state_dict(state_dict)
+    generator.eval()
 
-        evaluator = evaluate.MaskCelebAEval()
-        for i in tqdm.tqdm(range(32 * LEN // batch_size)):
-            gen, gen_seg_logit = generator(latent)
-            gen_seg_logit = F.interpolate(gen_seg_logit, imsize, mode="bilinear")
-            seg = gen_seg_logit.argmax(1)
-            gen = gen.clamp(-1, 1)
+    evaluator = evaluate.MaskCelebAEval()
+    for i in tqdm.tqdm(range(30 * LEN // batch_size)):
+        gen, stage = generator.get_stage(latent, detach=True)
 
-            with torch.no_grad():
-                gen = F.interpolate(gen, imsize, mode="bilinear")
-                label = faceparser(gen).argmax(1)
-                label = mapid(label)
-            
-            seg = utils.torch2numpy(seg)
-            label = utils.torch2numpy(label)
+        gen_seg_logit = F.interpolate(gen_seg_logit, imsize, mode="bilinear")
+        seg = gen_seg_logit.argmax(1)
+        gen = gen.clamp(-1, 1)
 
-            for j in range(batch_size):
-                score = evaluator.compute_score(seg[j], label[j])
-                evaluator.accumulate(score)
-            latent.normal_()
+        with torch.no_grad():
+            gen = F.interpolate(gen, imsize, mode="bilinear")
+            label = faceparser(gen).argmax(1)
+            label = mapid(label)
+        
+        seg = utils.torch2numpy(seg)
+        label = utils.torch2numpy(label)
 
-        evaluator.aggregate()
-        dics.append(evaluator.summarize())
+        for j in range(batch_size):
+            score = evaluator.compute_score(seg[j], label[j])
+            evaluator.accumulate(score)
+        latent.normal_()
+
+    evaluator.aggregate()
+    dics.append(evaluator.summarize())
 
     new_dic = {k: [d[k] for d in dics] for k in dics[0].keys()}
     np.save(savepath + "_agreement", new_dic)

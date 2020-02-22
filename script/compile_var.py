@@ -29,9 +29,6 @@ summary = {k:[] for k in dic.keys()}
 for f in files:
     dic = np.load(f, allow_pickle=True)[()]
     for k,v in dic.items():
-        if k == "pixelacc":
-            continue
-        print(k, v)
         v = np.array(v)
         x = np.abs(v[1:]-v[:-1]).mean()
         summary[k].append(x)
