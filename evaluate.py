@@ -150,7 +150,8 @@ class DetectionMetric(object):
         # calculate global metric
         for j, name in enumerate(self.class_metric_names):
             vals = np.array(self.class_result[name]) # get rid of invalid classes
-            self.global_result[f"m{name}"] = vals[vals > -1].mean()
+            v = vals[vals > -1]
+            self.global_result[f"m{name}"] = v.mean() if len(v) > 0 else -1
         
         return self.global_result, self.class_result
 
@@ -364,7 +365,7 @@ class LinearityEvaluator(object):
     External model: a semantic segmentation network
     """
     def __init__(self, model, external_model,
-            train_iter=1000, batch_size=1, latent_dim=512,
+            train_iter=1000, batch_size=2, latent_dim=512,
             test_size=256, n_class=16):
         self.model = model
         self.external_model = external_model
