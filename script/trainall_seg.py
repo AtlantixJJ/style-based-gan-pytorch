@@ -139,7 +139,7 @@ class FixSegFull(object):
 class SENonlinear(object):
     def __init__(self):
         self.extractors = [
-            #"linear",
+            "linear",
             "nonlinear",
             "generative",
         ]

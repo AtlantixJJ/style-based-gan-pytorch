@@ -11,9 +11,6 @@ def get_semantic_extractor(config):
         return NonLinearSemanticExtractor
     elif config == "generative":
         return GenerativeSemanticExtractor
-    elif config == "cascade":
-        return CascadeSemanticExtractor
-
 
 
 class BaseSemanticExtractor(nn.Module):
@@ -72,7 +69,7 @@ class GenerativeSemanticExtractor(BaseSemanticExtractor):
             semantic_visualizer])
         self.optim = torch.optim.Adam(self.semantic_branch.parameters(), lr=1e-3)
 
-    def forward(self, stage, last_only=True):
+    def forward(self, stage, last_only=False):
         extractor, reviser, visualizer = self.semantic_branch
         hidden = 0
         outputs = []

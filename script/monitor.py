@@ -14,6 +14,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 import evaluate, utils, config, dataset
 from lib.face_parsing import unet
 import model, segmenter
+from lib.netdissect.segviz import segment_visualization_single
+from model.semantic_extractor import get_semantic_extractor
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--task", default="log,seg,fastagreement", help="")
@@ -51,6 +54,7 @@ cfg = 0
 batch_size = 0
 model_path = ""
 task = ""
+colorizer = utils.Colorize(16) #label to rgb
 if "simpleseg" in args.model:
     from model.simple import Generator
     generator = Generator(upsample=4, out_act="none", out_dim=16).to(device)
@@ -66,6 +70,7 @@ elif "simple" in args.model:
 elif "stylegan" in args.model:
     if "bedroom" in args.model:
         task = "bedroom"
+        colorizer = lambda x: segment_visualization_single(x, 256)
         model_path = "checkpoint/bedroom_lsun_256x256_stylegan.pth"
     elif "celebahq" in args.model:
         task = "celebahq"
@@ -76,6 +81,7 @@ elif "stylegan" in args.model:
     latent_size = 512
 elif "proggan" in args.model:
     if "bedroom" in args.model:
+        colorizer = lambda x: segment_visualization_single(x, 256)
         task = "bedroom"
         model_path = "checkpoint/bedroom_lsun_256x256_proggan.pth"
     generator = model.load_proggan(model_path).to(device)
@@ -83,14 +89,25 @@ elif "proggan" in args.model:
     batch_size = 2
     latent_size = 512
 
-external_model = segmenter.get_segmenter(task, model_path)
 
+def get_extractor_name(model_path):
+    keywords = ["nonlinear", "linear", "generative", "cascade"]
+    for k in keywords:
+        if k in model_path:
+            return k
+
+
+external_model = segmenter.get_segmenter(task, model_path)
+n_class = len(external_model.get_label_and_category_names()[1]) + 1
 utils.set_seed(65537)
 latent = torch.randn(1, latent_size).to(device)
 noise = False
 op = getattr(generator, "generator_noise", None)
 if callable(op):
     noise = op()
+
+image, stage = generator.get_stage(latent)
+dims = [s.shape[1] for s in stage]
 
 model_files = glob.glob(args.model + "/*.model")
 model_files = [m for m in model_files if "disc" not in m]
@@ -291,65 +308,49 @@ if "contribution" in args.task:
 
 
 if "agreement" in args.task:
-    latent = torch.randn(batch_size, latent_size, device=device)
-    dics = []
-    #for i, model_file in enumerate(model_files):
-    gen, stage = generator.get_stage(latent, detach=True)
-    dims = [s.shape[1] for s in stage]
     model_file = model_files[-1]
+    latent = torch.randn(batch_size, latent_size, device=device)
+    if noise:
+        generator.set_noise(noise)
+    sep_model = get_semantic_extractor(get_extractor_name(model_file))(
+        n_class=n_class,
+        dims=dims).to(device)
+    sep_model.eval()
     print("=> Load from %s" % model_file)
     state_dict = torch.load(model_file, map_location='cpu')
-    missed = generator.load_state_dict(state_dict)
-    generator.eval()
+    missed = sep_model.load_state_dict(state_dict)
 
     evaluator = evaluate.MaskCelebAEval()
     for i in tqdm.tqdm(range(30 * LEN // batch_size)):
         gen, stage = generator.get_stage(latent, detach=True)
-
-        gen_seg_logit = F.interpolate(gen_seg_logit, imsize, mode="bilinear")
-        seg = gen_seg_logit.argmax(1)
-        gen = gen.clamp(-1, 1)
-
-        with torch.no_grad():
-            gen = F.interpolate(gen, imsize, mode="bilinear")
-            label = faceparser(gen).argmax(1)
-            label = mapid(label)
-        
-        seg = utils.torch2numpy(seg)
-        label = utils.torch2numpy(label)
+        est_label = sep_model.predict(stage)
+        label = utils.torch2numpy(external_model(gen.clamp(-1, 1)))
 
         for j in range(batch_size):
-            score = evaluator.compute_score(seg[j], label[j])
-            evaluator.accumulate(score)
+            score = evaluator.calc_single(est_label[j], label[j])
         latent.normal_()
 
     evaluator.aggregate()
-    dics.append(evaluator.summarize())
-
-    new_dic = {k: [d[k] for d in dics] for k in dics[0].keys()}
-    np.save(savepath + "_agreement", new_dic)
-    utils.format_agreement_result(new_dic)
+    clean_dic = evaluator.summarize()
+    np.save(savepath + "_agreement", clean_dic)
+    utils.format_agreement_result(clean_dic)
 
 if "seg" in args.task:
-    colorizer = utils.Colorize(16) #label to rgb
-    mapid = utils.CelebAIDMap().mapid
     for i, model_file in enumerate(model_files):
         print("=> Load from %s" % model_file)
+        sep_model = get_semantic_extractor(get_extractor_name(model_file))(
+            n_class=n_class,
+            dims=dims).to(device)
+        sep_model.eval()
         state_dict = torch.load(model_file, map_location='cpu')
-        missed = generator.load_state_dict(state_dict, strict=False)
-        print(missed)
-        generator.eval()
-        generator.set_noise(noise)
+        missed = sep_model.load_state_dict(state_dict)
+        sep_model.to(device).eval()
 
-        gen = generator(latent, False)
+        gen, stage = generator.get_stage(latent, detach=True)
         gen = gen.clamp(-1, 1)
-        segs = generator.extract_segmentation(generator.stage)
+        segs = sep_model(stage)
         segs = [s[0].argmax(0) for s in segs]
-
-        with torch.no_grad():
-            gen = F.interpolate(gen, imsize, mode="bilinear")
-            label = faceparser(gen)[0].argmax(0)
-            label = mapid(label)
+        label = external_model.segment_batch(gen)
         
         segs += [label]
 

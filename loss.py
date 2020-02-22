@@ -17,5 +17,5 @@ def segloss(segs, ext_label):
             s_ = F.interpolate(s, ext_label.size(2), mode="bilinear")
             layer_loss = F.cross_entropy(s_, ext_label)
         seglosses.append(layer_loss)
-    segloss = sum(seglosses) / len(seglosses)
+    segloss = sum(seglosses[:-1]) * 0.1 + seglosses[-1]
     return segloss
