@@ -393,7 +393,7 @@ class LinearityEvaluator(object):
             self.sep_model.optim.zero_grad()
             self.sep_eval()
 
-        np.save(f"results/{name}_global_dic.npy", self.sep_eval.global_result)
-        np.save(f"results/{name}_class_dic.npy", self.sep_eval.class_result)
+        np.save(f"results/{name}_global_dic.npy", self.sep_eval.global_dic)
+        np.save(f"results/{name}_class_dic.npy", self.sep_eval.class_dic)
         v = self.sep_eval.global_result["mIoU"]
         return np.abs(v[1:] - v[:-1]).mean()
