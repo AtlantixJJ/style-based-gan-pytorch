@@ -163,9 +163,9 @@ global_dic, class_dic, test_images = test(generator, linear_model, test_dl)
 np.save(fpath.replace(".model", "_global.npy"), global_dic)
 np.save(fpath.replace(".model", "_class.npy"), class_dic)
 
-image = generator(latents[:4, 0, :].to(device), seg=False)
+image, stage = generator(latents[:4, :].to(device), detach=True)
 image = (1 + image.clamp(-1, 1).detach().cpu()) / 2
-est_labels = torch.from_numpy(linear_model.predict(generator.stage))
+est_labels = torch.from_numpy(linear_model.predict(stage))
 est_labels_viz = [colorizer(l).unsqueeze(0).float() / 255. for l in est_labels]
 labels_viz = [colorizer(l).unsqueeze(0).float() / 255. for l in labels[:4]]
 res = []
