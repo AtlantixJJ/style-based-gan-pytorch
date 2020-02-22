@@ -11,7 +11,7 @@ import dataset
 import utils
 
 NUM_WORKER = 4
-CELEBA_STYLEGAN_PATH = "checkpoint/karras2019stylegan-celebahq-1024x1024.for_g_all.pt"
+CELEBA_STYLEGAN_PATH = "checkpoint/face_celebahq_1024x1024_stylegan.pth"
 
 
 
@@ -137,7 +137,7 @@ class SemanticExtractorConfig(BaseConfig):
         self.parser.add_argument(
             "--seg-net", default="checkpoint/faceparse_unet_512.pth", help="The load path of semantic segmentation network")
         self.parser.add_argument(
-            "--seg-cfg", default="linear", help="Configure of segmantic segmentation extractor")
+            "--extractor", default="linear", help="Configure of segmantic segmentation extractor")
         self.parser.add_argument(
             "--upsample", default="bilinear", help="Upsample method of feature map. bilinear, nearest.")
         self.parser.add_argument(
@@ -154,16 +154,16 @@ class SemanticExtractorConfig(BaseConfig):
         self.upsample = self.args.upsample
         self.n_class = self.args.n_class
         self.seg_net_path = self.args.seg_net
-        self.semantic_config = self.args.seg_cfg
+        self.semantic_extractor = self.args.extractor
         self.record = {'loss': [], 'segloss': [], 'regloss': []}
-        self.name = f"{self.task}_{self.model_name}_{self.semantic_config}"
+        self.name = f"{self.task}_{self.model_name}_{self.semantic_extractor}"
         self.expr_dir = osj(self.args.expr, self.name)
 
     def __str__(self):
         prev_str = super().__str__()
         strs = [prev_str]
         strs.append("=> Segmentation network: %s" % self.seg_net_path)
-        strs.append("=> Segmentation configure: %s" % self.semantic_config)
+        strs.append("=> Segmentation configure: %s" % self.semantic_extractor)
         strs.append("=> Orthogonal regularization: %f" % self.ortho_reg)
         strs.append("=> Positive regularization: %f" % self.positive_reg)
         return "\n".join(strs)

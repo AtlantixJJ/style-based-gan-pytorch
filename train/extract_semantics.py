@@ -8,7 +8,7 @@ import numpy as np
 from torchvision import utils as vutils
 from lib.face_parsing import unet
 import config
-import utils, evaluate, loss, segmenter
+import utils, evaluate, loss, segmenter, model
 
 from model.semantic_extractor import get_semantic_extractor
 from lib.netdissect.segviz import segment_visualization, segment_visualization_single
@@ -38,7 +38,7 @@ generator.to(cfg.device).eval()
 
 image, stage = generator.get_stage(latent, True)
 dims = [s.shape[1] for s in stage]
-linear_model = get_semantic_extractor(cfg.semantic_config)(
+linear_model = get_semantic_extractor(cfg.semantic_extractor)(
     n_class=n_class,
     dims=dims,
     mapid=None,
@@ -57,6 +57,9 @@ for ind in tqdm(range(cfg.n_iter)):
         label = segmenter.segment_batch(gen)
 
     multi_segs = linear_model(stage)
+    if len(category_groups_label) == 1:
+        multi_segs = [multi_segs]
+        label = label.unsqueeze(1)
     segloss = 0
     for i, segs in enumerate(multi_segs):
         if label[:, i, :, :].max() <= 0:

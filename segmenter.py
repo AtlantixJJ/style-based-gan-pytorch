@@ -25,7 +25,7 @@ class CelebAMaskHQSegmenter(object):
         self.categories = ["face"] * len(self.labels)
     
     def get_label_and_category_names(self):
-        return self.labels, self.categories
+        return list(zip(self.labels, self.categories)), self.categories
 
     def segment_batch(self, batch):
         seg = self.model(batch)
