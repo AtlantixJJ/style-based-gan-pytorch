@@ -62,7 +62,7 @@ for ind in tqdm(range(cfg.n_iter)):
         label = label.unsqueeze(1)
     segloss = 0
     for i, segs in enumerate(multi_segs):
-        if label[:, i, :, :].max() <= 0:
+        if label[:, i].max() <= 0:
             continue
         cg = category_groups_label[i]
         l = label[:, i, :, :] - cg[0]
