@@ -141,36 +141,15 @@ linear_model = LinearSemanticExtractor(
 for i in tqdm(range(train_iter)):
     # ensure we initialize different noise
     generator.set_noise(None)
-    stages = []
-    stage_input = []
 
-    prev = cur = 0
     # equivalent to 1 iteration, in case memory is not sufficient
     for j in range(latents.shape[0]):
         image, stage = generator.get_stage(latents[j].to(device), detach=True)
-        stages.append(stage)
-        cur += 1
-        if (j + 1) % 4 != 0 and j + 1 != latents.shape[0]: # form a batch of 4
-            continue
-        for k in range(len(stages[0])):
-            stage_input.append(torch.cat([s[k] for s in stages]))
-        # optimization
-        segs = linear_model(stage_input) # (N, C, H, W)
-        segloss = loss.segloss(segs, labels[prev:cur].to(device))
+        segs = linear_model(stage) # (N, C, H, W)
+        segloss = loss.segloss(segs, labels[j:j+1].to(device))
         segloss.backward()
-        prev = cur
-        stages = []
-        stage = []
-
         linear_model.optim.step()
         linear_model.optim.zero_grad()
-
-    #if (i + 1) % args.save_iter == 0 or (i + 1) == args.train_iter:
-    #    fpath = f"results/linear_{ind}_i{i+1}_b{args.train_size}_idmap-{name}.model"
-    #    torch.save(linear_model.state_dict(), fpath)
-    #    global_dic, class_dic, test_images = test(generator, linear_model, test_dl)
-    #    np.save(fpath.replace(".model", "_global.npy"), global_dic)
-    #    np.save(fpath.replace(".model", "_class.npy"), class_dic)
 
     if i + 1 == train_iter:
         est_labels = segs[-1].argmax(1)

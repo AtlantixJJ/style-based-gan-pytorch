@@ -364,8 +364,8 @@ class LinearityEvaluator(object):
     External model: a semantic segmentation network
     """
     def __init__(self, model, external_model,
-            train_iter=1000, batch_size=2, latent_dim=512,
-            test_size=512, n_class=16):
+            train_iter=1000, batch_size=1, latent_dim=512,
+            test_size=256, n_class=16):
         self.model = model
         self.external_model = external_model
         self.device = "cuda"
