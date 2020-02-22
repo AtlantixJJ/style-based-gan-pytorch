@@ -353,12 +353,6 @@ class SeparabilityEvaluator(object):
         self.metric.reset()
         self.prev_segm = segms
 
-    def aggregate(self):
-        self.metric.aggregate()
-        self.global_result = self.metric.global_result
-        self.class_result = self.metric.class_result
-        return self.global_result, self.class_result
-
 
 class LinearityEvaluator(object):
     """
@@ -399,7 +393,6 @@ class LinearityEvaluator(object):
             self.sep_model.optim.zero_grad()
             self.sep_eval()
 
-        self.sep_eval.aggregate()
         np.save(f"results/{name}_global_dic.npy", self.sep_eval.global_result)
         np.save(f"results/{name}_class_dic.npy", self.sep_eval.class_result)
         v = self.sep_eval.global_result["mIoU"]
