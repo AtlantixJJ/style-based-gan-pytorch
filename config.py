@@ -11,7 +11,7 @@ import dataset
 import utils
 
 NUM_WORKER = 4
-CELEBA_STYLEGAN_PATH = "checkpoint/karras2019stylegan-celebahq-1024x1024.for_g_all.pt"
+CELEBA_STYLEGAN_PATH = "checkpoint/face_celebahq_1024x1024_stylegan.pth"
 
 
 
@@ -127,6 +127,45 @@ class BaseConfig(object):
             strs.append("=> Train from scratch")
         strs.append("=> LR: %.4f" % self.lr)
         strs.append("=> Batch size : %d " % self.batch_size)
+        return "\n".join(strs)
+
+
+class SemanticExtractorConfig(BaseConfig):
+    def __init__(self):
+        super().__init__()
+
+        self.parser.add_argument(
+            "--seg-net", default="checkpoint/faceparse_unet_512.pth", help="The load path of semantic segmentation network")
+        self.parser.add_argument(
+            "--extractor", default="linear", help="Configure of segmantic segmentation extractor")
+        self.parser.add_argument(
+            "--upsample", default="bilinear", help="Upsample method of feature map. bilinear, nearest.")
+        self.parser.add_argument(
+            "--n-class", type=int, default=16, help="Class num")
+        self.parser.add_argument(
+            "--ortho-reg", type=float, default=-1, help="The coef of using ortho reg. < 0 means not to use.")
+        self.parser.add_argument(
+            "--positive-reg", type=float, default=-1, help="The coef of using positive regularization.")
+
+    def parse(self):
+        super().parse()
+        self.ortho_reg = self.args.ortho_reg
+        self.positive_reg = self.args.positive_reg
+        self.upsample = self.args.upsample
+        self.n_class = self.args.n_class
+        self.seg_net_path = self.args.seg_net
+        self.semantic_extractor = self.args.extractor
+        self.record = {'loss': [], 'segloss': [], 'regloss': []}
+        self.name = f"{self.task}_{self.model_name}_{self.semantic_extractor}"
+        self.expr_dir = osj(self.args.expr, self.name)
+
+    def __str__(self):
+        prev_str = super().__str__()
+        strs = [prev_str]
+        strs.append("=> Segmentation network: %s" % self.seg_net_path)
+        strs.append("=> Segmentation configure: %s" % self.semantic_extractor)
+        strs.append("=> Orthogonal regularization: %f" % self.ortho_reg)
+        strs.append("=> Positive regularization: %f" % self.positive_reg)
         return "\n".join(strs)
 
 
