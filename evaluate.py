@@ -385,7 +385,7 @@ class LinearityEvaluator(object):
 
     def __call__(self, model, name):
         self.model = model
-        latent = torch.randn(4, self.latent_dim, device=self.device)
+        latent = torch.randn(self.batch_size, self.latent_dim, device=self.device)
         for ind in tqdm(range(self.train_iter)):
             latent.normal_()
             image, stage = self.model.get_stage(latent)
