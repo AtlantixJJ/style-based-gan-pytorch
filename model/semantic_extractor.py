@@ -44,24 +44,15 @@ class GenerativeSemanticExtractor(BaseSemanticExtractor):
     """
     def __init__(self, ksize=3, **kwargs):
         super().__init__(**kwargs)
-        self.n_layer = n_layer
         self.ksize = ksize
         self.build()
 
     def build(self):
         def conv_block(in_dim, out_dim):
             midim = (in_dim + out_dim) // 2
-            if self.n_layer == 1:
-                _m = [nn.Conv2d(in_dim, out_dim, self.ksize), nn.ReLU(inplace=True)]
-            else:
-                _m = []
-                _m.append(nn.Conv2d(in_dim, midim, self.ksize))
-                _m.append(nn.ReLU(inplace=True))
-                for i in range(self.n_layer - 2):
-                    _m.append(nn.Conv2d(midim, midim, self.ksize))
-                    _m.append(nn.ReLU(inplace=True))
-                _m.append(nn.Conv2d(midim, out_dim, self.ksize))
-                _m.append(nn.ReLU(inplace=True))
+            _m = [
+                nn.Conv2d(in_dim, out_dim, self.ksize, 1, self.ksize // 2),
+                nn.ReLU(inplace=True)]
             return nn.Sequential(*_m)
 
         # transform generative representation to semantic embedding
@@ -73,7 +64,7 @@ class GenerativeSemanticExtractor(BaseSemanticExtractor):
             for prev, cur in zip(self.dims[:-1], self.dims[1:])])
         # transform semantic embedding to label
         semantic_visualizer = nn.ModuleList([
-            nn.Conv2d(dim, self.n_class, self.ksize) for dim in self.dims])
+            nn.Conv2d(dim, self.n_class, self.ksize, 1, self.ksize // 2) for dim in self.dims])
 
         self.semantic_branch = nn.ModuleList([
             semantic_extractor,
@@ -89,6 +80,7 @@ class GenerativeSemanticExtractor(BaseSemanticExtractor):
             if i == 0:
                 hidden = extractor[i](seg_input)
             else:
+                #print(hidden.shape, seg_input.shape)
                 hidden = F.interpolate(hidden, scale_factor=2, mode="nearest")
                 hidden = reviser[i - 1](hidden)
                 hidden = hidden + extractor[i](seg_input)

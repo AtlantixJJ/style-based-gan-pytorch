@@ -21,8 +21,7 @@ parser.add_argument("--test-size", default=256, type=int)
 args = parser.parse_args()
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
-ind = args.model.rfind("/")
-model_name = args.model[ind + 1:]
+model_name = args.model.replace("expr/", "").replace("/", "_")
 device = "cuda"
 
 if args.recursive == 1:
