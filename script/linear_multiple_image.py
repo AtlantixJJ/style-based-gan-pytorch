@@ -97,7 +97,7 @@ latent = torch.randn(1, 512).to(device)
 colorizer = utils.Colorize(args.total_class)
 image, stage = generator.get_stage(latent, True)
 stylegan_dims = [s.shape[1] for s in stage]
-train_iter = min(int(30000 / args.train_size), 8000)
+train_iter = min(int(30000 / args.train_size), 1000)
 
 def test(generator, linear_model, test_dl):
     result = []
@@ -107,7 +107,7 @@ def test(generator, linear_model, test_dl):
         label = idmap(label[:, :, :, 0])
         generator.set_noise(generator.parse_noise(noise[0].to(device)))
         image, stage = generator.get_stage(latent[0].to(device), detach=True)
-        est_label = linear_model(stage) 
+        est_label = linear_model.predict(stage) 
         evaluator.calc_single(est_label, utils.torch2numpy(label))
 
         if i < 4:
@@ -162,8 +162,8 @@ for i in tqdm(range(train_iter)):
         stages = []
         stage = []
 
-    linear_model.optim.step()
-    linear_model.optim.zero_grad()
+        linear_model.optim.step()
+        linear_model.optim.zero_grad()
 
     #if (i + 1) % args.save_iter == 0 or (i + 1) == args.train_iter:
     #    fpath = f"results/linear_{ind}_i{i+1}_b{args.train_size}_idmap-{name}.model"

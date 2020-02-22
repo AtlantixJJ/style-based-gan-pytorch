@@ -1,4 +1,5 @@
 """
+python script/calc_linearity_simple.py --model expr/celeba_wgan128/ --gpu 2
 python script/calc_linearity_simple.py --imsize 64 --model expr/celeba_wgan64/
 python script/calc_linearity_simple.py --imsize 64 --model expr/celeba_eyeg_wgan64/
 python script/calc_linearity_simple.py --imsize 64 --model expr/celeba_eyeg_wgan64/gen_iter_001000.model --recursive 0
