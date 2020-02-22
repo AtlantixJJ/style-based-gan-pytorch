@@ -108,7 +108,6 @@ class SimpleIoUMetric(object):
         self.result["pixelacc"].append(pixelacc)
 
 
-
 class DetectionMetric(object):
     """
     Manage common detection evaluation metric
@@ -150,8 +149,10 @@ class DetectionMetric(object):
         
         # calculate global metric
         for j, name in enumerate(self.class_metric_names):
-            vals = np.array(self.result[name]) # get rid of invalid classes
+            vals = np.array(self.class_result[name]) # get rid of invalid classes
             self.global_result[f"m{name}"] = vals[vals > -1].mean()
+        
+        return self.global_result, self.class_result
 
     # aggregate the result of given classes
     # need to be called after aggregate()
@@ -305,6 +306,7 @@ class SeparabilityEvaluator(object):
         self.external_model = self.external_model
         self.latent_dim = latent_dim
         self.test_size = test_size
+        self.n_class = n_class
         self.metric = DetectionMetric(n_class=n_class)
         self.fix_latents = torch.randn(test_size, self.latent_dim)
         op = getattr(self.model, "generator_noise", None)
@@ -316,6 +318,9 @@ class SeparabilityEvaluator(object):
         self.reset()
 
     def reset(self):
+        self.global_dic = {"pixelacc":[],"mAP":[],"mAR":[],"mIoU":[]}
+        self.class_dic = {k:[[] for _ in range(self.n_class)]
+            for k in self.metric.class_metric_names}
         self.prev_segm = 0
         self.metric.reset()
 
@@ -336,6 +341,13 @@ class SeparabilityEvaluator(object):
 
         for seg, label in zip(segms, self.prev_segm):
             self.metric(seg, label)
+
+        global_dic, class_dic = self.metric.aggregate()
+        for k in global_dic.keys():
+            self.global_dic[k].append(global_dic[k])
+        for k in class_dic.keys():
+            for i in range(self.n_class):
+                self.class_dic[k][i].append(class_dic[k][i])
 
         self.prev_segm = segms
 
@@ -381,8 +393,8 @@ class LinearityEvaluator(object):
             segloss = loss.segloss(segs, label)
             segloss.backward()
 
-            self.extractor.optim.step()
-            self.extractor.optim.zero_grad()
+            self.sep_model.optim.step()
+            self.sep_model.optim.zero_grad()
             self.sep_eval()
 
         self.sep_eval.aggregate()
