@@ -303,7 +303,7 @@ class SeparabilityEvaluator(object):
         self.device = "cuda"
         self.model = model
         self.sep_model = sep_model
-        self.external_model = self.external_model
+        self.external_model = external_model
         self.latent_dim = latent_dim
         self.test_size = test_size
         self.n_class = n_class
@@ -349,6 +349,7 @@ class SeparabilityEvaluator(object):
             for i in range(self.n_class):
                 self.class_dic[k][i].append(class_dic[k][i])
 
+        self.metric.reset()
         self.prev_segm = segms
 
     def aggregate(self):
@@ -363,8 +364,8 @@ class LinearityEvaluator(object):
     External model: a semantic segmentation network
     """
     def __init__(self, model, external_model,
-            train_iter=1000, batch_size=4, latent_dim=512,
-            test_size=256, n_class=16):
+            train_iter=1000, batch_size=2, latent_dim=512,
+            test_size=512, n_class=16):
         self.model = model
         self.external_model = external_model
         self.device = "cuda"
@@ -376,7 +377,7 @@ class LinearityEvaluator(object):
         self.dims = [s.shape[1] for s in stage]
         self.sep_model = LinearSemanticExtractor(
             n_class=n_class,
-            dims=self.dims)
+            dims=self.dims).to(self.device)
         self.sep_eval = SeparabilityEvaluator(
             self.model, self.sep_model, self.external_model,
             latent_dim, test_size, n_class)
@@ -398,7 +399,7 @@ class LinearityEvaluator(object):
             self.sep_eval()
 
         self.sep_eval.aggregate()
-        global_dic, class_dic = self.sep_eval.global_result, self.sep_eval.class_result
-        np.save(f"results/{name}_global_dic.npy", global_dic)
-        np.save(f"results/{name}_class_dic.npy", class_dic)
-        return np.array(global_dic["mIoU"]).std()
+        np.save(f"results/{name}_global_dic.npy", self.sep_eval.global_result)
+        np.save(f"results/{name}_class_dic.npy", self.sep_eval.class_result)
+        v = self.sep_eval.global_result["mIoU"]
+        return np.abs(v[1:] - v[:-1]).mean()

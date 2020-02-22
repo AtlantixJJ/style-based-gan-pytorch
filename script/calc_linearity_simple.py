@@ -1,5 +1,7 @@
 """
+python script/calc_linearity_simple.py --imsize 64 --model expr/celeba_wgan64/
 python script/calc_linearity_simple.py --imsize 64 --model expr/celeba_eyeg_wgan64/
+python script/calc_linearity_simple.py --imsize 64 --model expr/celeba_eyeg_wgan64/gen_iter_001000.model --recursive 0
 """
 import sys, argparse, torch, glob, os
 sys.path.insert(0, ".")
@@ -60,5 +62,6 @@ mapid = utils.CelebAIDMap().mapid
 def external_model(x):
     return mapid(faceparser(x).argmax(1))
 
-evaluator = evaluate.LinearityEvaluator(external_model, N=1000, latent_dim=128)
+evaluator = evaluate.LinearityEvaluator(generator, external_model,
+    latent_dim=128)
 evaluator(generator, model_name)
