@@ -4,6 +4,9 @@ basecmd = "python train/wgan.py --task wgan --gpu 0,1,2,3 --batch-size 256 --ite
 
 basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg conv-16-1 --gpu 0 --batch-size 4 --iter-num 8000 --trace 1 --load checkpoint/karras2019stylegan-celebahq-1024x1024.for_g_all.pt --expr record/celebahq"
 
+
+
+"""
 class FixSegCore(object):
     def __init__(self):
         self.segcfgs = [
@@ -131,6 +134,33 @@ class FixSegFull(object):
         for count, arg in self.args_gen(gpus):
             cmd = self.basecmd % arg
             yield count, cmd
+"""
+
+class SENonlinear(object):
+    def __init__(self):
+        self.extractors = [
+            "linear",
+            "nonlinear",
+            "generative",
+            "cascade",
+        ]
+        self.basecmd = "python train/extract_semantics.py --task celebahq --model-name stylegan --extractor %s --gpu %s --batch-size 2 --iter-num 15000 --expr record/celebahq"
+
+    def args_gen(self, gpus):
+        l = []
+        count = 0
+ 
+        for i in range(len(self.extractors)):
+            extractor = self.extractors[i]
+            gpu = gpus[count]
+            l.append((count, (extractor, gpu)))
+            count = (count + 1) % len(gpus)
+        return l
+    
+    def command(self, gpus):
+        for count, arg in self.args_gen(gpus):
+            cmd = self.basecmd % arg
+            yield count, cmd
 
 
 def assign_run(command_generator, gpus, false_exec=False):
@@ -157,7 +187,7 @@ def direct_run(gpus):
 uname = subprocess.run(["uname", "-a"], capture_output=True)
 uname = uname.stdout.decode("ascii")
 if "jericho" in uname:
-    #gpus = ["0"]; assign_run(FixSegCore().command, gpus)
-    gpus = ["0"]; assign_run(direct_run, gpus)
+    gpus = ["0"]; assign_run(SENonlinear().command, gpus)
+    #gpus = ["0"]; assign_run(direct_run, gpus)
 elif "instance" in uname:
     gpus = ["0", "1", "2", "3"]; assign_run(FixSegReg().command, gpus)

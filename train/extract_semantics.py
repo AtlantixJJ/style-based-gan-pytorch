@@ -105,7 +105,6 @@ for ind in tqdm(range(cfg.n_iter)):
         for i in range(len(category_groups)):
             metrics[i].aggregate(ind + 1 - cfg.disp_iter)
             print(metrics[i])
-    
-    if (ind + 1) % cfg.save_iter == 0:
-        torch.save(sep_model.state_dict(), f"{cfg.expr_dir}/iter_{ind+1:06d}.model")
-        np.save(f"{cfg.expr_dir}/training_evaluation.npy", [metrics[i].result for i in range(len(metrics))])
+
+torch.save(sep_model.state_dict(), f"{cfg.expr_dir}/{cfg.model_name}_{cfg.semantic_extractor}_extractor.model")
+np.save(f"{cfg.expr_dir}/training_evaluation.npy", [metrics[i].result for i in range(len(metrics))])
