@@ -28,11 +28,15 @@ parser.add_argument(
 parser.add_argument(
     "--train-size", default=4, type=int)
 parser.add_argument(
+    "--train-iter", default=1000, type=int)
+parser.add_argument(
     "--save-iter", default=100, type=int)
 parser.add_argument(
     "--repeat-idx", default=0, type=int)
 parser.add_argument(
     "--test-dir", default="datasets/Synthesized_test")
+parser.add_argument(
+    "--test-size", default=1000, type=int)
 parser.add_argument(
     "--total-class", default=16, type=int)
 parser.add_argument(
@@ -97,7 +101,7 @@ latent = torch.randn(1, 512).to(device)
 colorizer = utils.Colorize(args.total_class)
 image, stage = generator.get_stage(latent, True)
 stylegan_dims = [s.shape[1] for s in stage]
-train_iter = min(int(30000 / args.train_size), 1000)
+train_iter = min(int(30000 / args.train_size), args.train_iter)
 
 def test(generator, linear_model, test_dl):
     result = []
@@ -118,6 +122,9 @@ def test(generator, linear_model, test_dl):
             result.extend([image, label_viz, est_label_viz])
 
         if args.debug == 1 and i > 4:
+            break
+            
+        if i > args.test_size:
             break
 
     global_dic, class_dic = evaluator.aggregate()

@@ -16,6 +16,8 @@ parser.add_argument("--model", default="checkpoint/fixseg_conv-16-1.model")
 parser.add_argument("--external-model", default="checkpoint/faceparse_unet_512.pth")
 parser.add_argument("--recursive", default=1, type=int)
 parser.add_argument("--gpu", default="0")
+parser.add_argument("--train-iter", default=1000, type=int)
+parser.add_argument("--test-size", default=256, type=int)
 args = parser.parse_args()
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
@@ -64,5 +66,7 @@ def external_model(x):
     return mapid(faceparser(x).argmax(1))
 
 evaluator = evaluate.LinearityEvaluator(generator, external_model,
+    train_iter=args.train_iter,
+    test_size=args.test_size,
     latent_dim=128)
 evaluator(generator, model_name)
