@@ -15,6 +15,7 @@ parser.add_argument("--imsize", default=128, type=int)
 parser.add_argument("--model", default="checkpoint/fixseg_conv-16-1.model")
 parser.add_argument("--external-model", default="checkpoint/faceparse_unet_512.pth")
 parser.add_argument("--recursive", default=1, type=int)
+parser.add_argument("--last-only", default=1, type=int)
 parser.add_argument("--gpu", default="0")
 parser.add_argument("--train-iter", default=1000, type=int)
 parser.add_argument("--test-size", default=256, type=int)
@@ -32,8 +33,8 @@ if args.recursive == 1:
     gpus = args.gpu.split(",")
     slots = [[] for _ in gpus]
     for i, model in enumerate(model_files):
-        basecmd = "python script/calc_linearity_simple.py --imsize %d --model %s --gpu %s --recursive 0"
-        basecmd = basecmd % (args.imsize, model, gpus[i % len(gpus)])
+        basecmd = "python script/calc_linearity_simple.py --imsize %d --model %s  --last-only %d --gpu %s --recursive 0"
+        basecmd = basecmd % (args.imsize, model, args.last_only, gpus[i % len(gpus)])
         slots[i % len(gpus)].append(basecmd)
     
     for s in slots:
@@ -65,6 +66,7 @@ def external_model(x):
     return mapid(faceparser(x).argmax(1))
 
 evaluator = evaluate.LinearityEvaluator(generator, external_model,
+    last_only=args.last_only,
     train_iter=args.train_iter,
     test_size=args.test_size,
     latent_dim=128)

@@ -26,6 +26,8 @@ parser.add_argument(
 parser.add_argument(
     "--gpu", default="0")
 parser.add_argument(
+    "--last-only", default=1, type=int)
+parser.add_argument(
     "--train-size", default=4, type=int)
 parser.add_argument(
     "--train-iter", default=1000, type=int)
@@ -155,7 +157,7 @@ for i in tqdm(range(train_iter)):
         bg, ed = j * 2, j * 2 + 2
         ed = min(ed, latents.shape[0])
         image, stage = generator.get_stage(latents[bg:ed].to(device), detach=True)
-        segs = linear_model(stage) # (N, C, H, W)
+        segs = linear_model(stage, last_only=args.last_only) # (N, C, H, W)
         segloss = loss.segloss(segs, labels[bg:ed].to(device))
         segloss.backward()
         linear_model.optim.step()

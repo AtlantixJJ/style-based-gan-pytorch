@@ -73,6 +73,7 @@ class GenerativeSemanticExtractor(BaseSemanticExtractor):
         extractor, reviser, visualizer = self.semantic_branch
         hidden = 0
         outputs = []
+        final_segmentation = 0
         for i, seg_input in enumerate(stage):
             if i == 0:
                 hidden = extractor[i](seg_input)
@@ -81,20 +82,27 @@ class GenerativeSemanticExtractor(BaseSemanticExtractor):
                 hidden = F.interpolate(hidden, scale_factor=2, mode="nearest")
                 hidden = reviser[i - 1](hidden)
                 hidden = hidden + extractor[i](seg_input)
-            if not last_only:
+                
+            if i + 1 == len(stage):
+                final_segmentation = visualizer[i](hidden)
+            else:
                 outputs.append(visualizer[i](hidden))
 
         if last_only:
-            return [visualizer[-1](hidden)]
+            return [final_segmentation]
 
         # summation series
         for i in range(1, len(stage)):
             size = stage[i].shape[2]
             layers = [F.interpolate(s, size=size, mode="bilinear")
                 for s in outputs[:i]]
-            sum_layers = sum(layers) + outputs[i]
+            sum_layers = sum(layers)
+            if i + 1 == len(stage):
+                sum_layers = sum_layers + outputs[i]
+            else:
+                sum_layers = sum_layers + final_segmentation
             outputs.append(sum_layers)
-
+        outputs.append(final_segmentation)
         return outputs
 
 

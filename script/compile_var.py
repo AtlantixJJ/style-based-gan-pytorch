@@ -40,10 +40,14 @@ for f in files:
     #utils.plot_dic(dic1, "class linearity", f.replace(".npy", ".png"))
     for i, v in enumerate(dic['IoU']):
         v = np.array(v)
-        valid = v[v > 0]
-        x = 1
-        if len(valid) > len(v) // 2:
-            x = np.abs(v[1:]-v[:-1]).mean()
+        non_negative = v[v > 0]
+        fluctuation = np.array([])
+        if len(non_negative) > 1:
+            fluctuation = np.abs(non_negative[1:] - non_negative[-1])
+        negative = v[v < 0]
+        negative_fluctuation = np.ones_like(negative)
+        total = fluctuation.tolist() + negative_fluctuation.tolist()
+        x = np.array(total).mean()
         summary[utils.CELEBA_REDUCED_CATEGORY[i]].append(x)
 
 utils.plot_dic(summary, "class linearity", "class.png")

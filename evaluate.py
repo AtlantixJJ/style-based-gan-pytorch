@@ -359,10 +359,12 @@ class LinearityEvaluator(object):
     External model: a semantic segmentation network
     """
     def __init__(self, model, external_model,
-            train_iter=1000, batch_size=2, latent_dim=512,
+            last_only=1,
+            train_iter=1000, batch_size=1, latent_dim=512,
             test_size=256, n_class=16):
         self.model = model
         self.external_model = external_model
+        self.last_only = last_only
         self.device = "cuda"
         self.train_iter = train_iter
         self.batch_size = batch_size
@@ -385,7 +387,7 @@ class LinearityEvaluator(object):
             latent.normal_()
             image, stage = self.model.get_stage(latent)
             label = self.external_model(image.clamp(-1, 1))
-            segs = self.sep_model(stage)
+            segs = self.sep_model(stage, last_only=self.last_only)
             segloss = loss.segloss(segs, label)
             segloss.backward()
 
