@@ -14,7 +14,7 @@ style.use('ggplot')
 colors = list(matplotlib.colors.cnames.keys())
 
 
-data_dir = sys.argv[1]
+data_dir = "results/"
 
 # analyze global data
 files = glob.glob(f"{data_dir}/linear*class.npy")
@@ -37,8 +37,7 @@ for f in files:
     bs.append(int(name.split("_")[1][1:]))
     dic = np.load(f, allow_pickle=True)[()]
     arr = np.array(dic["IoU"])
-    arr[0] = arr[13] = -1 # doesn't count background & necklace
-    arr = arr[arr > -0.1]
+    arr = arr[arr > -1]
     result[name] = arr.mean()
 bs = np.unique(bs)
 b_dic = {b:[] for b in bs}
@@ -64,7 +63,14 @@ for b in mean_dic.keys():
     ys.append(min_dic[b])
 for b in mean_dic.keys():
     ys.append(max_dic[b])
-plt.plot(xs, [mean_dic[x] for x in xs])
+
+plt.plot(xs, [mean_dic[x] for x in xs], marker=".")
 plt.fill_between(xs, [min_dic[x] for x in xs], [max_dic[x] for x in xs], color=colors[0])
-plt.savefig("scatter.png")
+plt.savefig("fewshot_result_whole.png")
+plt.close()
+
+small = 16
+plt.plot(xs, [mean_dic[x] for x in xs][:small], marker=".")
+plt.fill_between(xs, [min_dic[x] for x in xs][:small], [max_dic[x] for x in xs][:small], color=colors[0])
+plt.savefig(f"fewshot_result_{small}.png")
 plt.close()
