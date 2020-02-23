@@ -130,12 +130,10 @@ if "log" in args.task:
 
 
 if "celeba-evaluator" in args.task:
-    WINDOW = 100
-
     recordfile = args.model + "/training_evaluation.npy"
     metric = evaluate.SimpleIoUMetric()
     metric.result = np.load(recordfile, allow_pickle=True)[0]
-    metric.aggregate(start=10000)
+    metric.aggregate(start=len(metric.result) // 2)
     global_dic = metric.global_result
     class_dic = metric.class_result
     print(metric)
@@ -312,9 +310,10 @@ if "agreement" in args.task:
 
     evaluator = evaluate.MaskCelebAEval()
     for i in tqdm.tqdm(range(30 * LEN // batch_size)):
-        gen, stage = generator.get_stage(latent, detach=True)
-        est_label = sep_model.predict(stage)
-        label = external_model.segment_batch(gen.clamp(-1, 1))
+        with torch.no_grad():
+            gen, stage = generator.get_stage(latent)
+            est_label = sep_model.predict(stage)
+            label = external_model.segment_batch(gen.clamp(-1, 1))
         label = utils.torch2numpy(label)
 
         for j in range(batch_size):
@@ -324,7 +323,6 @@ if "agreement" in args.task:
     evaluator.aggregate()
     clean_dic = evaluator.summarize()
     np.save(savepath + "_agreement", clean_dic)
-    utils.format_agreement_result(clean_dic)
 
 if "seg" in args.task:
     for i, model_file in enumerate(model_files):
@@ -342,7 +340,7 @@ if "seg" in args.task:
         segs = sep_model(stage)
         segs = [s[0].argmax(0) for s in segs]
         label = external_model.segment_batch(gen)
-        
+
         segs += [label]
 
         segs = [colorizer(s).float() / 255. for s in segs]

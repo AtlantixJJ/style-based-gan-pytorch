@@ -136,7 +136,7 @@ class FixSegFull(object):
             yield count, cmd
 """
 
-class SENonlinear(object):
+class SECore(object):
     def __init__(self):
         self.extractors = [
             "linear",
