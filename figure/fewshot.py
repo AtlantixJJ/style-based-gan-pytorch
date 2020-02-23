@@ -71,6 +71,6 @@ plt.close()
 
 small = 8
 plt.plot(xs[:small], [mean_dic[x] for x in xs][:small], marker=".")
-plt.fill_between(xs, [min_dic[x] for x in xs][:small], [max_dic[x] for x in xs][:small], color=colors[0])
+plt.fill_between(xs[:small], [min_dic[x] for x in xs][:small], [max_dic[x] for x in xs][:small], color=colors[0])
 plt.savefig(f"fewshot_result_{small}.png")
 plt.close()
