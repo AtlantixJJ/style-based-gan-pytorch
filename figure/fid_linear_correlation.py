@@ -41,8 +41,8 @@ fig = plt.figure(figsize=(12, 3))
 for i, metric_name in enumerate(summary.keys()):
     x = summary[metric_name]
     minimum = min(y.shape[0], len(x))
-    y = y[:minimum]
-    x = x[:minimum]
+    y = y[1:minimum]
+    x = x[1:minimum]
     ax = plt.subplot(1, 4, i + 1)
     ax.scatter(x, y)
 plt.savefig(f"{task}_fid_linear_separability_correlation.png")
