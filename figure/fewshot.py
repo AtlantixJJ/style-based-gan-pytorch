@@ -66,11 +66,18 @@ for b in mean_dic.keys():
 
 plt.plot(xs, [mean_dic[x] for x in xs], marker=".")
 plt.fill_between(xs, [min_dic[x] for x in xs], [max_dic[x] for x in xs], color=colors[0])
+plt.xlabel("Training Size")
+plt.ylabel("mIoU")
 plt.savefig("fewshot_result_whole.png")
 plt.close()
 
-small = 8
+small = 12
 plt.plot(xs[:small], [mean_dic[x] for x in xs][:small], marker=".")
-plt.fill_between(xs[:small], [min_dic[x] for x in xs][:small], [max_dic[x] for x in xs][:small], color=colors[0])
+plt.fill_between(
+    xs[:small],
+    [min_dic[x] for x in xs][:small],
+    [max_dic[x] for x in xs][:small], color=colors[0])
+plt.xlabel("Training Size")
+plt.ylabel("mIoU")
 plt.savefig(f"fewshot_result_{small}.png")
 plt.close()
