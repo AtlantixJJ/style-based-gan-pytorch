@@ -38,7 +38,10 @@ for f in files:
 utils.plot_dic(summary, "global linearity", "global.png")
 
 y = np.log(fids[fid_name])
-x = summary["mIoU"][1:1+len(y)]
+x = summary["mIoU"]
+minimum = min(y.shape[0], len(x))
+y = y[:minimum]
+x = x[:minimum]
 plt.scatter(x, y)
 plt.savefig("correlation.png")
 plt.close()
