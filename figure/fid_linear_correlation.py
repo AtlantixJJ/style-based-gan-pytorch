@@ -27,7 +27,7 @@ plt.ylabel("FID")
 plt.savefig(f"wgan{imsize}_fid.png", box_inches="tight")
 plt.close()
 
-y = np.log(fids)
+y = np.log(fids)#np.array(fids)#
 
 # analyze global data
 files = glob.glob(f"{data_dir}/{task}*global_dic.npy")
@@ -38,7 +38,8 @@ for f in files:
     dic = np.load(f, allow_pickle=True)[()]
     for k,v in dic.items():
         v = np.array(v)
-        x = np.abs(v[1:]-v[:-1]).mean()
+        x = v[-500:].std()#np.abs(v[1:]-v[:-1]).mean()
+        x = -np.log(x)
         summary[k].append(x)
 
 fig = plt.figure(figsize=(12, 4))
@@ -51,7 +52,7 @@ for i, metric_name in enumerate(summary.keys()):
     ax.set_title(metric_name + " correlation")
     ax.set_xlabel(metric_name)
     ax.set_ylabel("ln FID")
-    ax.scatter(x, y)
+    ax.scatter(x, y, s=4)
 for i, metric_name in enumerate(summary.keys()):
     x = summary[metric_name]
     minimum = min(y.shape[0], len(x))
