@@ -37,10 +37,12 @@ for f in files:
     dic = np.load(f, allow_pickle=True)[()]
     arr = dic['IoU']
     dic1 = {k:arr[i] for i, k in enumerate(utils.CELEBA_REDUCED_CATEGORY)}
-    utils.plot_dic(dic1, "class linearity", f.replace(".npy", ".png"))
     for i, v in enumerate(dic['IoU']):
         v = np.array(v)
-        x = np.abs(v[1:]-v[:-1]).mean()
+        v = v[v > 0]
+        x = 1
+        if len(v) > 0:
+            x = np.abs(v[1:]-v[:-1]).mean()
         summary[utils.CELEBA_REDUCED_CATEGORY[i]].append(x)
 
 utils.plot_dic(summary, "class linearity", "class.png")
