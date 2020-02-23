@@ -16,13 +16,13 @@ data_dir = "results/"
 fid_dir = f"record/wgan{imsize}/wgan{imsize}_fid.txt"
 task = "celeba_wgan64" if imsize == "64" else "wgan128"
 ind = fid_dir.rfind("/")
-fid_name = fid_dir[ind+1:-3]
+fid_name = fid_dir[ind+1:-4]
 
 # plot fid data
 fids = {}
 with open(fid_dir, "r") as f:
-    fids[fid_name] = [float(num.strip()) for num in f.readlines()]
-utils.plot_dic(fids, "FID", f"{task}_fid.png")
+    fids[""] = [float(num.strip()) for num in f.readlines()]
+utils.plot_dic(fids, "", f"{task}_fid.png")
 y = np.log(fids[fid_name])
 
 # analyze global data
