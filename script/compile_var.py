@@ -40,7 +40,7 @@ for f in files:
     #utils.plot_dic(dic1, "class linearity", f.replace(".npy", ".png"))
     for i, v in enumerate(dic['IoU']):
         v = np.array(v)
-        valid = valid[v > 0]
+        valid = v[v > 0]
         x = 1
         if len(valid) > len(v) // 2:
             x = np.abs(v[1:]-v[:-1]).mean()
