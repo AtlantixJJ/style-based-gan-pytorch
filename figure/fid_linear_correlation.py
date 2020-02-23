@@ -22,7 +22,9 @@ fid_name = fid_dir[ind+1:-3]
 with open(fid_dir, "r") as f:
     fids = [float(num.strip()) for num in f.readlines()]
 plt.plot(fids, marker=".")
-plt.savefig("wgan{imsize}_fid.png", box_inches="tight")
+plt.xlabel("Model Snapshot (every 1000 iterations)")
+plt.ylabel("FID")
+plt.savefig(f"wgan{imsize}_fid.png", box_inches="tight")
 plt.close()
 
 y = np.log(fids)
