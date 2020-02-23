@@ -24,7 +24,7 @@ with open(fid_dir, "r") as f:
 utils.plot_dic(fids, "FID", f"{fid_name}.png")
 
 # analyze global data
-files = glob.glob(f"{data_dir}/*global_dic.npy")
+files = glob.glob(f"{data_dir}/{task}*global_dic.npy")
 files.sort()
 dic = np.load(files[0], allow_pickle=True)[()]
 summary = {k:[] for k in dic.keys()}

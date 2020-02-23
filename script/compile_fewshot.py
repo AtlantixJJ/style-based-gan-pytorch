@@ -17,7 +17,8 @@ colors = list(matplotlib.colors.cnames.keys())
 data_dir = sys.argv[1]
 
 # analyze global data
-files = glob.glob(f"{data_dir}/*class.npy")
+files = glob.glob(f"{data_dir}/linear*class.npy")
+files.sort()
 result = {}
 
 def get_name(name):
@@ -59,16 +60,11 @@ ys = []
 cs = []
 for b in mean_dic.keys():
     xs.append(b)
-    ys.append(mean_dic[b])
-    cs.append(colors[2])
 for b in mean_dic.keys():
-    xs.append(b)
     ys.append(min_dic[b])
-    cs.append(colors[0])
 for b in mean_dic.keys():
-    xs.append(b)
     ys.append(max_dic[b])
-    cs.append(colors[1])
-plt.scatter(xs, ys, c=cs)
+plt.plot(xs, [mean_dic[x] for x in xs])
+plt.fill_between(xs, [min_dic[x] for x in xs], [max_dic[x] for x in xs], color=colors[0])
 plt.savefig("scatter.png")
 plt.close()

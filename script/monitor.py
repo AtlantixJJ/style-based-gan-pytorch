@@ -106,7 +106,8 @@ op = getattr(generator, "generator_noise", None)
 if callable(op):
     noise = op()
 
-image, stage = generator.get_stage(latent)
+with torch.no_grad():
+    image, stage = generator.get_stage(latent)
 dims = [s.shape[1] for s in stage]
 
 model_files = glob.glob(args.model + "/*.model")
@@ -313,7 +314,8 @@ if "agreement" in args.task:
     for i in tqdm.tqdm(range(30 * LEN // batch_size)):
         gen, stage = generator.get_stage(latent, detach=True)
         est_label = sep_model.predict(stage)
-        label = utils.torch2numpy(external_model(gen.clamp(-1, 1)))
+        label = external_model.segment_batch(gen.clamp(-1, 1))
+        label = utils.torch2numpy(label)
 
         for j in range(batch_size):
             score = evaluator.calc_single(est_label[j], label[j])
