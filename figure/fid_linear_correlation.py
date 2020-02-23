@@ -13,7 +13,7 @@ colors = list(matplotlib.colors.cnames.keys())
 
 data_dir = "results/"
 fid_dir = "record/wgan64/wgan64_fid.txt"
-task = "celeba_wgan64"
+task = sys.argv[1] #"celeba_wgan64"
 ind = fid_dir.rfind("/")
 fid_name = fid_dir[ind+1:-3]
 
