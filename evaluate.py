@@ -131,16 +131,16 @@ class DetectionMetric(object):
             self.result[name] = [[] for _ in range(self.n_class)]
             self.class_result[name] = [-1] * self.n_class
 
-    def aggregate(self):
+    def aggregate(self, start=0):
         # pixel acc
-        arr = np.array(self.result["pixelacc"])
+        arr = np.array(self.result["pixelacc"])[start:]
         v = arr[arr > -1]
         self.global_result["pixelacc"] = v.mean() if len(v) > 0 else -1
 
         # average over samples for each class and metric
         for i in range(self.n_class):
             for j, name in enumerate(self.class_metric_names):
-                arr = np.array(self.result[name][i])
+                arr = np.array(self.result[name][i])[start:]
                 arr = arr[arr > -1]
                 if arr.shape[0] == 0:
                     self.class_result[name][i] = -1

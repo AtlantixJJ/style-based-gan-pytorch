@@ -46,7 +46,7 @@ sep_model = get_semantic_extractor(cfg.semantic_extractor)(
 
 
 record = cfg.record
-metrics = [evaluate.SimpleIoUMetric(n_class=cg[1]-cg[0]) for i, cg in enumerate(category_groups)]
+metrics = [evaluate.DetectionMetric(n_class=cg[1]-cg[0]) for i, cg in enumerate(category_groups)]
 
 for ind in tqdm(range(cfg.n_iter)):
     ind += 1

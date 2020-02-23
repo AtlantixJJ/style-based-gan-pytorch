@@ -138,22 +138,23 @@ class FixSegFull(object):
 
 class SECore(object):
     def __init__(self):
+        self.last_only = [0, 1]
         self.extractors = [
             "linear",
             "nonlinear",
             "generative",
         ]
-        self.basecmd = "python train/extract_semantics.py --task celebahq --model-name stylegan --extractor %s --gpu %s --batch-size 2 --iter-num 15000 --expr record/celebahq"
+        self.basecmd = "python train/extract_semantics.py --task celebahq --model-name stylegan --extractor %s --gpu %s --batch-size 1 --iter-num 10000 --last-only %d --expr record/celebahq%d"
 
     def args_gen(self, gpus):
         l = []
         count = 0
- 
-        for i in range(len(self.extractors)):
-            extractor = self.extractors[i]
-            gpu = gpus[count]
-            l.append((count, (extractor, gpu)))
-            count = (count + 1) % len(gpus)
+        for j in self.last_only:
+            for i in range(len(self.extractors)):
+                extractor = self.extractors[i]
+                gpu = gpus[count]
+                l.append((count, (extractor, gpu, j, j)))
+                count = (count + 1) % len(gpus)
         return l
     
     def command(self, gpus):
@@ -186,7 +187,7 @@ def direct_run(gpus):
 uname = subprocess.run(["uname", "-a"], capture_output=True)
 uname = uname.stdout.decode("ascii")
 if "jericho" in uname:
-    gpus = ["0"]; assign_run(SENonlinear().command, gpus)
+    gpus = ["0"]; assign_run(SECore().command, gpus)
     #gpus = ["0"]; assign_run(direct_run, gpus)
 elif "instance" in uname:
     gpus = ["0", "1", "2", "3"]; assign_run(FixSegReg().command, gpus)

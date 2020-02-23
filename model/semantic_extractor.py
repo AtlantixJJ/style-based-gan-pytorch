@@ -98,9 +98,9 @@ class GenerativeSemanticExtractor(BaseSemanticExtractor):
                 for s in outputs[:i]]
             sum_layers = sum(layers)
             if i + 1 == len(stage):
-                sum_layers = sum_layers + outputs[i]
+                sum_layers = sum_layers + final_segmentation 
             else:
-                sum_layers = sum_layers + final_segmentation
+                sum_layers = sum_layers + outputs[i]
             outputs.append(sum_layers)
         outputs.append(final_segmentation)
         return outputs
