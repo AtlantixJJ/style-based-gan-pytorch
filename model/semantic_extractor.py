@@ -69,7 +69,7 @@ class GenerativeSemanticExtractor(BaseSemanticExtractor):
             semantic_visualizer])
         self.optim = torch.optim.Adam(self.semantic_branch.parameters(), lr=1e-3)
 
-    def forward(self, stage, last_only=False):
+    def forward(self, stage, last_only=True):
         extractor, reviser, visualizer = self.semantic_branch
         hidden = 0
         outputs = []
@@ -107,7 +107,7 @@ class LinearSemanticExtractor(BaseSemanticExtractor):
         
         self.optim = torch.optim.Adam(self.semantic_extractor.parameters(), lr=1e-3)
 
-    def forward_category_group(self, stage, last_only=False):
+    def forward_category_group(self, stage, last_only=True):
         outputs = [[] for _ in range(len(self.category_groups))]
 
         for i, seg_input in enumerate(stage):
@@ -136,7 +136,7 @@ class LinearSemanticExtractor(BaseSemanticExtractor):
 
         return outputs
         
-    def forward_single_group(self, stage, last_only=False):
+    def forward_single_group(self, stage, last_only=True):
         outputs = []
         for i, seg_input in enumerate(stage):
             outputs.append(self.semantic_extractor[i](seg_input))
@@ -157,7 +157,7 @@ class LinearSemanticExtractor(BaseSemanticExtractor):
 
         return outputs
 
-    def forward(self, stage, last_only=False):
+    def forward(self, stage, last_only=True):
         if len(self.category_groups) == 1:
             return self.forward_single_group(stage, last_only)
         else:

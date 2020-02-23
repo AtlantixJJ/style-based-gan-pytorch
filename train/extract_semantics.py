@@ -56,7 +56,7 @@ for ind in tqdm(range(cfg.n_iter)):
         gen, stage = generator.get_stage(latent, detach=True)
         label = external_model.segment_batch(gen)
 
-    multi_segs = sep_model(stage)
+    multi_segs = sep_model(stage, last_only=cfg.last_only)
     if len(category_groups_label) == 1:
         multi_segs = [multi_segs]
         label = label.unsqueeze(1)

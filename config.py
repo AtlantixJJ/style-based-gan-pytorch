@@ -143,12 +143,15 @@ class SemanticExtractorConfig(BaseConfig):
         self.parser.add_argument(
             "--n-class", type=int, default=16, help="Class num")
         self.parser.add_argument(
+            "--last-only", type=int, default=1, help="If to train the last layer only")
+        self.parser.add_argument(
             "--ortho-reg", type=float, default=-1, help="The coef of using ortho reg. < 0 means not to use.")
         self.parser.add_argument(
             "--positive-reg", type=float, default=-1, help="The coef of using positive regularization.")
 
     def parse(self):
         super().parse()
+        self.last_only = self.args.last_only
         self.ortho_reg = self.args.ortho_reg
         self.positive_reg = self.args.positive_reg
         self.upsample = self.args.upsample

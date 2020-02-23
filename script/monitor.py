@@ -132,23 +132,12 @@ if "celeba-evaluator" in args.task:
     WINDOW = 100
 
     recordfile = args.model + "/training_evaluation.npy"
-    evaluator = evaluate.MaskCelebAEval()
-    evaluator.load(recordfile)
-    evaluator.aggregate_process()
-    global_dic = evaluator.dic["global_process"]
-    class_dic = evaluator.dic["class_process"]
-    n_class = class_dic["AP"].shape[0]
-
-    utils.plot_dic(global_dic, args.model, savepath + "_evaluator_global.png")
-    for i, name in enumerate(["AP", "AR", "IoU"]):
-        metric_dic = {
-            evaluator.dic['class'][j] : class_dic[name][j]
-                for j in range(n_class)
-            }
-        utils.plot_dic(
-            metric_dic,
-            f"{args.model}_evaluator_class_{name}",
-            f"{savepath}_evaluator_class_{name}.png")
+    metric = evaluate.SimpleIoUMetric()
+    metric.result = np.load(recordfile, allow_pickle=True)[0]
+    metric.aggregate(start=10000)
+    global_dic = metric.global_result
+    class_dic = metric.class_result
+    print(metric)
 
 
 if "layer-conv" in args.task:
