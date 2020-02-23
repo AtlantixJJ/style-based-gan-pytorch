@@ -41,7 +41,7 @@ for f in files:
         v = np.array(v)
         v = v[v > 0]
         x = 1
-        if len(v) > 0:
+        if len(v) > 1:
             x = np.abs(v[1:]-v[:-1]).mean()
         summary[utils.CELEBA_REDUCED_CATEGORY[i]].append(x)
 
