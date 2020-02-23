@@ -41,7 +41,7 @@ for f in files:
         x = np.abs(v[1:]-v[:-1]).mean()
         summary[k].append(x)
 
-fig = plt.figure(figsize=(12, 3))
+fig = plt.figure()
 for i, metric_name in enumerate(summary.keys()):
     x = summary[metric_name]
     minimum = min(y.shape[0], len(x))
@@ -60,7 +60,7 @@ for i, metric_name in enumerate(summary.keys()):
     ax.set_xlabel("Model Snapshot")
     ax.set_ylabel(metric_name)
     ax.plot(x)
-ax = plt.subplot(2, 5, 5)
+ax = plt.subplot(1, 5, 5)
 ax.plot(fids)
 ax.set_xlabel("Model Snapshot")
 ax.set_ylabel("FID")
