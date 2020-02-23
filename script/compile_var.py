@@ -40,9 +40,9 @@ for f in files:
     utils.plot_dic(dic1, "class linearity", f.replace(".npy", ".png"))
     for i, v in enumerate(dic['IoU']):
         v = np.array(v)
-        v = v[v > 0]
+        valid = valid[v > 0]
         x = 1
-        if len(v) > 1:
+        if len(valid) > len(v) // 2:
             x = np.abs(v[1:]-v[:-1]).mean()
         summary[utils.CELEBA_REDUCED_CATEGORY[i]].append(x)
 
