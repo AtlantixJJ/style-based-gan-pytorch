@@ -41,7 +41,7 @@ for f in files:
         x = np.abs(v[1:]-v[:-1]).mean()
         summary[k].append(x)
 
-fig = plt.figure()
+fig = plt.figure(figsize=(12, 6))
 for i, metric_name in enumerate(summary.keys()):
     x = summary[metric_name]
     minimum = min(y.shape[0], len(x))
