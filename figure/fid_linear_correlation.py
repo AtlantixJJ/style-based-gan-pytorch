@@ -22,7 +22,7 @@ fid_name = fid_dir[ind+1:-3]
 with open(fid_dir, "r") as f:
     fids = [float(num.strip()) for num in f.readlines()]
 plt.plot(fids, marker=".")
-plt.xlabel("Model Snapshot (every 1000 iterations)")
+plt.xlabel("Model Snapshot")
 plt.ylabel("FID")
 plt.savefig(f"wgan{imsize}_fid.png", box_inches="tight")
 plt.close()
@@ -47,9 +47,23 @@ for i, metric_name in enumerate(summary.keys()):
     minimum = min(y.shape[0], len(x))
     y = y[1:minimum]
     x = x[1:minimum]
-    ax = plt.subplot(1, 4, i + 1)
-    ax.set_title(metric_name)
+    ax = plt.subplot(2, 5, i + 1)
+    ax.set_title(metric_name + " correlation")
+    ax.xlabel(metric_name)
+    ax.ylabel("ln FID")
     ax.scatter(x, y)
+for i, metric_name in enumerate(summary.keys()):
+    x = summary[metric_name]
+    minimum = min(y.shape[0], len(x))
+    ax = plt.subplot(2, 5, i + 6)
+    ax.set_title(metric_name)
+    ax.xlabel("Model Snapshot")
+    ax.ylabel(metric_name)
+    ax.plot(x)
+ax = plt.subplot(2, 5, 5)
+ax.plot(fids)
+plt.xlabel("Model Snapshot")
+plt.ylabel("FID")
 plt.savefig(f"{task}_fid_linear_separability_correlation.png",
     box_inches="tight")
 plt.close()
