@@ -153,12 +153,10 @@ for i in tqdm(range(train_iter)):
     generator.set_noise(None)
 
     # equivalent to 1 iteration, in case memory is not sufficient
-    for j in range(math.floor(latents.shape[0] / 2.)):
-        bg, ed = j * 2, j * 2 + 2
-        ed = min(ed, latents.shape[0])
-        image, stage = generator.get_stage(latents[bg:ed].to(device), detach=True)
+    for j in range(latents.shape[0]):
+        image, stage = generator.get_stage(latents[j:j+1].to(device), detach=True)
         segs = linear_model(stage, last_only=args.last_only) # (N, C, H, W)
-        segloss = loss.segloss(segs, labels[bg:ed].to(device))
+        segloss = loss.segloss(segs, labels[j:j+1].to(device))
         segloss.backward()
         linear_model.optim.step()
         linear_model.optim.zero_grad()
