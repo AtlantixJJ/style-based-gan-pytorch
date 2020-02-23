@@ -83,8 +83,18 @@ class GenerativeSemanticExtractor(BaseSemanticExtractor):
                 hidden = hidden + extractor[i](seg_input)
             if not last_only:
                 outputs.append(visualizer[i](hidden))
+
         if last_only:
             return [visualizer[-1](hidden)]
+
+        # summation series
+        for i in range(1, len(stage)):
+            size = stage[i].shape[2]
+            layers = [F.interpolate(s, size=size, mode="bilinear")
+                for s in outputs[:i]]
+            sum_layers = sum(layers) + outputs[i]
+            outputs.append(sum_layers)
+
         return outputs
 
 
