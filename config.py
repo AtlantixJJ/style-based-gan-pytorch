@@ -148,12 +148,15 @@ class SemanticExtractorConfig(BaseConfig):
             "--ortho-reg", type=float, default=-1, help="The coef of using ortho reg. < 0 means not to use.")
         self.parser.add_argument(
             "--positive-reg", type=float, default=-1, help="The coef of using positive regularization.")
+        self.parser.add_argument(
+            "--l1-reg", type=float, default=-1, help="L1 regularization")
 
     def parse(self):
         super().parse()
         self.last_only = self.args.last_only
         self.ortho_reg = self.args.ortho_reg
         self.positive_reg = self.args.positive_reg
+        self.l1_reg = self.args.l1_reg
         self.upsample = self.args.upsample
         self.n_class = self.args.n_class
         self.seg_net_path = self.args.seg_net
@@ -169,6 +172,7 @@ class SemanticExtractorConfig(BaseConfig):
         strs.append("=> Segmentation configure: %s" % self.semantic_extractor)
         strs.append("=> Orthogonal regularization: %f" % self.ortho_reg)
         strs.append("=> Positive regularization: %f" % self.positive_reg)
+        strs.append("=> L1 regularization: %f" % self.l1_reg)
         return "\n".join(strs)
 
 
