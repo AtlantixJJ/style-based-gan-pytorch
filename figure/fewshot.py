@@ -73,14 +73,13 @@ ax.plot(xs, [mean_dic[x] for x in xs], marker=".")
 ax.fill_between(xs, [min_dic[x] for x in xs], [max_dic[x] for x in xs], color=colors[0])
 ax.set_xlabel("Training Size")
 ax.set_ylabel("mIoU")
-print(xs, mean_dic)
-"""
+
 small = 15
 axins = zoomed_inset_axes(ax, 2.5, loc=4) # zoom-factor: 2.5, location: upper-left
 axins.plot(xs[:small], [mean_dic[x] for x in xs][:small], marker=".")
 axins.fill_between(xs[:small], [min_dic[x] for x in xs][:small], [max_dic[x] for x in xs][:small], color=colors[0])
-axins.set_xlim(0, 0.3) # apply the x-limits
-axins.set_ylim(0.2, 0.6) # apply the y-limits
-"""
+axins.set_xlim(0, 30) # apply the x-limits
+axins.set_ylim(0.25, 0.6) # apply the y-limits
+
 plt.savefig("fewshot_result.png", box_inches="tight")
 plt.close()
