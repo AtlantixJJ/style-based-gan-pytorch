@@ -710,13 +710,14 @@ def plot_dic(dic, title="", file=None):
     edge = int(math.sqrt(n))
     if edge ** 2 < n:
         edge += 1
-    fig = plt.figure(figsize=(3 * edge, 3 * edge))
+    fig = plt.figure(figsize=(4 * edge, 3 * edge))
     for i, (k, v) in enumerate(dic.items()):
         ax = fig.add_subplot(edge, edge, i + 1)
         ax.plot(v)
         ax.set_title(k)
     if len(title) > 0:
         plt.suptitle(title)
+    plt.tight_layout()
     if file is not None:
         plt.savefig(file, bbox_inches='tight')
         plt.close()

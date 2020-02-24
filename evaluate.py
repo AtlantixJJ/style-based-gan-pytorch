@@ -57,6 +57,26 @@ class SimpleIoUMetric(object):
         self.result["pixelacc"] = []
         self.result["IoU"] = [[] for _ in range(self.n_class)]
 
+    def aggregate_process(self, winsize=100):
+        arr = np.array(self.result["pixelacc"])
+        mask = arr > -1
+        res = np.array(self.result["IoU"])
+        windowsum = utils.window_sum(arr, size=winsize)
+        divider = utils.window_sum(mask.astype("float32"), size=winsize)
+        global_result = {"pixelacc" : windowsum / divider}
+        class_result = {}
+        for i in range(self.n_class):
+            name = utils.CELEBA_REDUCED_CATEGORY[i]
+            mask = res[i] > -1
+            class_result[name] = res[i].copy()
+            class_result[name][~mask] = 0
+            if class_result[name].shape[0] > 0:
+                windowsum = utils.window_sum(class_result[name], size=winsize)
+                divider = utils.window_sum(mask.astype("float32"), size=winsize)
+                divider[divider < 1e-5] = 1e-5
+                class_result[name] = windowsum / divider
+        return global_result, class_result
+
     def aggregate(self, start=0):
         # pixel acc
         arr = np.array(self.result["pixelacc"][start:])
@@ -218,6 +238,7 @@ class MaskCelebAEval(object):
         number = len(self.dic["class_result"][0])
         global_dic = {}
         class_dic = {}
+        # [BUG] this should be window sum
         global_dic["pixelacc"] = np.cumsum(self.dic['result']) / np.arange(1, number + 1)
         class_dic["AP"] = np.zeros((n_class, number))
         class_dic["AR"] = np.zeros((n_class, number))

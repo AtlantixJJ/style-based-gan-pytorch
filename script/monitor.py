@@ -17,6 +17,11 @@ import model, segmenter
 from lib.netdissect.segviz import segment_visualization_single
 from model.semantic_extractor import get_semantic_extractor
 
+import matplotlib
+import matplotlib.style as style
+style.use('seaborn-poster') #sets the size of the charts
+style.use('ggplot')
+colors = list(matplotlib.colors.cnames.keys())
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--task", default="log,seg,fastagreement", help="")
@@ -137,6 +142,9 @@ if "celeba-evaluator" in args.task:
     global_dic = metric.global_result
     class_dic = metric.class_result
     print(metric)
+    global_result, class_result = metric.aggregate_process()
+    utils.plot_dic(global_result, "", savepath + "_global_process.png")
+    utils.plot_dic(class_result, "", savepath + "_class_process.png")
 
 
 if "layer-conv" in args.task:
