@@ -95,7 +95,7 @@ class ImageSegmentationDataset(torch.utils.data.Dataset):
         image_t = self.normal_transform(image)
         label = np.asarray(label.resize(self.size, Image.NEAREST)).copy()
         if self.idmap is not None:
-            label = idmap.mapid(label)
+            label = self.idmap.mapid(label)
         label_t = torch.from_numpy(label).long().unsqueeze(0)
         if self.flip and torch.rand(1).numpy()[0] > 0.5:
             image_t = torch.flip(image_t, (2,))

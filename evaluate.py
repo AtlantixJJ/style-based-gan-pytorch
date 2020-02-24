@@ -279,6 +279,9 @@ class MaskCelebAEval(object):
         self.clean_dic = {}
         for key in ["mAP", "mAR", "mIoU", "pixelacc"]:
             self.clean_dic[key] = self.global_result[key]
+        for key in ["mAP", "mAR", "mIoU"]:
+            for t in ["face", "other"]:
+                self.clean_dic[f"{key}_{t}"] = self.global_result[f"{key}_{t}"]
 
         print("=> Name \t  AP \t  AR \t  IoU \t")
         for i in range(self.n_class):

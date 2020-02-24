@@ -675,19 +675,18 @@ def format_agreement_result(dic):
     return model_global_latex, class_latex, model_global_csv, class_csv, best_ind
 
 
-def format_test_result(dic):
+def format_test_result(dic, global_metrics=["mAP", "mAR", "mIoU"], class_metrics=["AP", "AR", "IoU"]):
     label_list = CELEBA_REDUCED_CATEGORY
-    global_metrics = ["pixelacc", "mAP", "mAR", "mIoU"]
     class_metrics = ["AP", "AR", "IoU"]
-    
+
     # table 1: global metrics
     numbers = [dic[m] for m in global_metrics]
     numbers = np.array(numbers)
     strs = [global_metrics]
     strs.append([str_num(n) for n in numbers])
     # print latex table
-    print(str_latex_table(strs))
-    print(str_csv_table(strs))
+    global_latex = str_latex_table(strs)
+    global_csv = str_csv_table(strs)
 
     # table 2: classwise accuracy
     strs = [["metric"] + label_list]
@@ -701,9 +700,10 @@ def format_test_result(dic):
     for i in range(1, len(strs)):
         strs[i] = [class_metrics[i - 1]] + strs[i]
     # print latex table
-    print(str_latex_table(strs))
-    print(str_csv_table(strs))
+    class_latex = str_latex_table(strs)
+    class_csv = str_csv_table(strs)
 
+    return global_latex, class_latex, global_csv, class_csv
 
 def plot_dic(dic, title="", file=None):
     n = len(dic.items())

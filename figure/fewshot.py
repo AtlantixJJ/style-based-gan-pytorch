@@ -71,7 +71,7 @@ plt.ylabel("mIoU")
 plt.savefig("fewshot_result_whole.png", box_inches="tight")
 plt.close()
 
-small = 12
+small = 15
 plt.plot(xs[:small], [mean_dic[x] for x in xs][:small], marker=".")
 plt.fill_between(
     xs[:small],
