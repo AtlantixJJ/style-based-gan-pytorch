@@ -612,7 +612,7 @@ def str_latex_table(strs):
     for i in range(len(strs)):
         for j in range(len(strs[i])):
             if "_" in strs[i][j]:
-                strs[i][j] = strs[i][j].replace("_", "\\_")
+                strs[i][j] = strs[i][j].replace("_", "-")
 
     ncols = len(strs[0])
     seps = "".join(["c" for i in range(ncols)])
@@ -682,7 +682,7 @@ def format_test_result(dic, global_metrics=["mAP", "mAR", "mIoU"], class_metrics
     # table 1: global metrics
     numbers = [dic[m] for m in global_metrics]
     numbers = np.array(numbers)
-    strs = [global_metrics]
+    strs = [["model"] + global_metrics]
     strs.append([str_num(n) for n in numbers])
     # print latex table
     global_latex = str_latex_table(strs)

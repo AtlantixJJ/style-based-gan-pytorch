@@ -2,6 +2,7 @@
 *.csv
 *.npy
 *.pkl
+*.tex
 *.png
 *.mp4
 *.tar.gz

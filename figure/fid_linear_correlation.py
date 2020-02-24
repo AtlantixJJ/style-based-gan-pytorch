@@ -13,8 +13,8 @@ colors = list(matplotlib.colors.cnames.keys())
 
 imsize = sys.argv[1]
 data_dir = "results/"
-fid_dir = f"record/wgan{imsize}/wgan{imsize}_fid.txt"
 task = "celeba_wgan64" if imsize == "64" else "wgan128"
+fid_dir = f"record/{task}/wgan{imsize}_fid.txt"
 ind = fid_dir.rfind("/")
 fid_name = fid_dir[ind+1:-3]
 

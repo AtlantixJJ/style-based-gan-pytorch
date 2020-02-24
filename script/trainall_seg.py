@@ -175,8 +175,8 @@ def assign_run(command_generator, gpus, false_exec=False):
 
 def direct_run(gpus):
     commands = [
-        "python train/semantic_extractor.py --load checkpoint/bedroom_lsun_256x256_proggan.pth --model-name proggan --batch-size 2 --iter-num 16000 --task bedroom --gpu %s",
-        "python train/semantic_extractor.py --load checkpoint/bedroom_lsun_256x256_stylegan.pth --model-name stylegan --batch-size 2 --iter-num 16000 --task bedroom --gpu %s"]
+        "python train/extract_semantics.py --load checkpoint/bedroom_lsun_256x256_proggan.pth --model-name proggan --batch-size 1 --iter-num 30000 --last-only 0 --task bedroom --gpu %s",
+        "python train/extract_semantics.py --load checkpoint/bedroom_lsun_256x256_stylegan.pth --model-name stylegan --batch-size 1 --iter-num 30000 --last-only 0 --task bedroom --gpu %s"]
     for i in range(len(commands)):
         index = i % len(gpus)
         gpu = gpus[index]
@@ -187,7 +187,7 @@ def direct_run(gpus):
 uname = subprocess.run(["uname", "-a"], capture_output=True)
 uname = uname.stdout.decode("ascii")
 if "jericho" in uname:
-    gpus = ["0"]; assign_run(SECore().command, gpus)
-    #gpus = ["0"]; assign_run(direct_run, gpus)
+    #gpus = ["0"]; assign_run(SECore().command, gpus)
+    gpus = ["0"]; assign_run(direct_run, gpus)
 elif "instance" in uname:
     gpus = ["0", "1", "2", "3"]; assign_run(FixSegReg().command, gpus)
