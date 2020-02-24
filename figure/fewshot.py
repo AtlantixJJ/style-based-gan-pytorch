@@ -74,7 +74,7 @@ ax.fill_between(xs, [min_dic[x] for x in xs], [max_dic[x] for x in xs], color=co
 ax.set_xlabel("Training Size")
 ax.set_ylabel("mIoU")
 
-axins = ax.inset_axes([0, 0.25, 30, 0.6])
+axins = ax.inset_axes([500, 0.3, 1, 1])
 small = 15
 axins.plot(
     xs[:small],
@@ -86,6 +86,7 @@ axins.fill_between(
 # sub region of the original image
 axins.set_xlim(0, 30) # apply the x-limits
 axins.set_ylim(0.25, 0.6) # apply the y-limits
+ax.indicate_inset_zoom(axins)
 #axins.set_xticklabels('')
 #axins.set_yticklabels('')
 
