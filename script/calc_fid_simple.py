@@ -16,12 +16,12 @@ ind = args.model.rfind("/")
 model_name = args.model[ind + 1:]
 
 if args.recursive == 1:
-    #start = 0
-    #if os.path.exists(f"record/{model_name}_fid.txt"):
-    #    with open(f"record/{model_name}_fid.txt", "r") as f:
-    #        lines = f.readlines()
-    #    fids = [float(l.strip()) for l in lines]
-    #    start = len(fids)
+    start = 0
+    if os.path.exists(f"record/{model_name}/{model_name}_fid.txt"):
+        with open(f"record/{model_name}/{model_name}_fid.txt", "r") as f:
+            lines = f.readlines()
+        fids = [float(l.strip()) for l in lines]
+        start = len(fids)
     # This is root, run for all the expr directory
     model_files = glob.glob(args.model + "/*.model")
     model_files = [m for m in model_files if "disc" not in m]
