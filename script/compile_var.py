@@ -23,7 +23,7 @@ for f in files:
     dic = np.load(f, allow_pickle=True)[()]
     for k,v in dic.items():
         v = np.array(v)
-        x = np.abs(v[1:]-v[:-1]).mean()
+        x = v[-500:].std()
         summary[k].append(x)
 utils.plot_dic(summary, "global linearity", "global.png")
 
@@ -39,15 +39,21 @@ for f in files:
     #dic1 = {k:arr[i] for i, k in enumerate(utils.CELEBA_REDUCED_CATEGORY)}
     #utils.plot_dic(dic1, "class linearity", f.replace(".npy", ".png"))
     for i, v in enumerate(dic['IoU']):
-        v = np.array(v)
+        v = np.array(v)[-500:]
+
         non_negative = v[v > 0]
         fluctuation = np.array([])
         if len(non_negative) > 1:
             fluctuation = np.abs(non_negative[1:] - non_negative[-1])
         negative = v[v < 0]
         negative_fluctuation = np.ones_like(negative)
-        total = fluctuation.tolist() + negative_fluctuation.tolist()
-        x = np.array(total).mean()
+        x = fluctuation.tolist() + negative_fluctuation.tolist()
+        x = np.array(x).mean()
+        """
+        x = 1
+        if len(v[v>0]) > 0:
+            x = v.std()
+        """
         summary[utils.CELEBA_REDUCED_CATEGORY[i]].append(x)
 
 utils.plot_dic(summary, "class linearity", "class.png")
