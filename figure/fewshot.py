@@ -6,12 +6,15 @@ import glob
 import utils
 import matplotlib.pyplot as plt
 
-
+# style
 import matplotlib
 import matplotlib.style as style
 style.use('seaborn-poster') #sets the size of the charts
 style.use('ggplot')
 colors = list(matplotlib.colors.cnames.keys())
+
+# zoom in
+from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes
 
 
 data_dir = "results/"
@@ -64,20 +67,20 @@ for b in mean_dic.keys():
 for b in mean_dic.keys():
     ys.append(max_dic[b])
 
-plt.plot(xs, [mean_dic[x] for x in xs], marker=".")
-plt.fill_between(xs, [min_dic[x] for x in xs], [max_dic[x] for x in xs], color=colors[0])
-plt.xlabel("Training Size")
-plt.ylabel("mIoU")
-plt.savefig("fewshot_result_whole.png", box_inches="tight")
-plt.close()
-
+fig = plt.figure()
+ax = plt.subplot(1, 1, 1)
+ax.plot(xs, [mean_dic[x] for x in xs], marker=".")
+ax.fill_between(xs, [min_dic[x] for x in xs], [max_dic[x] for x in xs], color=colors[0])
+ax.set_xlabel("Training Size")
+ax.set_ylabel("mIoU")
+print(xs, mean_dic)
+"""
 small = 15
-plt.plot(xs[:small], [mean_dic[x] for x in xs][:small], marker=".")
-plt.fill_between(
-    xs[:small],
-    [min_dic[x] for x in xs][:small],
-    [max_dic[x] for x in xs][:small], color=colors[0])
-plt.xlabel("Training Size")
-plt.ylabel("mIoU")
-plt.savefig(f"fewshot_result_{small}.png", box_inches="tight")
+axins = zoomed_inset_axes(ax, 2.5, loc=4) # zoom-factor: 2.5, location: upper-left
+axins.plot(xs[:small], [mean_dic[x] for x in xs][:small], marker=".")
+axins.fill_between(xs[:small], [min_dic[x] for x in xs][:small], [max_dic[x] for x in xs][:small], color=colors[0])
+axins.set_xlim(0, 0.3) # apply the x-limits
+axins.set_ylim(0.2, 0.6) # apply the y-limits
+"""
+plt.savefig("fewshot_result.png", box_inches="tight")
 plt.close()
