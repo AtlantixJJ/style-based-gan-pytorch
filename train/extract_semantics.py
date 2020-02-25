@@ -74,11 +74,17 @@ for ind in tqdm(range(cfg.n_iter)):
         for j in range(est_label.shape[0]):
             metrics[i](utils.torch2numpy(est_label[j]), utils.torch2numpy(l[j]))
 
-    segloss.backward()
+    regloss = 0
+    if cfg.l1_reg > 0:
+        regloss = regloss + cfg.l1_reg * loss.l1(sep_model)
+
+    total_loss = segloss + regloss
+    total_loss.backward()
     sep_model.optim.step()
     sep_model.optim.zero_grad()
 
     record['segloss'].append(utils.torch2numpy(segloss))
+    record['regloss'].append(utils.torch2numpy(regloss))
 
     if (ind + 1) % cfg.disp_iter == 0 or ind == cfg.n_iter or cfg.debug:
         # visualize training

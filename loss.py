@@ -1,6 +1,11 @@
 import torch
 import torch.nn.functional as F
 
+
+def l1(module):
+    return sum([p.abs().sum() for p in module.parameters()])
+
+
 # segs : [(N, C, H, W)]
 # ext_label : (N, H, W)
 def segloss(segs, ext_label):
