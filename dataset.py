@@ -253,12 +253,13 @@ class LatentSegmentationDataset(torch.utils.data.Dataset):
         self.latent_files = [f for f in os.listdir(self.latent_dir) if ".npy" in f]
         self.latent_files.sort()
 
-        self.rng = np.random.RandomState(1116)
+        #self.rng = np.random.RandomState(1116)
         self.indice = np.arange(0, len(self.latent_files))
-        self.reset()
+        #self.reset()
 
     def reset(self):
-        self.rng.shuffle(self.indice)
+        pass
+        #self.rng.shuffle(self.indice)
 
     def __len__(self):
         return len(self.latent_files)

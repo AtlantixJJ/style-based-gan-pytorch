@@ -46,7 +46,7 @@ class SEL1Reg(SECore):
             l.append((count, (l1, gpu)))
             count = (count + 1) % len(gpus)
         return l
-    
+
 
 def assign_run(command_generator, gpus, false_exec=False):
     slots = [""] * len(gpus)
@@ -60,8 +60,10 @@ def assign_run(command_generator, gpus, false_exec=False):
 
 def direct_run(gpus):
     commands = [
-        "python train/extract_semantics.py --load checkpoint/bedroom_lsun_256x256_proggan.pth --model-name proggan --batch-size 1 --iter-num 30000 --last-only 0 --task bedroom --gpu %s",
-        "python train/extract_semantics.py --load checkpoint/bedroom_lsun_256x256_stylegan.pth --model-name stylegan --batch-size 1 --iter-num 30000 --last-only 0 --task bedroom --gpu %s"]
+        "python train/extract_semantics.py --task celebahq --model-name stylegan --extractor linear --norm-reg 1.0 --gpu %s --batch-size 1 --iter-num 5000 --last-only 0",
+        #"python train/extract_semantics.py --load checkpoint/bedroom_lsun_256x256_proggan.pth --model-name proggan --batch-size 1 --iter-num 30000 --last-only 0 --task bedroom --gpu %s",
+        #"python train/extract_semantics.py --load checkpoint/bedroom_lsun_256x256_stylegan.pth --model-name stylegan --batch-size 1 --iter-num 30000 --last-only 0 --task bedroom --gpu %s"
+        ]
     for i in range(len(commands)):
         index = i % len(gpus)
         gpu = gpus[index]

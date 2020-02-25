@@ -150,6 +150,9 @@ class SemanticExtractorConfig(BaseConfig):
             "--positive-reg", type=float, default=-1, help="The coef of using positive regularization.")
         self.parser.add_argument(
             "--l1-reg", type=float, default=-1, help="L1 regularization")
+        self.parser.add_argument(
+            "--norm-reg", type=float, default=-1, help="L1 norm regularization")
+
 
     def parse(self):
         super().parse()
