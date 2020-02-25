@@ -6,6 +6,14 @@ def l1(module):
     return sum([p.abs().sum() for p in module.parameters()])
 
 
+def l1norm(module):
+    res = 0
+    for conv in module.children():
+        w = conv[0].weight[:, :, 0, 0]
+        res = res + w.abs().sum(1)
+    return ((res - 1) ** 2).mean()
+
+
 # segs : [(N, C, H, W)]
 # ext_label : (N, H, W)
 def segloss(segs, ext_label):

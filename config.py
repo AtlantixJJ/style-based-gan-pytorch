@@ -160,6 +160,7 @@ class SemanticExtractorConfig(BaseConfig):
         self.ortho_reg = self.args.ortho_reg
         self.positive_reg = self.args.positive_reg
         self.l1_reg = self.args.l1_reg
+        self.norm_reg = self.args.norm_reg
         self.upsample = self.args.upsample
         self.n_class = self.args.n_class
         self.seg_net_path = self.args.seg_net
@@ -176,6 +177,7 @@ class SemanticExtractorConfig(BaseConfig):
         strs.append("=> Orthogonal regularization: %f" % self.ortho_reg)
         strs.append("=> Positive regularization: %f" % self.positive_reg)
         strs.append("=> L1 regularization: %f" % self.l1_reg)
+        strs.append("=> L1 norm regularization: %f" % self.norm_reg)
         return "\n".join(strs)
 
 

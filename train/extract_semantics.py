@@ -77,7 +77,8 @@ for ind in tqdm(range(cfg.n_iter)):
     regloss = 0
     if cfg.l1_reg > 0:
         regloss = regloss + cfg.l1_reg * loss.l1(sep_model)
-
+    if cfg.norm_reg > 0:
+        regloss = regloss + cfg.norm_reg * loss.l1norm(seg_model)
     total_loss = segloss + regloss
     total_loss.backward()
     sep_model.optim.step()
