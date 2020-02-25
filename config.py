@@ -165,7 +165,7 @@ class SemanticExtractorConfig(BaseConfig):
         self.seg_net_path = self.args.seg_net
         self.semantic_extractor = self.args.extractor
         self.record = {'loss': [], 'segloss': [], 'regloss': []}
-        self.name = f"{self.task}_{self.model_name}_{self.semantic_extractor}"
+        self.name = f"{self.task}_{self.model_name}_{self.semantic_extractor}_l1{self.l1_reg}"
         self.expr_dir = osj(self.args.expr, self.name)
 
     def __str__(self):
