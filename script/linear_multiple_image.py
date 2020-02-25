@@ -126,7 +126,7 @@ def test(generator, linear_model, test_dl):
         if args.debug == 1 and i > 4:
             break
             
-        if i > args.test_size:
+        if i >= args.test_size:
             break
 
     global_dic, class_dic = evaluator.aggregate()
