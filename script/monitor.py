@@ -102,7 +102,7 @@ def get_extractor_name(model_path):
             return k
 
 
-external_model = segmenter.get_segmenter(task, model_path)
+external_model = segmenter.get_segmenter(task, model_path, device)
 n_class = len(external_model.get_label_and_category_names()[1]) + 1
 utils.set_seed(65537)
 latent = torch.randn(1, latent_size).to(device)
@@ -206,46 +206,34 @@ if "layer-conv" in args.task:
     vutils.save_image(images, f"{savepath}_layer-conv.png", nrow=3)
 
 
-if "celeba-trace" in args.task:
-    trace_path = f"{args.model}/trace_weight.npy"
-    trace = np.load(trace_path) # (N, 16, D)
-    segments = [512, 512, 512, 512, 256, 128, 64, 32, 16]
-    dims = np.cumsum(segments[::-1])
-    ind = dims.searchsorted(trace.shape[2])
-    ind = len(segments) - ind - 1
-    segments = np.cumsum(segments[ind:])
-    assert trace.shape[2] == segments[-1]
-    weight = trace[-1]
-
-    # variance
-    """
-    weight_var = trace.std(0)
-    fig = plt.figure(figsize=(16, 16))
-    maximum, minimum = weight_var.max(), weight_var.min()
-    for j in range(16):
-        ax = plt.subplot(4, 4, j + 1)
-        ax.plot(weight_var[j])
-        for x in segments:
-            ax.axvline(x=x, c="red", ls="-")
-        ax.axes.get_xaxis().set_visible(False)
-        ax.set_ylim([minimum, maximum])
-    fig.savefig(f"{savepath}_trace_var.png", bbox_inches='tight')
-    plt.close()
-    """
-
+if "weight" in args.task:
+    model_file = model_files[-1]
+    sep_model = get_semantic_extractor(get_extractor_name(model_file))(
+        n_class=n_class,
+        dims=dims)
+    sep_model.load_state_dict(torch.load(model_file, map_location="cpu"))
+    
     # weight vector
-    fig = plt.figure(figsize=(16, 16))
-    maximum, minimum = weight.max(), weight.min()
-    for j in range(16):
-        ax = plt.subplot(4, 4, j + 1)
-        ax.plot(weight[j])
-        for x in segments:
-            ax.axvline(x=x, c="red", ls="-")
-        ax.axes.get_xaxis().set_visible(False)
-        ax.set_ylim([minimum, maximum])
-    fig.savefig(f"{savepath}_trace_weight.png", bbox_inches='tight')
-    plt.close()
+    vals = []
+    for i, conv in enumerate(sep_model.semantic_extractor):
+        w = utils.torch2numpy(conv[0].weight)
+        vals.append(w.min())
+        vals.append(w.max())
+    maximum, minimum = max(vals), min(vals)
+    for i, conv in enumerate(sep_model.semantic_extractor):
+        w = utils.torch2numpy(conv[0].weight)[:, :, 0, 0]
 
+        fig = plt.figure(figsize=(16, 12))
+        for j in range(16):
+            ax = plt.subplot(4, 4, j + 1)
+            ax.scatter(list(range(len(w[j]))), w[j], marker='.', s=20)
+            ax.axes.get_xaxis().set_visible(False)
+            ax.set_ylim([minimum, maximum])
+        plt.tight_layout()
+        fig.savefig(f"{savepath}_l{i}.png", bbox_inches='tight')
+        plt.close()
+
+    """
     # orthogonal status
     dic = {}
     for i in range(len(segments) - 1):
@@ -266,6 +254,7 @@ if "celeba-trace" in args.task:
         print(op_ratio.shape)
         dic[f"stage{i + 1}"] = op_ratio
     utils.plot_dic(dic, "one positive ratio", f"{savepath}_opr.png")
+    """
 
 
 if "contribution" in args.task:
