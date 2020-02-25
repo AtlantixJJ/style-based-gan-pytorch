@@ -40,6 +40,11 @@ def compute_all_metric(tp, fp, fn):
     return pixelcorrect, pixeltotal, precision, recall, iou
 
 
+def iou(y_pred, y_true):
+    tp, fp, fn = compute_score_numpy(y_pred, y_true)
+    return compute_all_metric(tp, fp, fn)[-1]
+
+
 class SimpleIoUMetric(object):
     def __init__(self, ignore_classes=[0], n_class=16):
         self.num = 0

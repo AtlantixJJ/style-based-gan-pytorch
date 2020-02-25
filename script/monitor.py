@@ -3,7 +3,7 @@ Monitor the training, visualize the trained model output.
 """
 import sys
 sys.path.insert(0, ".")
-import argparse, tqdm, glob, os
+import argparse, tqdm, glob, os, copy
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
@@ -101,6 +101,28 @@ def get_extractor_name(model_path):
         if k in model_path:
             return k
 
+def find_min_max_weight(module):
+    vals = []
+    for i, conv in enumerate(module):
+        w = utils.torch2numpy(conv[0].weight)
+        vals.append(w.min())
+        vals.append(w.max())
+    return min(vals), max(vals)
+
+def plot_weight_layerwise(module, minimum=-1, maximum=1, subfix=""):
+    for i, conv in enumerate(module):
+        w = utils.torch2numpy(conv[0].weight)[:, :, 0, 0]
+
+        fig = plt.figure(figsize=(16, 12))
+        for j in range(16):
+            ax = plt.subplot(4, 4, j + 1)
+            ax.scatter(list(range(len(w[j]))), w[j], marker='.', s=20)
+            ax.axes.get_xaxis().set_visible(False)
+            ax.set_ylim([minimum, maximum])
+        plt.tight_layout()
+        fig.savefig(f"{savepath}_l{i}{subfix}.png", bbox_inches='tight')
+        plt.close()
+        
 
 external_model = segmenter.get_segmenter(task, model_path, device)
 n_class = len(external_model.get_label_and_category_names()[1]) + 1
@@ -206,6 +228,58 @@ if "layer-conv" in args.task:
     vutils.save_image(images, f"{savepath}_layer-conv.png", nrow=3)
 
 
+if "surgery" in args.task:
+    def weight_surgery(state_dict, func):
+        for k,v in state_dict.items():
+            state_dict[k] = func(v)
+
+    def small_negative(x, margin=0.1):
+        x[(x<0)&(x>-margin)]=0
+        return x
+
+    def negative(x):
+        x[x<0]=0
+        return x
+
+    def small_absolute(x, margin=0.05):
+        x[(x<margin)&(x>-margin)]=0
+        return x
+
+    model_file = model_files[-1]
+    sep_model = get_semantic_extractor(get_extractor_name(model_file))(
+        n_class=n_class,
+        dims=dims).to(device)
+    orig_weight = torch.load(model_file, map_location=device)
+    new_weight = copy.deepcopy(orig_weight)
+    weight_surgery(new_weight, negative)
+    subfix = "_n"
+    sep_model.load_state_dict(new_weight)
+    mini, maxi = find_min_max_weight(sep_model.semantic_extractor)
+    plot_weight_layerwise(sep_model.semantic_extractor, mini, maxi, subfix)
+    latent = torch.randn(1, latent_size, device=device)
+    images = []
+    for i in range(4):
+        with torch.no_grad():
+            image, stage = generator.get_stage(latent)
+            sep_model.load_state_dict(orig_weight)
+            old_pred = sep_model.predict(stage)
+            sep_model.load_state_dict(new_weight)
+            new_pred = sep_model.predict(stage)
+
+            latent.normal_()
+
+            print(evaluate.iou(old_pred, new_pred))   
+
+            image = (image[0].clamp(-1, 1).cpu() + 1) / 2
+            old_pred_viz = colorizer(torch.from_numpy(old_pred)).float() / 255.
+            new_pred_viz = colorizer(torch.from_numpy(new_pred)).float() / 255.
+            diff_viz = torch.ones_like(new_pred_viz)
+            mask = old_pred[0] != new_pred[0]
+            diff_viz[:, mask] = new_pred_viz[:, mask]
+            images.extend([image, old_pred_viz, new_pred_viz, diff_viz])
+    images = [F.interpolate(img.unsqueeze(0), size=256) for img in images]
+    vutils.save_image(torch.cat(images), f"{savepath}_surgery{subfix}.png", nrow=4)
+
 if "weight" in args.task:
     model_file = model_files[-1]
     sep_model = get_semantic_extractor(get_extractor_name(model_file))(
@@ -214,24 +288,9 @@ if "weight" in args.task:
     sep_model.load_state_dict(torch.load(model_file, map_location="cpu"))
     
     # weight vector
-    vals = []
-    for i, conv in enumerate(sep_model.semantic_extractor):
-        w = utils.torch2numpy(conv[0].weight)
-        vals.append(w.min())
-        vals.append(w.max())
-    maximum, minimum = max(vals), min(vals)
-    for i, conv in enumerate(sep_model.semantic_extractor):
-        w = utils.torch2numpy(conv[0].weight)[:, :, 0, 0]
+    minimum, maximum = find_min_max_weight(sep_model.semantic_extractor)
+    plot_weight_layerwise(sep_model.semantic_extractor, maximum, minimum)
 
-        fig = plt.figure(figsize=(16, 12))
-        for j in range(16):
-            ax = plt.subplot(4, 4, j + 1)
-            ax.scatter(list(range(len(w[j]))), w[j], marker='.', s=20)
-            ax.axes.get_xaxis().set_visible(False)
-            ax.set_ylim([minimum, maximum])
-        plt.tight_layout()
-        fig.savefig(f"{savepath}_l{i}.png", bbox_inches='tight')
-        plt.close()
 
     """
     # orthogonal status
