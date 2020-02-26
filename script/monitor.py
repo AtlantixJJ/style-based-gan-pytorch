@@ -109,6 +109,15 @@ def find_min_max_weight(module):
         vals.append(w.max())
     return min(vals), max(vals)
 
+def concat_weight(module):
+    vals = []
+    ws = []
+    for i, conv in enumerate(module):
+        w = conv[0].weight[:, :, 0, 0]
+        ws.append(w)
+    ws = torch.cat(ws, 1)
+    return ws
+
 def plot_weight_layerwise(module, minimum=-1, maximum=1, subfix=""):
     for i, conv in enumerate(module):
         w = utils.torch2numpy(conv[0].weight)[:, :, 0, 0]
@@ -122,7 +131,13 @@ def plot_weight_layerwise(module, minimum=-1, maximum=1, subfix=""):
         plt.tight_layout()
         fig.savefig(f"{savepath}_l{i}{subfix}.png", bbox_inches='tight')
         plt.close()
-        
+
+def get_norm_layerwise(module, minimum=-1, maximum=1, subfix=""):
+    norms = []
+    for i, conv in enumerate(module):
+        w = conv[0].weight[:, :, 0, 0]
+        norms.append(w.norm(2, dim=1))
+    return utils.torch2numpy(torch.stack(norms))
 
 external_model = segmenter.get_segmenter(task, model_path, device)
 n_class = len(external_model.get_label_and_category_names()[1]) + 1
@@ -228,10 +243,109 @@ if "layer-conv" in args.task:
     vutils.save_image(images, f"{savepath}_layer-conv.png", nrow=3)
 
 
+if "cosim" in args.task:
+    H, W = image.shape[2:]
+    def random_seed():
+        h = np.random.randint(0, H)
+        w = np.random.randint(0, W)
+        return h, w
+
+    model_file = model_files[-1]
+    sep_model = get_semantic_extractor(get_extractor_name(model_file))(
+        n_class=n_class,
+        dims=dims).to(device)
+    orig_weight = torch.load(model_file, map_location=device)
+    sep_model.load_state_dict(orig_weight)
+    images = []
+    with torch.no_grad():
+        image, stage = generator.get_stage(latent)
+        print("=> Interpolating large feature")
+        seg = sep_model(stage, True)[0]
+        pred = seg.argmax(1)
+        data = torch.cat([F.interpolate(s.cpu(), size=H, mode="bilinear")[0] for s in stage]).permute(1, 2, 0)
+        np.save("feats.npy", utils.torch2numpy(data))
+        cosim_table = [[[] for _ in range(n_class)] for _ in range(n_class)]
+        for idx in tqdm.tqdm(range(1000000)):
+            p1 = random_seed()
+            p2 = random_seed()
+            cat1 = pred[0, p1[0], p1[1]]
+            cat2 = pred[0, p2[0], p2[1]]
+            v1 = data[p1[0], p1[1]]
+            v2 = data[p2[0], p2[1]]
+            cosim = torch.dot(v1, v2) / torch.norm(v1) / torch.norm(v2)
+            cosim = utils.torch2numpy(cosim)
+            cosim_table[cat1][cat2].append(cosim)
+        cosim_table = np.array(cosim_table)
+        np.save(f"{savepath}_cosim.npy", cosim_table)
+            
+        mean_table = np.zeros_like(cosim_table, dtype="float32")
+        std_table = np.zeros_like(cosim_table , dtype="float32")
+        size_table = np.zeros_like(cosim_table, dtype="float32")
+        for i in range(cosim_table.shape[0]):
+            for j in range(cosim_table.shape[1]):
+                size_table[i, j] = len(cosim_table[i, j])
+                mean_table[i, j] = np.mean(cosim_table[i, j])
+                std_table[i, j] = np.std(cosim_table[i, j])
+        mask_table = size_table > 100
+        mean_table = torch.from_numpy(np.nan_to_num(mean_table))
+        std_table = torch.from_numpy(np.nan_to_num(std_table))
+        mean_table = mean_table.view(1, 1, 16, 16)
+        std_table = std_table.view(1, 1, 16, 16)
+
+        dist_heatmap = utils.heatmap_torch(mean_table)
+        std_heatmap = utils.heatmap_torch(std_table)
+        images = torch.cat([dist_heatmap, std_heatmap])
+        images = F.interpolate(images, size=64, mode="nearest")
+        vutils.save_image(images, f"{savepath}_heatmap.png")
+
+
+if "score" in args.task:
+    model_file = model_files[-1]
+    sep_model = get_semantic_extractor(get_extractor_name(model_file))(
+        n_class=n_class,
+        dims=dims).to(device)
+    orig_weight = torch.load(model_file, map_location=device)
+    sep_model.load_state_dict(orig_weight)
+    images = []
+    for i in range(8):
+        with torch.no_grad():
+            image, stage = generator.get_stage(latent)
+            seg1 = sep_model(stage, True)[0]
+            max_pred = seg1.argmax(1)
+            seg2 = seg1.detach().clone()
+            seg2.scatter_(1,
+                max_pred.unsqueeze(1),
+                torch.zeros_like(seg2).fill_(-100))
+            assert seg2[0, max_pred[0, 0, 0], 0, 0] == -100
+
+            sec_pred = seg2.argmax(1)
+            max_value = torch.gather(seg1, 1, max_pred.unsqueeze(1))
+            sec_value = torch.gather(seg1, 1, sec_pred.unsqueeze(1))
+            score_diff = max_value - sec_value
+            
+            mini, maxi = score_diff.min(), score_diff.max()
+            print(mini, maxi)
+            score_diff = (score_diff - mini) / (maxi - mini)
+            score_diff_viz = utils.heatmap_torch(score_diff.cpu())
+
+            latent.normal_()
+
+            image = (image[0].clamp(-1, 1).cpu() + 1) / 2
+            pred_viz = colorizer(max_pred.cpu()).float() / 255.
+            images.extend([image, pred_viz, score_diff_viz[0]])
+    images = [F.interpolate(img.unsqueeze(0), size=256) for img in images]
+    vutils.save_image(torch.cat(images), f"{savepath}_score.png", nrow=6)
+
+
 if "surgery" in args.task:
     def weight_surgery(state_dict, func):
         for k,v in state_dict.items():
             state_dict[k] = func(v)
+
+    def early_layer_surgery(state_dict, st=[0]):
+        for i in st:
+            k = list(state_dict.keys())[i]
+            state_dict[k] = state_dict[k].fill_(0)
 
     def small_negative(x, margin=0.1):
         x[(x<0)&(x>-margin)]=0
@@ -250,35 +364,36 @@ if "surgery" in args.task:
         n_class=n_class,
         dims=dims).to(device)
     orig_weight = torch.load(model_file, map_location=device)
-    new_weight = copy.deepcopy(orig_weight)
-    weight_surgery(new_weight, negative)
-    subfix = "_n"
-    sep_model.load_state_dict(new_weight)
-    mini, maxi = find_min_max_weight(sep_model.semantic_extractor)
-    plot_weight_layerwise(sep_model.semantic_extractor, mini, maxi, subfix)
-    latent = torch.randn(1, latent_size, device=device)
-    images = []
-    for i in range(4):
-        with torch.no_grad():
-            image, stage = generator.get_stage(latent)
-            sep_model.load_state_dict(orig_weight)
-            old_pred = sep_model.predict(stage)
-            sep_model.load_state_dict(new_weight)
-            new_pred = sep_model.predict(stage)
+    for st in [[4], [5], [6], [7], [8]]:
+        new_weight = copy.deepcopy(orig_weight)
+        early_layer_surgery(new_weight, st)
+        subfix = f"_e{st}_n"
+        sep_model.load_state_dict(new_weight)
+        mini, maxi = find_min_max_weight(sep_model.semantic_extractor)
+        plot_weight_layerwise(sep_model.semantic_extractor, mini, maxi, subfix)
+        latent = torch.randn(1, latent_size, device=device)
+        images = []
+        for i in range(8):
+            with torch.no_grad():
+                image, stage = generator.get_stage(latent)
+                sep_model.load_state_dict(orig_weight)
+                old_pred = sep_model.predict(stage)
+                sep_model.load_state_dict(new_weight)
+                new_pred = sep_model.predict(stage)
 
-            latent.normal_()
+                latent.normal_()
 
-            print(evaluate.iou(old_pred, new_pred))   
+                print(evaluate.iou(old_pred, new_pred))   
 
-            image = (image[0].clamp(-1, 1).cpu() + 1) / 2
-            old_pred_viz = colorizer(torch.from_numpy(old_pred)).float() / 255.
-            new_pred_viz = colorizer(torch.from_numpy(new_pred)).float() / 255.
-            diff_viz = torch.ones_like(new_pred_viz)
-            mask = old_pred[0] != new_pred[0]
-            diff_viz[:, mask] = new_pred_viz[:, mask]
-            images.extend([image, old_pred_viz, new_pred_viz, diff_viz])
-    images = [F.interpolate(img.unsqueeze(0), size=256) for img in images]
-    vutils.save_image(torch.cat(images), f"{savepath}_surgery{subfix}.png", nrow=4)
+                image = (image[0].clamp(-1, 1).cpu() + 1) / 2
+                old_pred_viz = colorizer(torch.from_numpy(old_pred)).float() / 255.
+                new_pred_viz = colorizer(torch.from_numpy(new_pred)).float() / 255.
+                diff_viz = torch.ones_like(new_pred_viz)
+                mask = old_pred[0] != new_pred[0]
+                diff_viz[:, mask] = new_pred_viz[:, mask]
+                images.extend([image, old_pred_viz, diff_viz])
+        images = [F.interpolate(img.unsqueeze(0), size=256) for img in images]
+        vutils.save_image(torch.cat(images), f"{savepath}_surgery{subfix}.png", nrow=6)
 
 if "weight" in args.task:
     model_file = model_files[-1]
@@ -289,8 +404,31 @@ if "weight" in args.task:
     
     # weight vector
     minimum, maximum = find_min_max_weight(sep_model.semantic_extractor)
-    plot_weight_layerwise(sep_model.semantic_extractor, maximum, minimum)
+    ws = concat_weight(sep_model.semantic_extractor)
+    norm = ws.norm(2, dim=1)
+    print(norm.shape)
+    for i in range(ws.shape[0]):
+        print("=> %d : %.4f" % (i, norm[i]))
+    norms = get_norm_layerwise(sep_model.semantic_extractor)
+    fig = plt.figure(figsize=(16, 12))
+    for j in range(16):
+        ax = plt.subplot(4, 4, j + 1)
+        ax.scatter(list(range(len(norms[:, j]))), norms[:, j])
+        ax.axes.get_xaxis().set_visible(False)
+    plt.tight_layout()
+    fig.savefig(f"{savepath}_normclass.png", bbox_inches='tight')
+    plt.close()
 
+    fig = plt.figure(figsize=(16, 12))
+    for j in range(norms.shape[0]):
+        ax = plt.subplot(4, 4, j + 1)
+        ax.scatter(list(range(len(norms[j]))), norms[j])
+        ax.axes.get_xaxis().set_visible(False)
+    plt.tight_layout()
+    fig.savefig(f"{savepath}_normlayer.png", bbox_inches='tight')
+    plt.close()
+
+    plot_weight_layerwise(sep_model.semantic_extractor, maximum, minimum)
 
     """
     # orthogonal status

@@ -23,7 +23,7 @@ class RccCluster(object):
     verbose (boolean) verbosity
     """
 
-    def __init__(self, k=10, measure='euclidean', clustering_threshold=1., eps=1e-5, verbose=True):
+    def __init__(self, k=10, measure='cosine', clustering_threshold=1., eps=1e-5, verbose=True):
 
         self.k = k
         self.measure = measure
@@ -99,7 +99,7 @@ class RccCluster(object):
         return obj
 
     @staticmethod
-    def m_knn(X, k, measure='euclidean'):
+    def m_knn(X, k, measure='cosine'):
         """
         This code is taken from:
         https://bitbucket.org/sohilas/robust-continuous-clustering/src/
@@ -117,7 +117,7 @@ class RccCluster(object):
         """
 
         samples = X.shape[0]
-        batch_size = 10000
+        batch_size = 100
         b = np.arange(k+1)
         b = tuple(b[1:].ravel())
 
