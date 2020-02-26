@@ -44,10 +44,10 @@ class RccCluster(object):
         Assigns points to clusters based on their representative. Two points are part of the same cluster if their
         representative are close enough (their squared euclidean distance is < delta)
         """
-        #diff = np.sum((self.U[self.i, :] - self.U[self.j, :])**2, axis=1)
-        norms = np.linalg.norm(self.U, 2, 1, keepdims=True)
-        U = self.U / norms
-        diff = np.sum(U[self.i, :] * self.U[self.j, :], axis=1) 
+        diff = np.sum((self.U[self.i, :] - self.U[self.j, :])**2, axis=1)
+        #norms = np.linalg.norm(self.U, 2, 1, keepdims=True)
+        #U = self.U / norms
+        #diff = np.sum(U[self.i, :] * U[self.j, :], axis=1) 
 
         # computing connected components.
         is_conn = np.sqrt(diff) <= self.clustering_threshold*epsilon

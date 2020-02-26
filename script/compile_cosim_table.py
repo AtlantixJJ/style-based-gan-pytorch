@@ -12,7 +12,7 @@ style.use('ggplot')
 colors = list(matplotlib.colors.cnames.keys())
 """
 
-files = glob.glob("record/celebahq_cosim/*_[0-5]_cosim.npy")
+files = glob.glob("record/celebahq_cosim/*_0_cosim.npy")
 cosim_table = np.load(files[0], allow_pickle=True)[()]
 mean_table = np.zeros_like(cosim_table, dtype="float32")
 std_table = np.zeros_like(cosim_table , dtype="float32")
