@@ -246,10 +246,6 @@ if "layer-conv" in args.task:
 
 if "cosim" in args.task:
     H, W = image.shape[2:]
-    def random_seed():
-        h = np.random.randint(0, H)
-        w = np.random.randint(0, W)
-        return h, w
 
     model_file = model_files[-1]
     sep_model = get_semantic_extractor(get_extractor_name(model_file))(
@@ -264,12 +260,19 @@ if "cosim" in args.task:
             print("=> Interpolating large feature")
             seg = sep_model(stage, True)[0]
             pred = seg.argmax(1)
-            data = torch.cat([F.interpolate(s.cpu(), size=H, mode="bilinear")[0] for s in stage]).permute(1, 2, 0)
-            np.save("feats_{ind}.npy", utils.torch2numpy(data))
+            data = 0
+            if "cosim-feature" in args.task:
+                data = torch.cat([F.interpolate(s.cpu(), size=H, mode="bilinear")[0] for s in stage]).permute(1, 2, 0)
+                np.save(f"/home/jianjin/feats_{ind}.npy", utils.torch2numpy(data))
+            elif "cosim-calc" in args.task:
+                data = np.load(f"/home/jianjin/feats_{ind}.npy", allow_pickle=True)
             cosim_table = [[[] for _ in range(n_class)] for _ in range(n_class)]
-            for idx in tqdm.tqdm(range(H * W)):
-                p1 = idx // W, idx % W
-                p2 = random_seed()
+            xs, ys = np.where(utils.torch2numpy(pred[0]) > 0)
+            for idx in tqdm.tqdm(range(len(xs))):
+                p1 = xs[idx], ys[idx]
+                ridx = np.random.randint(0, len(xs))
+                p2 = ridx // W, ridx % W
+                
                 cat1 = pred[0, p1[0], p1[1]]
                 cat2 = pred[0, p2[0], p2[1]]
                 v1 = data[p1[0], p1[1]]
@@ -279,26 +282,6 @@ if "cosim" in args.task:
                 cosim_table[cat1][cat2].append(cosim)
             cosim_table = np.array(cosim_table)
             np.save(f"{savepath}_{ind}_cosim.npy", cosim_table)
-                
-            mean_table = np.zeros_like(cosim_table, dtype="float32")
-            std_table = np.zeros_like(cosim_table , dtype="float32")
-            size_table = np.zeros_like(cosim_table, dtype="float32")
-            for i in range(cosim_table.shape[0]):
-                for j in range(cosim_table.shape[1]):
-                    size_table[i, j] = len(cosim_table[i, j])
-                    mean_table[i, j] = np.mean(cosim_table[i, j])
-                    std_table[i, j] = np.std(cosim_table[i, j])
-            mask_table = size_table > 100
-            mean_table = torch.from_numpy(np.nan_to_num(mean_table))
-            std_table = torch.from_numpy(np.nan_to_num(std_table))
-            mean_table = mean_table.view(1, 1, 16, 16)
-            std_table = std_table.view(1, 1, 16, 16)
-
-            dist_heatmap = utils.heatmap_torch(mean_table)
-            std_heatmap = utils.heatmap_torch(std_table)
-            images = torch.cat([dist_heatmap, std_heatmap])
-            images = F.interpolate(images, size=64, mode="nearest")
-            vutils.save_image(images, f"{savepath}_{ind}_heatmap.png")
 
 
 if "score" in args.task:
@@ -396,6 +379,7 @@ if "surgery" in args.task:
                 images.extend([image, old_pred_viz, diff_viz])
         images = [F.interpolate(img.unsqueeze(0), size=256) for img in images]
         vutils.save_image(torch.cat(images), f"{savepath}_surgery{subfix}.png", nrow=6)
+
 
 if "weight" in args.task:
     model_file = model_files[-1]
