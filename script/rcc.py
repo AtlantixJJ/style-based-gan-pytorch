@@ -24,7 +24,7 @@ label_map = labels.reshape(H, W)
 label_viz = utils.numpy2label(label_map, labels.max() + 1)
 utils.imwrite("rcc.png", label_viz)
 
-for epsilon in range(1, 10):
+for epsilon in range(0.1, 0.9, 0.1):
     labels, n_components = cluster_alg.compute_assignment(epsilon)
     label_map = labels.reshape(H, W)
     label_viz = utils.numpy2label(label_map, labels.max() + 1)

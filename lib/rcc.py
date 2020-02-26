@@ -324,7 +324,7 @@ class RccCluster(object):
         C, num_components = self.compute_assignment(epsilon)
         return U, C
 
-    def fit(self, X, max_iter=100):
+    def fit(self, X, max_iter=1000):
         """
         Computes the clustering and returns the labels
         Parameters
