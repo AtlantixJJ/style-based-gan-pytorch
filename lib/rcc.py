@@ -123,9 +123,11 @@ class RccCluster(object):
         b = np.arange(k+1)
         b = tuple(b[1:].ravel())
 
-        z = np.zeros((samples, k))
-        weigh = np.zeros_like(z)
-
+        #z = np.zeros((samples, k))
+        #weigh = np.zeros_like(z)
+        
+        z = pymp.shared.array((samples, k))
+        weigh = pymp.shared.array((samples, k))
         # This loop speeds up the computation by operating in batches
         # This can be parallelized to further utilize CPU/GPU resource
 
@@ -140,8 +142,9 @@ class RccCluster(object):
                 y = np.argpartition(w, b, axis=1)
 
                 z[start:end, :] = y[:, 1:k + 1]
-                weigh[start:end, :] = np.reshape(w[tuple(np.repeat(np.arange(end-start), k)),
-                                                tuple(y[:, 1:k+1].ravel())], (end-start, k))
+                weigh[start:end, :] = np.reshape(
+                    w[tuple(np.repeat(np.arange(end-start), k)),
+                    tuple(y[:, 1:k+1].ravel())], (end-start, k))
                 del w
         print("=> In loop completed")
 
