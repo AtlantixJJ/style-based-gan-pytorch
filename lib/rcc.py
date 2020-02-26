@@ -44,7 +44,10 @@ class RccCluster(object):
         Assigns points to clusters based on their representative. Two points are part of the same cluster if their
         representative are close enough (their squared euclidean distance is < delta)
         """
-        diff = np.sum((self.U[self.i, :] - self.U[self.j, :])**2, axis=1)
+        #diff = np.sum((self.U[self.i, :] - self.U[self.j, :])**2, axis=1)
+        norms = np.linalg.norm(self.U, 2, 1, keepdims=True)
+        U = self.U / norms
+        diff = np.sum(U[self.i, :] * self.U[self.j, :], axis=1) 
 
         # computing connected components.
         is_conn = np.sqrt(diff) <= self.clustering_threshold*epsilon
@@ -125,7 +128,7 @@ class RccCluster(object):
 
         #z = np.zeros((samples, k))
         #weigh = np.zeros_like(z)
-        
+
         z = pymp.shared.array((samples, k))
         weigh = pymp.shared.array((samples, k))
         # This loop speeds up the computation by operating in batches
@@ -175,7 +178,7 @@ class RccCluster(object):
         V = np.asarray(find(P)).T
         return V[:, :2].astype(np.int32)
 
-    def run_rcc(self, X, w, max_iter=100, inner_iter=4):
+    def run_rcc(self, X, w, max_iter=1000, inner_iter=4):
         """
         Main function for computing the clustering.
 
