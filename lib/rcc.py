@@ -8,6 +8,8 @@ from scipy.sparse import csr_matrix, triu, find
 from scipy.sparse.csgraph import minimum_spanning_tree, connected_components
 from scipy.spatial import distance
 
+import pymp
+
 
 class RccCluster(object):
     """
@@ -127,6 +129,23 @@ class RccCluster(object):
         # This loop speeds up the computation by operating in batches
         # This can be parallelized to further utilize CPU/GPU resource
 
+        print("=> In multiprocess loop")
+        with pymp.Parallel(30) as p:
+            for index in p.range(0, samples, batch_size):
+                start = index
+                end = min(index + batch_size, samples)
+
+                w = distance.cdist(X[start:end], X, measure)
+
+                y = np.argpartition(w, b, axis=1)
+
+                z[start:end, :] = y[:, 1:k + 1]
+                weigh[start:end, :] = np.reshape(w[tuple(np.repeat(np.arange(end-start), k)),
+                                                tuple(y[:, 1:k+1].ravel())], (end-start, k))
+                del w
+        print("=> In loop completed")
+
+        """
         for x in np.arange(0, samples, batch_size):
             start = x
             end = min(x+batch_size, samples)
@@ -139,6 +158,7 @@ class RccCluster(object):
             weigh[start:end, :] = np.reshape(w[tuple(np.repeat(np.arange(end-start), k)),
                                                tuple(y[:, 1:k+1].ravel())], (end-start, k))
             del w
+        """
 
         ind = np.repeat(np.arange(samples), k)
 
@@ -310,9 +330,13 @@ class RccCluster(object):
         assert len(X.shape) == 2
 
         # compute the mutual knn graph
+        if self.verbose:
+            print("=> Compute KNN")
         mknn_matrix = self.m_knn(X, self.k, measure=self.measure)
 
         # perform the RCC clustering
+        if self.verbose:
+            print("=> Start RCC")
         U, C = self.run_rcc(X, mknn_matrix, max_iter=max_iter)
 
         # store the class labels in the appropriate class member to match the sklearn.cluster interface

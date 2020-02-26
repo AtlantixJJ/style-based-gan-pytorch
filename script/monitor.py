@@ -139,6 +139,7 @@ def get_norm_layerwise(module, minimum=-1, maximum=1, subfix=""):
         norms.append(w.norm(2, dim=1))
     return utils.torch2numpy(torch.stack(norms))
 
+print(task, model_path, device)
 external_model = segmenter.get_segmenter(task, model_path, device)
 n_class = len(external_model.get_label_and_category_names()[1]) + 1
 utils.set_seed(65537)
@@ -256,47 +257,48 @@ if "cosim" in args.task:
         dims=dims).to(device)
     orig_weight = torch.load(model_file, map_location=device)
     sep_model.load_state_dict(orig_weight)
-    images = []
-    with torch.no_grad():
-        image, stage = generator.get_stage(latent)
-        print("=> Interpolating large feature")
-        seg = sep_model(stage, True)[0]
-        pred = seg.argmax(1)
-        data = torch.cat([F.interpolate(s.cpu(), size=H, mode="bilinear")[0] for s in stage]).permute(1, 2, 0)
-        np.save("feats.npy", utils.torch2numpy(data))
-        cosim_table = [[[] for _ in range(n_class)] for _ in range(n_class)]
-        for idx in tqdm.tqdm(range(1000000)):
-            p1 = random_seed()
-            p2 = random_seed()
-            cat1 = pred[0, p1[0], p1[1]]
-            cat2 = pred[0, p2[0], p2[1]]
-            v1 = data[p1[0], p1[1]]
-            v2 = data[p2[0], p2[1]]
-            cosim = torch.dot(v1, v2) / torch.norm(v1) / torch.norm(v2)
-            cosim = utils.torch2numpy(cosim)
-            cosim_table[cat1][cat2].append(cosim)
-        cosim_table = np.array(cosim_table)
-        np.save(f"{savepath}_cosim.npy", cosim_table)
-            
-        mean_table = np.zeros_like(cosim_table, dtype="float32")
-        std_table = np.zeros_like(cosim_table , dtype="float32")
-        size_table = np.zeros_like(cosim_table, dtype="float32")
-        for i in range(cosim_table.shape[0]):
-            for j in range(cosim_table.shape[1]):
-                size_table[i, j] = len(cosim_table[i, j])
-                mean_table[i, j] = np.mean(cosim_table[i, j])
-                std_table[i, j] = np.std(cosim_table[i, j])
-        mask_table = size_table > 100
-        mean_table = torch.from_numpy(np.nan_to_num(mean_table))
-        std_table = torch.from_numpy(np.nan_to_num(std_table))
-        mean_table = mean_table.view(1, 1, 16, 16)
-        std_table = std_table.view(1, 1, 16, 16)
+    for ind in range(32):
+        with torch.no_grad():
+            latent.normal_()
+            image, stage = generator.get_stage(latent)
+            print("=> Interpolating large feature")
+            seg = sep_model(stage, True)[0]
+            pred = seg.argmax(1)
+            data = torch.cat([F.interpolate(s.cpu(), size=H, mode="bilinear")[0] for s in stage]).permute(1, 2, 0)
+            np.save("feats_{ind}.npy", utils.torch2numpy(data))
+            cosim_table = [[[] for _ in range(n_class)] for _ in range(n_class)]
+            for idx in tqdm.tqdm(range(H * W)):
+                p1 = idx // W, idx % W
+                p2 = random_seed()
+                cat1 = pred[0, p1[0], p1[1]]
+                cat2 = pred[0, p2[0], p2[1]]
+                v1 = data[p1[0], p1[1]]
+                v2 = data[p2[0], p2[1]]
+                cosim = torch.dot(v1, v2) / torch.norm(v1) / torch.norm(v2)
+                cosim = utils.torch2numpy(cosim)
+                cosim_table[cat1][cat2].append(cosim)
+            cosim_table = np.array(cosim_table)
+            np.save(f"{savepath}_{ind}_cosim.npy", cosim_table)
+                
+            mean_table = np.zeros_like(cosim_table, dtype="float32")
+            std_table = np.zeros_like(cosim_table , dtype="float32")
+            size_table = np.zeros_like(cosim_table, dtype="float32")
+            for i in range(cosim_table.shape[0]):
+                for j in range(cosim_table.shape[1]):
+                    size_table[i, j] = len(cosim_table[i, j])
+                    mean_table[i, j] = np.mean(cosim_table[i, j])
+                    std_table[i, j] = np.std(cosim_table[i, j])
+            mask_table = size_table > 100
+            mean_table = torch.from_numpy(np.nan_to_num(mean_table))
+            std_table = torch.from_numpy(np.nan_to_num(std_table))
+            mean_table = mean_table.view(1, 1, 16, 16)
+            std_table = std_table.view(1, 1, 16, 16)
 
-        dist_heatmap = utils.heatmap_torch(mean_table)
-        std_heatmap = utils.heatmap_torch(std_table)
-        images = torch.cat([dist_heatmap, std_heatmap])
-        images = F.interpolate(images, size=64, mode="nearest")
-        vutils.save_image(images, f"{savepath}_heatmap.png")
+            dist_heatmap = utils.heatmap_torch(mean_table)
+            std_heatmap = utils.heatmap_torch(std_table)
+            images = torch.cat([dist_heatmap, std_heatmap])
+            images = F.interpolate(images, size=64, mode="nearest")
+            vutils.save_image(images, f"{savepath}_{ind}_heatmap.png")
 
 
 if "score" in args.task:
