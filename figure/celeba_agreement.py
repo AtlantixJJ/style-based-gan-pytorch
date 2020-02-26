@@ -65,7 +65,7 @@ def process_dir(dir):
     l.extend([global_latex_head, global_tabular, class_latex_head, class_tabular])
     return l
 
-dirs = glob.glob("record/*")
+dirs = glob.glob("record/celebahq[0-1]")
 dirs.sort()
 global_table = []
 class_table = []
