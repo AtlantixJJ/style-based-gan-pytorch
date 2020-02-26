@@ -263,9 +263,9 @@ if "cosim" in args.task:
             data = 0
             if "cosim-feature" in args.task:
                 data = torch.cat([F.interpolate(s.cpu(), size=H, mode="bilinear")[0] for s in stage]).permute(1, 2, 0)
-                np.save(f"/home/jianjin/feats_{ind}.npy", utils.torch2numpy(data))
+                np.save(f"feats_{ind}.npy", utils.torch2numpy(data))
             elif "cosim-calc" in args.task:
-                data = np.load(f"/home/jianjin/feats_{ind}.npy", allow_pickle=True)
+                data = np.load(f"feats_{ind}.npy", allow_pickle=True)
             cosim_table = [[[] for _ in range(n_class)] for _ in range(n_class)]
             xs, ys = np.where(utils.torch2numpy(pred[0]) > 0)
             for idx in tqdm.tqdm(range(len(xs))):
