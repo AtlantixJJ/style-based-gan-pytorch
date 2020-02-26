@@ -271,7 +271,7 @@ if "cosim" in args.task:
             for idx in tqdm.tqdm(range(len(xs))):
                 p1 = xs[idx], ys[idx]
                 ridx = np.random.randint(0, len(xs))
-                p2 = xs[rdix], ys[ridx]
+                p2 = xs[ridx], ys[ridx]
                 
                 cat1 = pred[0, p1[0], p1[1]]
                 cat2 = pred[0, p2[0], p2[1]]
