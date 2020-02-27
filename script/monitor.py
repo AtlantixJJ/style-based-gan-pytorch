@@ -289,7 +289,8 @@ def sample_cosine(data, pred, n_class=16):
             cosim = np.matmul(class_arr[i], class_arr[j].transpose())
             mean_table[j, i] = mean_table[i, j] = cosim.mean()
             std_table[j, i] = std_table[i, j] = cosim.std()
-            cosim_table[i][j] = cosim.reshape(-1)
+            cosim_table[i][j] = cosim.reshape(-1).copy()
+            del cosim
     return mean_table, std_table, cosim_table
 
 
