@@ -17,7 +17,7 @@ colors = list(matplotlib.colors.cnames.keys())
 from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes
 
 
-data_dir = "results/"
+data_dir = "record/fewshot"
 
 # analyze global data
 files = glob.glob(f"{data_dir}/linear*class.npy")
@@ -74,8 +74,9 @@ ax.fill_between(xs, [min_dic[x] for x in xs], [max_dic[x] for x in xs], color=co
 ax.set_xlabel("Training Size")
 ax.set_ylabel("mIoU")
 
-axins = ax.inset_axes([500, 0.3, 1, 1])
-small = 15
+axins = ax.inset_axes([600, 0.23, 400, 0.32],
+    transform=ax.transData)
+small = 28
 axins.plot(
     xs[:small],
     [mean_dic[x] for x in xs][:small], marker=".")
@@ -84,8 +85,8 @@ axins.fill_between(
     [min_dic[x] for x in xs][:small],
     [max_dic[x] for x in xs][:small], color=colors[0])
 # sub region of the original image
-axins.set_xlim(0, 30) # apply the x-limits
-axins.set_ylim(0.25, 0.6) # apply the y-limits
+axins.set_xlim(0, 64) # apply the x-limits
+axins.set_ylim(0.25, 0.58) # apply the y-limits
 ax.indicate_inset_zoom(axins)
 #axins.set_xticklabels('')
 #axins.set_yticklabels('')

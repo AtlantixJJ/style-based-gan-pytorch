@@ -8,6 +8,8 @@ from scipy.sparse import csr_matrix, triu, find
 from scipy.sparse.csgraph import minimum_spanning_tree, connected_components
 from scipy.spatial import distance
 
+import pymp
+
 
 class RccCluster(object):
     """
@@ -43,6 +45,9 @@ class RccCluster(object):
         representative are close enough (their squared euclidean distance is < delta)
         """
         diff = np.sum((self.U[self.i, :] - self.U[self.j, :])**2, axis=1)
+        #norms = np.linalg.norm(self.U, 2, 1, keepdims=True)
+        #U = self.U / norms
+        #diff = np.sum(U[self.i, :] * U[self.j, :], axis=1) 
 
         # computing connected components.
         is_conn = np.sqrt(diff) <= self.clustering_threshold*epsilon
@@ -121,12 +126,32 @@ class RccCluster(object):
         b = np.arange(k+1)
         b = tuple(b[1:].ravel())
 
-        z = np.zeros((samples, k))
-        weigh = np.zeros_like(z)
+        #z = np.zeros((samples, k))
+        #weigh = np.zeros_like(z)
 
+        z = pymp.shared.array((samples, k))
+        weigh = pymp.shared.array((samples, k))
         # This loop speeds up the computation by operating in batches
         # This can be parallelized to further utilize CPU/GPU resource
 
+        print("=> In multiprocess loop")
+        with pymp.Parallel(30) as p:
+            for index in p.range(0, samples, batch_size):
+                start = index
+                end = min(index + batch_size, samples)
+
+                w = distance.cdist(X[start:end], X, measure)
+
+                y = np.argpartition(w, b, axis=1)
+
+                z[start:end, :] = y[:, 1:k + 1]
+                weigh[start:end, :] = np.reshape(
+                    w[tuple(np.repeat(np.arange(end-start), k)),
+                    tuple(y[:, 1:k+1].ravel())], (end-start, k))
+                del w
+        print("=> In loop completed")
+
+        """
         for x in np.arange(0, samples, batch_size):
             start = x
             end = min(x+batch_size, samples)
@@ -139,6 +164,7 @@ class RccCluster(object):
             weigh[start:end, :] = np.reshape(w[tuple(np.repeat(np.arange(end-start), k)),
                                                tuple(y[:, 1:k+1].ravel())], (end-start, k))
             del w
+        """
 
         ind = np.repeat(np.arange(samples), k)
 
@@ -152,7 +178,7 @@ class RccCluster(object):
         V = np.asarray(find(P)).T
         return V[:, :2].astype(np.int32)
 
-    def run_rcc(self, X, w, max_iter=100, inner_iter=4):
+    def run_rcc(self, X, w, max_iter=1000, inner_iter=4):
         """
         Main function for computing the clustering.
 
@@ -298,7 +324,7 @@ class RccCluster(object):
         C, num_components = self.compute_assignment(epsilon)
         return U, C
 
-    def fit(self, X, max_iter=100):
+    def fit(self, X, max_iter=1000):
         """
         Computes the clustering and returns the labels
         Parameters
@@ -310,9 +336,13 @@ class RccCluster(object):
         assert len(X.shape) == 2
 
         # compute the mutual knn graph
+        if self.verbose:
+            print("=> Compute KNN")
         mknn_matrix = self.m_knn(X, self.k, measure=self.measure)
 
         # perform the RCC clustering
+        if self.verbose:
+            print("=> Start RCC")
         U, C = self.run_rcc(X, mknn_matrix, max_iter=max_iter)
 
         # store the class labels in the appropriate class member to match the sklearn.cluster interface

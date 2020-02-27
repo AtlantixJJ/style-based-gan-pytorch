@@ -18,8 +18,9 @@ def get_best_model(table, best_ind, name, delimiter=","):
 
 def calc_subset(dic):
     indice = {}
-    indice["face"] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 14]
-    indice["other"] = [11, 12, 13, 15]
+    indice["face"] = [1, 2, 4, 5, 6, 7, 8, 9, 10, 14]
+    # eye glasses, ear ring, neck lace, hat, cloth
+    indice["other"] = [3, 11, 12, 13, 15]
     for metric in ["AP", "AR", "IoU"]:
         for t in ["face", "other"]:
             arr = np.array(dic[metric])
@@ -64,7 +65,7 @@ def process_dir(dir):
     l.extend([global_latex_head, global_tabular, class_latex_head, class_tabular])
     return l
 
-dirs = glob.glob("record/*")
+dirs = glob.glob("record/celebahq[0-1]")
 dirs.sort()
 global_table = []
 class_table = []

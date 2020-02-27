@@ -139,6 +139,7 @@ def get_norm_layerwise(module, minimum=-1, maximum=1, subfix=""):
         norms.append(w.norm(2, dim=1))
     return utils.torch2numpy(torch.stack(norms))
 
+print(task, model_path, device)
 external_model = segmenter.get_segmenter(task, model_path, device)
 n_class = len(external_model.get_label_and_category_names()[1]) + 1
 utils.set_seed(65537)
@@ -243,12 +244,58 @@ if "layer-conv" in args.task:
     vutils.save_image(images, f"{savepath}_layer-conv.png", nrow=3)
 
 
+def sample_cosine(data, pred, n_class=16):
+    mean_table = np.zeros((n_class, n_class))
+    std_table = np.zeros((n_class, n_class))
+    cosim_table = [[[] for _ in range(n_class)] for _ in range(n_class)]
+    class_indice = [-1] * n_class
+    class_arr = [-1] * n_class
+    class_length = [-1] * n_class
+    N = 100000
+    for i in range(1, n_class): # no background
+        mask = utils.torch2numpy(pred[0]) == i
+        length = mask.sum()
+        if length == 0:
+            pass # no this class
+        elif length < N:
+            class_arr[i] = data[mask]
+        else:
+            idx = np.where(mask)
+            indice = np.random.choice(
+                np.arange(0, len(idx[0])),
+                N)
+            class_arr[i] = np.stack([data[idx[0][i], idx[1][i]]
+                for i in indice])
+        class_length[i] = length
+    
+    print("=> Class number:")
+    for i in range(n_class):
+        print("=> %s: %s" % (utils.CELEBA_REDUCED_CATEGORY[i], str(class_length[i])))
+
+    for i in range(1, n_class):
+        if class_length[i] < 1:
+            continue
+        class_arr[i] /= np.linalg.norm(class_arr[i], 2, 1, True)
+    print("=> Normalization done")
+
+    del data
+
+    for i in range(1, n_class):
+        if class_length[i] < 1:
+            continue
+        for j in range(i, n_class):
+            if class_length[j] < 1:
+                continue
+            cosim = np.matmul(class_arr[i], class_arr[j].transpose())
+            mean_table[j, i] = mean_table[i, j] = cosim.mean()
+            std_table[j, i] = std_table[i, j] = cosim.std()
+            cosim_table[i][j] = cosim.reshape(-1).copy()
+            del cosim
+    return mean_table, std_table, cosim_table
+
+
 if "cosim" in args.task:
     H, W = image.shape[2:]
-    def random_seed():
-        h = np.random.randint(0, H)
-        w = np.random.randint(0, W)
-        return h, w
 
     model_file = model_files[-1]
     sep_model = get_semantic_extractor(get_extractor_name(model_file))(
@@ -256,47 +303,28 @@ if "cosim" in args.task:
         dims=dims).to(device)
     orig_weight = torch.load(model_file, map_location=device)
     sep_model.load_state_dict(orig_weight)
-    images = []
-    with torch.no_grad():
-        image, stage = generator.get_stage(latent)
-        print("=> Interpolating large feature")
-        seg = sep_model(stage, True)[0]
-        pred = seg.argmax(1)
-        data = torch.cat([F.interpolate(s.cpu(), size=H, mode="bilinear")[0] for s in stage]).permute(1, 2, 0)
-        np.save("feats.npy", utils.torch2numpy(data))
-        cosim_table = [[[] for _ in range(n_class)] for _ in range(n_class)]
-        for idx in tqdm.tqdm(range(1000000)):
-            p1 = random_seed()
-            p2 = random_seed()
-            cat1 = pred[0, p1[0], p1[1]]
-            cat2 = pred[0, p2[0], p2[1]]
-            v1 = data[p1[0], p1[1]]
-            v2 = data[p2[0], p2[1]]
-            cosim = torch.dot(v1, v2) / torch.norm(v1) / torch.norm(v2)
-            cosim = utils.torch2numpy(cosim)
-            cosim_table[cat1][cat2].append(cosim)
-        cosim_table = np.array(cosim_table)
-        np.save(f"{savepath}_cosim.npy", cosim_table)
-            
-        mean_table = np.zeros_like(cosim_table, dtype="float32")
-        std_table = np.zeros_like(cosim_table , dtype="float32")
-        size_table = np.zeros_like(cosim_table, dtype="float32")
-        for i in range(cosim_table.shape[0]):
-            for j in range(cosim_table.shape[1]):
-                size_table[i, j] = len(cosim_table[i, j])
-                mean_table[i, j] = np.mean(cosim_table[i, j])
-                std_table[i, j] = np.std(cosim_table[i, j])
-        mask_table = size_table > 100
-        mean_table = torch.from_numpy(np.nan_to_num(mean_table))
-        std_table = torch.from_numpy(np.nan_to_num(std_table))
-        mean_table = mean_table.view(1, 1, 16, 16)
-        std_table = std_table.view(1, 1, 16, 16)
+    for ind in range(32):
+        with torch.no_grad():
+            latent.normal_()
+            image, stage = generator.get_stage(latent)
+            seg = sep_model(stage, True)[0]
+            pred = seg.argmax(1)
+            pred_viz = colorizer(pred).float() / 255.
+            image = (1 + image.clamp(-1, 1)) / 2
+            vutils.save_image(
+                utils.catlist([image, pred_viz]),
+                f"{savepath}_{ind}_imagelabel.png")
+            data = 0
+            if "cosim-feature" in args.task:
+                print("=> Interpolating large feature")
+                data = torch.cat([F.interpolate(s.cpu(), size=H, mode="bilinear")[0] for s in stage]).permute(1, 2, 0)
+                np.save(f"feats_{ind}.npy", utils.torch2numpy(data))
+            elif "cosim-calc" in args.task:
+                data = np.load(f"feats_{ind}.npy", allow_pickle=True)
+            mean_table, std_table, cosim_table = sample_cosine(data, pred, n_class)
+            np.save(f"{savepath}_{ind}_cosim.npy", [mean_table, std_table, cosim_table])
 
-        dist_heatmap = utils.heatmap_torch(mean_table)
-        std_heatmap = utils.heatmap_torch(std_table)
-        images = torch.cat([dist_heatmap, std_heatmap])
-        images = F.interpolate(images, size=64, mode="nearest")
-        vutils.save_image(images, f"{savepath}_heatmap.png")
+
 
 
 if "score" in args.task:
@@ -394,6 +422,7 @@ if "surgery" in args.task:
                 images.extend([image, old_pred_viz, diff_viz])
         images = [F.interpolate(img.unsqueeze(0), size=256) for img in images]
         vutils.save_image(torch.cat(images), f"{savepath}_surgery{subfix}.png", nrow=6)
+
 
 if "weight" in args.task:
     model_file = model_files[-1]
