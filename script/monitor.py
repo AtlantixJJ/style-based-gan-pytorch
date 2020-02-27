@@ -293,7 +293,7 @@ def sample_cosine(data, pred, n_class=16):
             size_table[i, j] = size_table[j, i] = np.prod(cosim.shape)
             #cosim_table[i][j] = cosim.reshape(-1).copy()
             del cosim
-    return mean_table, std_table, cosim_table
+    return mean_table, std_table, size_table
 
 
 if "cosim" in args.task:
