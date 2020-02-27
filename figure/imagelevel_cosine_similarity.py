@@ -13,7 +13,6 @@ colors = list(matplotlib.colors.cnames.keys())
 """
 
 cmd = "record/celebahq_cosim/celebahq_stylegan_linear_%d_cosim.npy"
-files.sort()
 mean_tables = []
 std_tables = []
 size_tables = []
