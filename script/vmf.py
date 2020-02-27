@@ -18,8 +18,14 @@ H, W, C = feats.shape
 X = feats.reshape(H * W, C)#.reshape(C, H * W).transpose(1, 0)
 vmf_soft = VonMisesFisherMixture(n_clusters=args.K, posterior_type='soft', n_jobs=20, copy_x=False, verbose=True, max_iter=1000)
 vmf_soft.fit(X)
-pickle.dump(vmf_soft, open("vmf_soft.pkl", 'wb'))
+pickle.dump(vmf_soft, open(f"vmf_soft_{args.K}.pkl", 'wb'))
 
 labels = vmf_soft.labels_.reshape(H, W)
-label_viz = utils.numpy2label(labels, labels.max() + 1)
-utils.imwrite(f"vmf_soft_{args.K}.png", label_viz)
+if args.K <= 2:
+    labels = labels.reshape(1, labels.shape[0], labels.shape[1])
+    label_viz = utils.heatmap_numpy(labels.astype("uint8"))[0]
+    utils.imwrite(f"vmf_soft_{args.K}.png", label_viz * 255.)
+else:
+    labels = labels.astype("uint8")
+    label_viz = utils.numpy2label(labels, labels.max() + 1)
+    utils.imwrite(f"vmf_soft_{args.K}.png", label_viz * 255.)
