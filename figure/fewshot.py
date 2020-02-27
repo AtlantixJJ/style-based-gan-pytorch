@@ -47,8 +47,12 @@ for f in files:
     arr = np.array(dic["IoU"])
     v = arr[arr > -1]
     result[name] = v.mean()
-    result_face[name] = arr[face_indice].mean()
-    result_other[name] = arr[other_indice].mean()
+    v = arr[face_indice]
+    v = v[v>-1]
+    result_face[name] = v.mean()
+    v = arr[other_indice]
+    v = v[v>-1]
+    result_other[name] = v.mean()
 bs = np.unique(bs)
 
 def get_data_from_dic(result):
@@ -73,23 +77,28 @@ def get_data_from_dic(result):
     return xs, means, mins, maxs
 
 dics = [result, result_face, result_other]
-fig = plt.figure()
+params = [
+    [[600, 0.23, 400, 0.32], [0, 64], [0.25, 0.58]],
+    [[600, 0.35, 400, 0.32], [0, 64], [0.35, 0.75]],
+    [[600, 0.02, 400, 0.16], [0, 64], [0.02, 0.20]]]
+fig = plt.figure(figsize=(18, 7))
 for i in range(3):
     ax = plt.subplot(1, 3, i + 1)
     xs, means, mins, maxs = get_data_from_dic(dics[i])
+    axins_box, axins_xlim, ains_ylim = params[i]
     ax.plot(xs, means, marker=".")
     ax.fill_between(xs, mins, maxs, color=colors[0])
     ax.set_xlabel("Training Size")
     ax.set_ylabel("mIoU")
 
-    axins = ax.inset_axes([600, 0.23, 400, 0.32],
+    axins = ax.inset_axes(axins_box,
         transform=ax.transData)
     small = 28
     axins.plot(xs[:small], means[:small], marker=".")
     axins.fill_between(xs[:small], mins[:small], maxs[:small], color=colors[0])
     # sub region of the original image
-    axins.set_xlim(0, 64) # apply the x-limits
-    axins.set_ylim(0.25, 0.58) # apply the y-limits
+    axins.set_xlim(*axins_xlim) # apply the x-limits
+    axins.set_ylim(*ains_ylim) # apply the y-limits
     ax.indicate_inset_zoom(axins)
 plt.savefig("fewshot_result.png", box_inches="tight")
 plt.close()
