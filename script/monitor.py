@@ -244,6 +244,52 @@ if "layer-conv" in args.task:
     vutils.save_image(images, f"{savepath}_layer-conv.png", nrow=3)
 
 
+def sample_cosine(data, pred, n_class=16):
+    mean_table = np.zeros((n_class, n_class))
+    std_table = np.zeros((n_class, n_class))
+    class_indice = [-1] * n_class
+    class_arr = [-1] * n_class
+    class_length = [-1] * n_class
+    N = 100000
+    for i in range(1, n_class): # no background
+        mask = utils.torch2numpy(pred[0]) == i
+        length = mask.sum()
+        if length == 0:
+            pass # no this class
+        elif length < N:
+            class_arr[i] = data[mask]
+        else:
+            idx = np.where(mask)
+            indice = np.random.choice(
+                np.arange(0, len(idx[0])),
+                N)
+            class_arr[i] = np.stack([data[idx[0][i], idx[1][i]]
+                for i in indice])
+        class_length[i] = length
+    print("=> Class number: %s" % str(class_length))
+
+    for i in range(1, n_class):
+        if class_length[i] < 1:
+            continue
+        class_arr[i] /= np.linalg.norm(class_arr[i], 2, 1, keepdims=True)
+    print("=> Normalization done")
+
+    del data
+
+    for i in range(1, n_class):
+        if class_length[i] < 1:
+            continue
+        for j in range(i + 1, n_class):
+            if class_length[j] < 1:
+                continue
+            print("=> %d %d" % (i, j))
+            cosim = np.matmul(class_arr[i], class_arr[j].transpose())
+            mean_table[i, j] = cosim.mean()
+            std_table[i, j] = cosim.std()
+            del cosim
+    return mean_table, std_table
+
+
 if "cosim" in args.task:
     H, W = image.shape[2:]
 
@@ -257,31 +303,23 @@ if "cosim" in args.task:
         with torch.no_grad():
             latent.normal_()
             image, stage = generator.get_stage(latent)
-            print("=> Interpolating large feature")
             seg = sep_model(stage, True)[0]
             pred = seg.argmax(1)
+            pred_viz = colorizer(pred).float() / 255.
+            vutils.save_image(
+                utils.catlist([image, pred_viz]),
+                f"{savepath}_{ind}_imagelabel.png")
             data = 0
             if "cosim-feature" in args.task:
+                print("=> Interpolating large feature")
                 data = torch.cat([F.interpolate(s.cpu(), size=H, mode="bilinear")[0] for s in stage]).permute(1, 2, 0)
                 np.save(f"feats_{ind}.npy", utils.torch2numpy(data))
             elif "cosim-calc" in args.task:
                 data = np.load(f"feats_{ind}.npy", allow_pickle=True)
-            cosim_table = [[[] for _ in range(n_class)] for _ in range(n_class)]
-            xs, ys = np.where(utils.torch2numpy(pred[0]) > 0)
-            for idx in tqdm.tqdm(range(len(xs))):
-                p1 = xs[idx], ys[idx]
-                ridx = np.random.randint(0, len(xs))
-                p2 = xs[ridx], ys[ridx]
-                
-                cat1 = pred[0, p1[0], p1[1]]
-                cat2 = pred[0, p2[0], p2[1]]
-                v1 = data[p1[0], p1[1]]
-                v2 = data[p2[0], p2[1]]
-                cosim = torch.dot(v1, v2) / torch.norm(v1) / torch.norm(v2)
-                cosim = utils.torch2numpy(cosim)
-                cosim_table[cat1][cat2].append(cosim)
-            cosim_table = np.array(cosim_table)
-            np.save(f"{savepath}_{ind}_cosim.npy", cosim_table)
+            mean_table, std_table = sample_cosine(data, pred, n_class)
+            np.save(f"{savepath}_{ind}_cosim.npy", [mean_table, std_table])
+
+
 
 
 if "score" in args.task:

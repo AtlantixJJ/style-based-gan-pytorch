@@ -30,6 +30,8 @@ args = parser.parse_args()
 device = "cpu"
 model_path = "checkpoint/face_celebahq_1024x1024_stylegan.pth"
 generator = model.load_stylegan(model_path).to(device)
+
+torch.manual_seed(65537)
 latent_size = 512
 latent = torch.randn(1, latent_size).to(device)
 
@@ -41,3 +43,5 @@ data = torch.cat([F.interpolate(s.cpu(), size=128, mode="bilinear")[0] for s in 
 data = data.permute(1, 2, 0)
 print(data.shape)
 np.save("feats.npy", utils.torch2numpy(data))
+image = (image.clamp(-1, 1) + 1) / 2
+vutils.save_image(image, "feats_image.png")
