@@ -354,7 +354,6 @@ if "score-second" in args.task:
             score_diff = max_value - sec_value
             
             mini, maxi = score_diff.min(), score_diff.max()
-            print(mini, maxi)
             score_diff = (score_diff - mini) / (maxi - mini)
             score_diff_viz = utils.heatmap_torch(score_diff.cpu())
 
@@ -381,8 +380,15 @@ if "score-first" in args.task:
             seg1 = sep_model(stage, True)[0]
             max_pred = seg1.argmax(1)
             max_value = torch.gather(seg1, 1, max_pred.unsqueeze(1))
+
+            # filtering
+            std = max_value.std() * 2
+            mean = max_value.mean()
+            max_value[max_value > mean + std] = mean + std
+
             mini, maxi = max_value.min(), max_value.max()
             max_value = (max_value - mini) / (maxi - mini)
+
             max_value_viz = utils.heatmap_torch(max_value.cpu())
 
             latent.normal_()
@@ -391,7 +397,7 @@ if "score-first" in args.task:
             pred_viz = colorizer(max_pred.cpu()).float() / 255.
             images.extend([image, pred_viz, max_value_viz[0]])
     images = [F.interpolate(img.unsqueeze(0), size=256) for img in images]
-    vutils.save_image(torch.cat(images), f"{savepath}_score_second.png", nrow=6)
+    vutils.save_image(torch.cat(images), f"{savepath}_score_first.png", nrow=6)
 
 
 if "surgery" in args.task:
@@ -465,8 +471,10 @@ if "weight" in args.task:
     ws = concat_weight(sep_model.semantic_extractor)
     norm = ws.norm(2, dim=1)
     print(norm.shape)
+    arr = [[name, val] for name, val in zip(utils.CELEBA_REDUCED_CATEGORY, norm)]
+    arr.sort(key=lambda x: x[1])
     for i in range(ws.shape[0]):
-        print("=> %d : %.4f" % (i, norm[i]))
+        print("=> %s : %.4f" % (arr[i][0], arr[i][1]))
     norms = get_norm_layerwise(sep_model.semantic_extractor)
     fig = plt.figure(figsize=(16, 12))
     for j in range(16):

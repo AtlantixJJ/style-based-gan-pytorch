@@ -1,5 +1,5 @@
 import numpy as np
-from spherecluster import VonMisesFisherMixture
+from spherecluster import SphericalKMeans
 import pickle
 import argparse
 import utils
@@ -14,6 +14,6 @@ feats = np.load(args.load, allow_pickle=True)
 
 H, W, C = feats.shape
 X = feats.reshape(H * W, C)#.reshape(C, H * W).transpose(1, 0)
-vmf_soft = VonMisesFisherMixture(n_clusters=args.K, posterior_type='soft', n_jobs=32, verbose=True, max_iter=1000)
-vmf_soft.fit(X)
-pickle.dump(vmf_soft, open("vmf_soft.pkl", 'wb'))
+skm = SphericalKMeans(n_clusters=args.K)
+skm.fit(X)
+pickle.dump(skm, open("skm.pkl", 'wb'))
