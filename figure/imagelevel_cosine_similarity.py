@@ -18,7 +18,8 @@ mean_tables = []
 std_tables = []
 size_tables = []
 for i, f in enumerate(files):
-    if i > 25:
+    print(f)
+    if i > 24:
         break
     cosim_table = np.load(f, allow_pickle=True)[()]
     mean_table, std_table, size_table = cosim_table
