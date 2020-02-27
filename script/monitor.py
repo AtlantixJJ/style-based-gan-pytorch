@@ -329,9 +329,7 @@ if "cosim" in args.task:
             np.save(f"{savepath}_{ind}_cosim.npy", [mean_table, std_table, size_table])
 
 
-
-
-if "score" in args.task:
+if "score-second" in args.task:
     model_file = model_files[-1]
     sep_model = get_semantic_extractor(get_extractor_name(model_file))(
         n_class=n_class,
@@ -366,7 +364,34 @@ if "score" in args.task:
             pred_viz = colorizer(max_pred.cpu()).float() / 255.
             images.extend([image, pred_viz, score_diff_viz[0]])
     images = [F.interpolate(img.unsqueeze(0), size=256) for img in images]
-    vutils.save_image(torch.cat(images), f"{savepath}_score.png", nrow=6)
+    vutils.save_image(torch.cat(images), f"{savepath}_score_second.png", nrow=6)
+
+
+if "score-first" in args.task:
+    model_file = model_files[-1]
+    sep_model = get_semantic_extractor(get_extractor_name(model_file))(
+        n_class=n_class,
+        dims=dims).to(device)
+    orig_weight = torch.load(model_file, map_location=device)
+    sep_model.load_state_dict(orig_weight)
+    images = []
+    for i in range(8):
+        with torch.no_grad():
+            image, stage = generator.get_stage(latent)
+            seg1 = sep_model(stage, True)[0]
+            max_pred = seg1.argmax(1)
+            max_value = torch.gather(seg1, 1, max_pred.unsqueeze(1))
+            mini, maxi = max_value.min(), max_value.max()
+            max_value = (max_value - mini) / (maxi - mini)
+            max_value_viz = utils.heatmap_torch(max_value.cpu())
+
+            latent.normal_()
+
+            image = (image[0].clamp(-1, 1).cpu() + 1) / 2
+            pred_viz = colorizer(max_pred.cpu()).float() / 255.
+            images.extend([image, pred_viz, max_value_viz[0]])
+    images = [F.interpolate(img.unsqueeze(0), size=256) for img in images]
+    vutils.save_image(torch.cat(images), f"{savepath}_score_second.png", nrow=6)
 
 
 if "surgery" in args.task:

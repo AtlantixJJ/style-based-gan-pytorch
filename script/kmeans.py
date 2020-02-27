@@ -16,6 +16,6 @@ feats = np.load(args.load, allow_pickle=True)
 
 H, W, C = feats.shape
 X = feats.reshape(H * W, C)#.reshape(C, H * W).transpose(1, 0)
-vmf_soft = VonMisesFisherMixture(n_clusters=K, posterior_type='soft', n_jobs=8, verbose=True, max_iter=1000)
+vmf_soft = VonMisesFisherMixture(n_clusters=K, posterior_type='soft', n_jobs=32, verbose=True, max_iter=1000)
 vmf_soft.fit(X)
 pickle.dump(vmf_soft, open("vmf_soft.pkl", 'wb'))
