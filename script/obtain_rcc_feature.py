@@ -37,9 +37,11 @@ latent = torch.randn(1, latent_size).to(device)
 
 with torch.no_grad():
     image, stage = generator.get_stage(latent)
-stage = [s for s in stage if s.shape[3] >= 16 and s.shape[3] <= 512]
+stage = [s for s in stage if s.shape[3] >= 16]
 size = max([s.shape[2] for s in stage])
-data = torch.cat([F.interpolate(s.cpu(), size=128, mode="bilinear")[0] for s in stage])
+data = torch.cat([
+    F.interpolate(s.cpu(), size=512, mode="bilinear")[0]
+        for s in stage])
 data = data.permute(1, 2, 0)
 print(data.shape)
 np.save("feats.npy", utils.torch2numpy(data))
