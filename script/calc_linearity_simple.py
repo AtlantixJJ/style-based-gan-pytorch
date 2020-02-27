@@ -46,13 +46,6 @@ if args.recursive == 1:
     exit(0)
 
 
-#generator = model.tfseg.StyledGenerator(semantic="mul-16-none_sl0")
-upsample = int(np.log2(args.imsize // 4))
-generator = model.simple.Generator(upsample=upsample)
-missed = generator.load_state_dict(torch.load(args.model), strict=False)
-print(missed)
-generator.to(device)
-
 state_dict = torch.load(args.external_model, map_location='cpu')
 train_size = 512
 if "128" in args.external_model:
@@ -67,9 +60,28 @@ mapid = utils.CelebAIDMap().mapid
 def external_model(x):
     return mapid(faceparser(x).argmax(1))
 
-evaluator = evaluate.LinearityEvaluator(generator, external_model,
-    last_only=args.last_only,
-    train_iter=args.train_iter,
-    test_size=args.test_size,
-    latent_dim=128)
-evaluator(generator, model_name)
+
+# endlessly evaluate if there is new model
+st = args.start
+while True:
+    model_files = glob.glob(args.model + "/*.model")
+    model_files = [m for m in model_files if "disc" not in m]
+    model_files.sort()
+    if st >= len(model_files):
+        break
+    model_files = model_files[st]
+
+    #generator = model.tfseg.StyledGenerator(semantic="mul-16-none_sl0")
+    upsample = int(np.log2(args.imsize // 4))
+    generator = model.simple.Generator(upsample=upsample)
+    missed = generator.load_state_dict(torch.load(args.model), strict=False)
+    print(missed)
+    generator.to(device)
+
+    evaluator = evaluate.LinearityEvaluator(generator, external_model,
+        last_only=args.last_only,
+        train_iter=args.train_iter,
+        test_size=args.test_size,
+        latent_dim=128)
+    evaluator(generator, model_name)
+    st += 1
