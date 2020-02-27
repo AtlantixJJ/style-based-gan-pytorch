@@ -41,6 +41,7 @@ for f in files:
     for i, v in enumerate(dic['IoU']):
         v = np.array(v)[-500:]
 
+        """
         non_negative = v[v > 0]
         fluctuation = np.array([])
         if len(non_negative) > 1:
@@ -50,10 +51,11 @@ for f in files:
         x = fluctuation.tolist() + negative_fluctuation.tolist()
         x = np.array(x).mean()
         """
+        
         x = 1
         if len(v[v>0]) > 0:
             x = v.std()
-        """
+        
         summary[utils.CELEBA_REDUCED_CATEGORY[i]].append(x)
 
 utils.plot_dic(summary, "class linearity", "class.png")

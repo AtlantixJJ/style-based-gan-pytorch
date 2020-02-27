@@ -320,7 +320,8 @@ if "cosim" in args.task:
             if "cosim-feature" in args.task:
                 print("=> Interpolating large feature")
                 data = torch.cat([F.interpolate(s.cpu(), size=H, mode="bilinear")[0] for s in stage]).permute(1, 2, 0)
-                np.save(f"feats_{ind}.npy", utils.torch2numpy(data))
+                data = utils.torch2numpy(data)
+                np.save(f"feats_{ind}.npy", data)
             elif "cosim-calc" in args.task:
                 data = np.load(f"feats_{ind}.npy", allow_pickle=True)
             mean_table, std_table, size_table = sample_cosine(data, pred, n_class)

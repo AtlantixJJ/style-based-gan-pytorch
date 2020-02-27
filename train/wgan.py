@@ -2,9 +2,13 @@
 Semantic enhanced discriminator training.
 python script/wgan.py --imsize 64
 
-python train/wgan.py --imsize 64 --load expr/celeba_wgan64/gen_iter_050000.model --disc-net expr/celeba_wgan64/disc_iter_050000.model --batch-size 64 --gpu 0 --save-iter 100 --iter-num 5000 --dataset ../datasets/CelebAMask-HQ/CelebA-HQ-img-64 --task celeba_resume_wgan --warmup 100 --lr 0.0002 && python train/wgan.py --imsize 64 --load expr/celeba_wgan64/gen_iter_050000.model --disc-net expr/celeba_wgan64/disc_iter_050000.model --batch-size 64 --gpu 0 --save-iter 100 --iter-num 5000 --dataset ../datasets/CelebAMask-HQ/hat/image --task celeba_hat_wgan --warmup 100 --lr 0.0002 && python train/wgan.py --imsize 64 --load expr/celeba_wgan64/gen_iter_050000.model --disc-net expr/celeba_wgan64/disc_iter_050000.model --batch-size 64 --gpu 0 --save-iter 100 --iter-num 5000 --dataset ../datasets/CelebAMask-HQ/eye_g/image --task celeba_eyeg_wgan --warmup 100 --lr 0.0002
+python train/wgan.py --imsize 64 --load expr/celeba_wgan64/gen_iter_050000.model --disc-net expr/celeba_wgan64/disc_iter_050000.model --batch-size 16 --gpu 0 --save-iter 20 --iter-num 400 --dataset ../datasets/CelebAMask-HQ/CelebA-HQ-img-64 --task celeba_resume_wgan --warmup 100 --lr 0.0002
 
-python train/wgan.py --imsize 128 --load expr/celeba_wgan128/gen_iter_050000.model --disc-net expr/celeba_wgan128/disc_iter_050000.model --batch-size 16 --gpu 0 --save-iter 100 --iter-num 5000 --dataset ../datasets/CelebAMask-HQ/hat/image --task celeba_hat_wgan --lr 0.0002
+python train/wgan.py --imsize 64 --load expr/celeba_wgan64/gen_iter_050000.model --disc-net expr/celeba_wgan64/disc_iter_050000.model --batch-size 64 --gpu 0 --save-iter 20 --iter-num 400 --dataset ../datasets/CelebAMask-HQ/hat/image --task celeba_hat_wgan --warmup 100 --lr 0.0002
+
+python train/wgan.py --imsize 128 --load expr/celeba_wgan128/gen_iter_050000.model --disc-net expr/celeba_wgan128/disc_iter_050000.model --batch-size 64 --gpu 0 --save-iter 20 --iter-num 400 --dataset ../datasets/CelebAMask-HQ/hat/image --task celeba_hat_wgan --lr 0.0002 --warmup 100
+
+python train/wgan.py --imsize 64 --load expr/celeba_wgan64/gen_iter_050000.model --disc-net expr/celeba_wgan64/disc_iter_050000.model --batch-size 64 --gpu 0 --save-iter 20 --iter-num 400 --dataset ../datasets/CelebAMask-HQ/eye_g/image --task celeba_eyeg_wgan --warmup 100 --lr 0.0002
 
 python train/wgan.py --imsize 128 --load expr/celeba_wgan128/gen_iter_050000.model --disc-net expr/celeba_wgan128/disc_iter_050000.model --batch-size 16 --gpu 3 --save-iter 100 --iter-num 5000 --dataset datasets/CelebAMask-HQ/eye_g/image --task celeba_eyeg_wgan
 """
