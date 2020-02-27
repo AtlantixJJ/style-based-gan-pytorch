@@ -17,7 +17,7 @@ colors = list(matplotlib.colors.cnames.keys())
 from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes
 
 
-data_dir = "results"
+data_dir = "record/fewshot"
 
 # analyze global data
 files = glob.glob(f"{data_dir}/linear*class.npy")
