@@ -12,12 +12,14 @@ style.use('ggplot')
 colors = list(matplotlib.colors.cnames.keys())
 """
 
-files = glob.glob("record/celebahq_cosim/*_[0-5]_cosim.npy")
+files = glob.glob("record/celebahq_cosim/*_cosim.npy")
 files.sort()
 mean_tables = []
 std_tables = []
 size_tables = []
-for f in files:
+for i, f in enumerate(files):
+    if i > 25:
+        break
     cosim_table = np.load(f, allow_pickle=True)[()]
     mean_table, std_table, size_table = cosim_table
     size_table /= 10000.0
