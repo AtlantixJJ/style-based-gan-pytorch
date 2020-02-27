@@ -236,17 +236,27 @@ class LinearSphericalSemanticExtractor(BaseSemanticExtractor):
         self.optim = torch.optim.Adam(self.parameters(), lr=1e-3)
        
     def forward(self, stage, last_only=True):
-        maxsize = stage[-1].shape[2]
-        outputs = []
+        maxsize = stage[-1].shape[2] // 2
         with torch.no_grad():
             feat = torch.cat([F.interpolate(s, size=maxsize, mode="bilinear")
-                for s in stage])
+                for s in stage], 1)
             feat = F.normalize(feat, 2, 1)
-        
-        
-        if last_only:
-            return F.conv2d(feat, self.weight)
 
+        if last_only:
+            return [F.conv2d(feat, self.weight)]
+
+        prev = 0
+        # side outputs
+        outputs = []
+        for i in range(len(self.dims)):
+            cur = prev + self.dims[i]
+            y = F.conv2d(feat[:, prev:cur], self.weight[:, prev : cur])
+            outputs.append(y)
+        # cumulative results
+        for i in range(len(stage)):
+            outputs.append(sum(outputs[:i+1]))
+        
+        return outputs
 
     """
     def copy_weight_from(self, coef):

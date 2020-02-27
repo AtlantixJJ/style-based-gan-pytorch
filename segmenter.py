@@ -24,10 +24,10 @@ class CelebAMaskHQSegmenter(object):
         self.idmap = utils.CelebAIDMap()
         self.labels = utils.CELEBA_REDUCED_CATEGORY[1:]
         self.categories = ["face"] * len(self.labels)
-    
+
     def get_label_and_category_names(self):
         return list(zip(self.labels, self.categories)), self.categories
 
-    def segment_batch(self, batch):
-        seg = self.model(batch)
+    def segment_batch(self, batch, resize=True):
+        seg = self.model(batch, resize)
         return self.idmap.mapid(seg.argmax(1))

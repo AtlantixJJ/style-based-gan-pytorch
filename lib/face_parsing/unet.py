@@ -50,7 +50,7 @@ class unet(nn.Module):
         # final conv (without any concat)
         self.final = nn.Conv2d(filters[0], n_classes, 1)
 
-    def forward(self, inputs):
+    def forward(self, inputs, resize=True):
         input_size = inputs.shape[3]
         if input_size != self.train_size:
             inputs = F.interpolate(inputs, self.train_size, mode="bilinear")
@@ -75,7 +75,7 @@ class unet(nn.Module):
 
         final = self.final(up1)
 
-        if input_size != self.train_size:
+        if resize and input_size != self.train_size:
             final = F.interpolate(final, input_size, mode="bilinear")
 
         return final

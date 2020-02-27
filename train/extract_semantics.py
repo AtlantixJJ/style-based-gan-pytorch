@@ -24,6 +24,7 @@ labels, cats = external_model.get_label_and_category_names()
 category_groups = utils.get_group(labels)
 category_groups_label = utils.get_group(labels, False)
 n_class = category_groups[-1][1]
+print(str(cfg))
 with open(cfg.expr_dir + "/config.txt", "w") as f:
     f.write(str(cfg))
     f.write("\n\n")
@@ -44,9 +45,13 @@ sep_model = get_semantic_extractor(cfg.semantic_extractor)(
     mapid=None,
     category_groups=category_groups).to(cfg.device)
 
-
+is_resize = cfg.semantic_extractor != "spherical"
 record = cfg.record
 metrics = [evaluate.DetectionMetric(n_class=cg[1]-cg[0]) for i, cg in enumerate(category_groups)]
+
+colorizer = utils.Colorize(16)
+if cfg.task != "celebahq":
+    colorizer = lambda x: segment_visualization_single(x, 256)
 
 for ind in tqdm(range(cfg.n_iter)):
     ind += 1
@@ -54,7 +59,8 @@ for ind in tqdm(range(cfg.n_iter)):
 
     with torch.no_grad(): # fix main network
         gen, stage = generator.get_stage(latent, detach=True)
-        label = external_model.segment_batch(gen)
+        gen = gen.clamp(-1, 1)
+        label = external_model.segment_batch(gen, resize=is_resize)
 
     multi_segs = sep_model(stage, last_only=cfg.last_only)
     if len(category_groups_label) == 1:
@@ -90,16 +96,17 @@ for ind in tqdm(range(cfg.n_iter)):
     if (ind + 1) % cfg.disp_iter == 0 or ind == cfg.n_iter or cfg.debug:
         # visualize training
         res = []
-        size = gen.shape[2:]
+        size = label.shape[2:]
+        gen = F.interpolate(gen, size=size, mode="bilinear")
         for i in range(label.shape[0]): # label (N, M, H, W)
-            image = (utils.torch2numpy(gen[i].clamp(-1, 1)) + 1) * 127.5
+            image = (utils.torch2numpy(gen[i]) + 1) * 127.5
             res.append(image.transpose(1, 2, 0))
             for j in range(label.shape[1]):
                 l = utils.torch2numpy(label[i, j])
-                label_viz = segment_visualization_single(l, size)
+                label_viz = colorizer(l)
                 seg = utils.torch2numpy(multi_segs[j][-1][i]).argmax(0)
                 seg[seg > 0] += category_groups_label[j][0]
-                seg_viz = segment_visualization_single(seg, gen.shape[2:])
+                seg_viz = colorizer(seg)
                 res.extend([seg_viz, label_viz])
         res = torch.from_numpy(np.stack(res)).permute(0, 3, 1, 2).float() / 255.
         vutils.save_image(res, f"{cfg.expr_dir}/{ind+1:05d}.png", nrow=1 + 2 * label.shape[1])
