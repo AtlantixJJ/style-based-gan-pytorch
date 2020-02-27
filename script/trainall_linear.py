@@ -2,7 +2,7 @@ import os
 
 #train_size = list(range(1, 4)); gpus = [0]
 # 1, 2, 3, 4
-train_size = [36, 44, 52, 56, 60, 72, 80, 88, 640, 768, 896]; gpus = [4, 5, 6, 7]
+train_size = [64]; gpus = [4, 5, 6, 7]
 #train_size = list(range(72, 97, 8)); gpus = [0, 1]
 basecmd = "python script/linear_multiple_image.py --train-size %d --gpu %d --repeat-idx %d"
 

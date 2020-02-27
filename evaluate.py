@@ -222,8 +222,8 @@ class DetectionMetric(object):
 
 class MaskCelebAEval(object):
     def __init__(self):
-        self.face_indice = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 14]
-        self.other_indice = [11, 12, 13, 15]
+        self.face_indice = [1, 2, 4, 5, 6, 7, 8, 9, 10, 14]
+        self.other_indice = [3, 11, 12, 13, 15]
         
         self.dic = {}
         self.dic["class"] = utils.CELEBA_REDUCED_CATEGORY # class information

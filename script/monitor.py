@@ -247,7 +247,8 @@ if "layer-conv" in args.task:
 def sample_cosine(data, pred, n_class=16):
     mean_table = np.zeros((n_class, n_class))
     std_table = np.zeros((n_class, n_class))
-    cosim_table = [[[] for _ in range(n_class)] for _ in range(n_class)]
+    size_table = np.zeros((n_class, n_class))
+    #cosim_table = [[[] for _ in range(n_class)] for _ in range(n_class)]
     class_indice = [-1] * n_class
     class_arr = [-1] * n_class
     class_length = [-1] * n_class
@@ -289,7 +290,8 @@ def sample_cosine(data, pred, n_class=16):
             cosim = np.matmul(class_arr[i], class_arr[j].transpose())
             mean_table[j, i] = mean_table[i, j] = cosim.mean()
             std_table[j, i] = std_table[i, j] = cosim.std()
-            cosim_table[i][j] = cosim.reshape(-1).copy()
+            size_table[i, j] = size_table[j, i] = np.prod(cosim.shape)
+            #cosim_table[i][j] = cosim.reshape(-1).copy()
             del cosim
     return mean_table, std_table, cosim_table
 
@@ -321,8 +323,8 @@ if "cosim" in args.task:
                 np.save(f"feats_{ind}.npy", utils.torch2numpy(data))
             elif "cosim-calc" in args.task:
                 data = np.load(f"feats_{ind}.npy", allow_pickle=True)
-            mean_table, std_table, cosim_table = sample_cosine(data, pred, n_class)
-            np.save(f"{savepath}_{ind}_cosim.npy", [mean_table, std_table, cosim_table])
+            mean_table, std_table, size_table = sample_cosine(data, pred, n_class)
+            np.save(f"{savepath}_{ind}_cosim.npy", [mean_table, std_table, size_table])
 
 
 
