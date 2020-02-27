@@ -247,6 +247,7 @@ if "layer-conv" in args.task:
 def sample_cosine(data, pred, n_class=16):
     mean_table = np.zeros((n_class, n_class))
     std_table = np.zeros((n_class, n_class))
+    cosim_table = [[[] for _ in range(n_class)] for _ in range(n_class)]
     class_indice = [-1] * n_class
     class_arr = [-1] * n_class
     class_length = [-1] * n_class
@@ -266,12 +267,15 @@ def sample_cosine(data, pred, n_class=16):
             class_arr[i] = np.stack([data[idx[0][i], idx[1][i]]
                 for i in indice])
         class_length[i] = length
-    print("=> Class number: %s" % str(class_length))
+    
+    print("=> Class number:")
+    for i in range(n_class):
+        print("=> %s: %s" % (utils.CELEBA_REDUCED_CATEGORY[i], str(class_length[i])))
 
     for i in range(1, n_class):
         if class_length[i] < 1:
             continue
-        class_arr[i] /= np.linalg.norm(class_arr[i], 2, 1, keepdims=True)
+        class_arr[i] /= np.linalg.norm(class_arr[i], 2, 1, True)
     print("=> Normalization done")
 
     del data
@@ -279,15 +283,14 @@ def sample_cosine(data, pred, n_class=16):
     for i in range(1, n_class):
         if class_length[i] < 1:
             continue
-        for j in range(i + 1, n_class):
+        for j in range(i, n_class):
             if class_length[j] < 1:
                 continue
-            print("=> %d %d" % (i, j))
             cosim = np.matmul(class_arr[i], class_arr[j].transpose())
-            mean_table[i, j] = cosim.mean()
-            std_table[i, j] = cosim.std()
-            del cosim
-    return mean_table, std_table
+            mean_table[j, i] = mean_table[i, j] = cosim.mean()
+            std_table[j, i] = std_table[i, j] = cosim.std()
+            cosim_table[i][j] = cosim.reshape(-1)
+    return mean_table, std_table, cosim_table
 
 
 if "cosim" in args.task:
@@ -306,6 +309,7 @@ if "cosim" in args.task:
             seg = sep_model(stage, True)[0]
             pred = seg.argmax(1)
             pred_viz = colorizer(pred).float() / 255.
+            image = (1 + image.clamp(-1, 1)) / 2
             vutils.save_image(
                 utils.catlist([image, pred_viz]),
                 f"{savepath}_{ind}_imagelabel.png")
@@ -316,8 +320,8 @@ if "cosim" in args.task:
                 np.save(f"feats_{ind}.npy", utils.torch2numpy(data))
             elif "cosim-calc" in args.task:
                 data = np.load(f"feats_{ind}.npy", allow_pickle=True)
-            mean_table, std_table = sample_cosine(data, pred, n_class)
-            np.save(f"{savepath}_{ind}_cosim.npy", [mean_table, std_table])
+            mean_table, std_table, cosim_table = sample_cosine(data, pred, n_class)
+            np.save(f"{savepath}_{ind}_cosim.npy", [mean_table, std_table, cosim_table])
 
 
 

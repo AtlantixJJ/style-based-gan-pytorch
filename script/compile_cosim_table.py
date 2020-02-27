@@ -13,24 +13,14 @@ colors = list(matplotlib.colors.cnames.keys())
 """
 
 files = glob.glob("record/celebahq_cosim/*_[0-2]_cosim.npy")
+files.sort()
 cosim_table = np.load(files[0], allow_pickle=True)[()]
-mean_table = np.zeros_like(cosim_table, dtype="float32")
-std_table = np.zeros_like(cosim_table , dtype="float32")
-size_table = np.zeros_like(cosim_table, dtype="float32")
-for i in range(cosim_table.shape[0]):
-    for j in range(cosim_table.shape[1]):
-        size_table[i, j] = len(cosim_table[i, j])
-        mean_table[i, j] = np.mean(cosim_table[i, j])
-        std_table[i, j] = np.std(cosim_table[i, j])
-mask_table = size_table > 100
-mean_table = np.nan_to_num(mean_table)
-std_table = np.nan_to_num(std_table)
-size_table = np.log(size_table)
-size_table[size_table == -np.inf] = 0.0
+mean_table = cosim_table[0]
+std_table = cosim_table[1]
 cats = utils.CELEBA_REDUCED_CATEGORY
-tables = [mean_table, std_table, size_table]
+tables = [mean_table, std_table]
 name = ["mean of cosine similarity", "standard deviation of cosine similarity", "log data number"]
-fig = plt.figure(figsize=(22, 8))
+fig = plt.figure(figsize=(15, 8))
 for ind in range(len(tables)):
     ax = plt.subplot(1, len(tables), ind + 1)
     ax.imshow(tables[ind])

@@ -23,7 +23,6 @@ parser.add_argument("--test-size", default=256, type=int)
 args = parser.parse_args()
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
-model_name = args.model.replace("expr/", "").replace("/", "_")
 device = "cuda"
 
 if args.recursive == 1:
@@ -70,7 +69,8 @@ while True:
     if st >= len(model_files):
         break
     model_file = model_files[st]
-
+    model_name = model_file.replace("expr/", "").replace("/", "_")
+    print(model_name)
     #generator = model.tfseg.StyledGenerator(semantic="mul-16-none_sl0")
     upsample = int(np.log2(args.imsize // 4))
     generator = model.simple.Generator(upsample=upsample)
