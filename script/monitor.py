@@ -254,7 +254,7 @@ def sample_cosine(data, pred, n_class=16):
     class_length = [-1] * n_class
     N = 100000
     for i in range(1, n_class): # no background
-        mask = utils.torch2numpy(pred[0]) == i
+        mask = pred == i
         length = mask.sum()
         if length == 0:
             pass # no this class
@@ -312,6 +312,7 @@ if "cosim" in args.task:
             seg = sep_model(stage, True)[0]
             pred = seg.argmax(1)
             pred_viz = colorizer(pred).float() / 255.
+            pred = utils.torch2numpy(pred[0])
             image = (1 + image.clamp(-1, 1)) / 2
             vutils.save_image(
                 utils.catlist([image, pred_viz]),
