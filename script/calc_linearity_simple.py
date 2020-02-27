@@ -69,12 +69,12 @@ while True:
     model_files.sort()
     if st >= len(model_files):
         break
-    model_files = model_files[st]
+    model_file = model_files[st]
 
     #generator = model.tfseg.StyledGenerator(semantic="mul-16-none_sl0")
     upsample = int(np.log2(args.imsize // 4))
     generator = model.simple.Generator(upsample=upsample)
-    missed = generator.load_state_dict(torch.load(args.model), strict=False)
+    missed = generator.load_state_dict(torch.load(model_file), strict=False)
     print(missed)
     generator.to(device)
 
