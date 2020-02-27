@@ -36,7 +36,7 @@ std_table = (std_tables * size_tables).sum(0)
 cats = utils.CELEBA_REDUCED_CATEGORY
 # remove necklace because it is 0 everywhere
 del cats[13]
-del [0]
+del cats[0]
 
 def remove_numpy(x, idx):
     x = np.concatenate([x[:idx], x[idx+1:]], 0)
