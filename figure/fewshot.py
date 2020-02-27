@@ -76,7 +76,7 @@ ax.set_ylabel("mIoU")
 
 axins = ax.inset_axes([600, 0.23, 400, 0.32],
     transform=ax.transData)
-small = 15
+small = 28
 axins.plot(
     xs[:small],
     [mean_dic[x] for x in xs][:small], marker=".")
@@ -85,7 +85,7 @@ axins.fill_between(
     [min_dic[x] for x in xs][:small],
     [max_dic[x] for x in xs][:small], color=colors[0])
 # sub region of the original image
-axins.set_xlim(0, 30) # apply the x-limits
+axins.set_xlim(0, 64) # apply the x-limits
 axins.set_ylim(0.25, 0.58) # apply the y-limits
 ax.indicate_inset_zoom(axins)
 #axins.set_xticklabels('')
