@@ -7,6 +7,8 @@ import numpy as np
 def get_semantic_extractor(config):
     if config == "linear":
         return LinearSemanticExtractor
+    elif config == "spherical":
+        return LinearSphericalSemanticExtractor
     elif config == "nonlinear":
         return NonLinearSemanticExtractor
     elif config == "generative":
@@ -216,6 +218,46 @@ class NonLinearSemanticExtractor(LinearSemanticExtractor):
                 for dim in self.dims])
         
         self.optim = torch.optim.Adam(self.semantic_extractor.parameters(), lr=1e-3)
+
+
+
+class LinearSphericalSemanticExtractor(BaseSemanticExtractor):
+    """
+    Extract the semantic segmentation from internal representation using 1x1 conv.
+    """
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.build()
+    
+    def build(self):
+        self.weight = nn.Parameter(torch.zeros(self.n_class, sum(self.dims), 1, 1))
+        torch.nn.init.kaiming_normal_(self.weight)
+
+        self.optim = torch.optim.Adam(self.parameters(), lr=1e-3)
+       
+    def forward(self, stage, last_only=True):
+        maxsize = stage[-1].shape[2]
+        outputs = []
+        with torch.no_grad():
+            feat = torch.cat([F.interpolate(s, size=maxsize, mode="bilinear")
+                for s in stage])
+            feat = F.normalize(feat, 2, 1)
+        
+        
+        if last_only:
+            return F.conv2d(feat, self.weight)
+
+
+    """
+    def copy_weight_from(self, coef):
+        coef = torch.from_numpy(coef).view(coef.shape[0], coef.shape[1], 1, 1)
+        for i, conv in enumerate(self.semantic_extractor.children()):
+            prev_dim, cur_dim = self.segments[i], self.segments[i+1]
+            state_dict = conv[0].state_dict()
+            device = state_dict["weight"].device
+            state_dict["weight"] = nn.Parameter(coef[:, prev_dim:cur_dim]).to(device)
+            conv[0].load_state_dict(state_dict)
+    """
 
 
 """
