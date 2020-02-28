@@ -4,12 +4,12 @@ import numpy as np
 import utils
 
 
-
-def get_name(fname):
-    fname_ = fname.replace("_agreement.npy", "")
-    fname_ = fname_.replace("-16", "")
-    ind1 = fname_.rfind("/")
-    return fname_[ind1+1:]
+def get_extractor_name(model_path):
+    keywords = ["nonlinear", "linear", "spherical", "generative", "unet"]
+    names = ["SNSE", "LSE", "SLSE", "CNSE", "UNet-512"]
+    for i, k in enumerate(keywords):
+        if k in model_path:
+            return names[i]
 
 def get_best_model(table, best_ind, name, delimiter=","):
     best_model = table.split("\n")[best_ind + 1]
@@ -46,7 +46,7 @@ def process_dir(dir):
     global_tabular = []
     class_tabular = []
     for f in files:
-        name = get_name(f)
+        name = get_extractor_name(f)
         dic = np.load(f, allow_pickle=True)[()]
         dic = calc_subset(dic)
         res = utils.format_test_result(dic, global_metrics)
