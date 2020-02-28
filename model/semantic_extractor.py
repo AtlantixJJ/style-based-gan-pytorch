@@ -250,16 +250,19 @@ class LinearSphericalSemanticExtractor(BaseSemanticExtractor):
         sides = []
         for i in range(len(self.dims)):
             cur = prev + self.dims[i]
-            y = F.conv2d(feat[:, prev:cur], self.weight[:, prev : cur])
-            sides.append(y)
+            sides.append(F.conv2d(feat[:, prev:cur], self.weight[:, prev : cur]))
+            prev = cur
 
         # cumulative results
         outputs = []
+        x = 0
         for i in range(len(stage)):
-            sum_layers = sum(sides[:i+1])
+            x = x + sides[i]
             size = min(stage[i].shape[2], sides[i].shape[2])
-            sum_layers = F.interpolate(sum_layers, size=size, mode="bilinear")
-            outputs.append(sum_layers)
+            if x.shape[3] != size:
+                outputs.append(F.interpolate(x, size=size, mode="bilinear"))
+            else:
+                outputs.append(x)
         
         return outputs
 

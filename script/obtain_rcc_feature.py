@@ -25,13 +25,15 @@ colors = list(matplotlib.colors.cnames.keys())
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--model", default="")
+#parser.add_argument("--seed", default="")
+parser.add_argument("--name", default="feats")
 args = parser.parse_args()
 
 device = "cpu"
 model_path = "checkpoint/face_celebahq_1024x1024_stylegan.pth"
 generator = model.load_stylegan(model_path).to(device)
 
-torch.manual_seed(65537)
+#torch.manual_seed(int(args.seed))
 latent_size = 512
 latent = torch.randn(1, latent_size).to(device)
 
@@ -44,6 +46,6 @@ data = torch.cat([
         for s in stage])
 data = data.permute(1, 2, 0)
 print(data.shape)
-np.save("feats.npy", utils.torch2numpy(data))
+np.save(args.name, utils.torch2numpy(data))
 image = (image.clamp(-1, 1) + 1) / 2
-vutils.save_image(image, "feats_image.png")
+vutils.save_image(image, args.name + "_image.png")
