@@ -188,17 +188,33 @@ def random_projection_torch(data):
 
     return data.matmul(x), data.matmul(y)
 
-def weight_projection_torch(data, w):
+def weight_projection_torch(data, w, vx, vy):
     wn = w / w.norm(2)
-    x = torch.randn(data.shape[2])
+    x = torch.randn(data.shape[1])
     x -= wn * wn.dot(x) # ortho to w
     x /= x.norm(2)
-    y = torch.randn(data.shape[2])
+    y = torch.randn(data.shape[1])
     y -= wn * wn.dot(y) # ortho to w
     y -= x * x.dot(y) # ortho to x
     y /= y.norm(2)
 
     return data.matmul(x), data.matmul(y)
+
+def project_direction(ws):
+    xs = []
+    ys = []
+    for w in ws:
+        wn = w / w.norm(2)
+        x = torch.randn(w.shape[0])
+        x -= wn * wn.dot(x) # ortho to w
+        x /= x.norm(2)
+        y = torch.randn(w.shape[0])
+        y -= wn * wn.dot(y) # ortho to w
+        y -= x * x.dot(y) # ortho to x
+        y /= y.norm(2)
+        xs.append(x)
+        ys.append(y)
+    return xs, ys
 
 
 if "visualize" in args.task:
@@ -217,6 +233,8 @@ if "visualize" in args.task:
         w = sep_model.weight[:, :, 0, 0]
     else:
         w = concat_weight(sep_model.semantic_extractor)
+    xs, ys = project_direction(w)
+
 
     for ind in range(4):
         with torch.no_grad():
@@ -229,30 +247,35 @@ if "visualize" in args.task:
             pred_viz = colorizer(pred).float() / 255.
             data = torch.cat([F.interpolate(s, size=size, mode="bilinear")[0].cpu() for s in stage]).permute(1, 2, 0)
             c = (np.array(utils.CELEBA_COLORS)/255.)[pred.view(-1).tolist()]
+            data = data.view(-1, data.shape[2])
+
+            print("=> Random single class projection")
+            fig = plt.figure(figsize=(40, 36))
+            for i in range(16):
+                x, y = random_projection_torch(data[pred.view(-1) == i])
+                cs = (np.array(utils.CELEBA_COLORS)/255.)[i]
+                ax = plt.subplot(2, 2, 1 + i)
+                ax.scatter(x, y, s=1, c=cs)
+            plt.savefig(f"random_single_projection_{ind}.png")
+            plt.close()
 
             print("=> Weight projection")
-            fig = plt.figure(figsize=(30, 28))
+            fig = plt.figure(figsize=(40, 36))
             for i in range(16):
-                x, y = weight_projection_torch(data, w[i])
-                x = x.view(-1)
-                y = y.view(-1)
+                x, y = weight_projection_torch(data, w[i], xs[i], ys[i])
                 ax = plt.subplot(4, 4, 1 + i)
                 ax.scatter(x, y, c=c, s=1)
             plt.savefig(f"weight_projection_{ind}.png")
             plt.close()
 
-            print("=> Random projectionn")
+            print("=> Random projection")
             fig = plt.figure(figsize=(40, 36))
             for i in range(4):
                 x, y = random_projection_torch(data)
-                x = x.view(-1)
-                y = y.view(-1)
                 ax = plt.subplot(2, 2, 1 + i)
                 ax.scatter(x, y, s=1, c=c)
             plt.savefig(f"random_projection_{ind}.png")
             plt.close()
-
-
     """
     latent.uniform_(); latent.normal_()
     datafiles = glob.glob("../datasets/StyleGANFeats/*.npy")
