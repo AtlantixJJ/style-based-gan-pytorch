@@ -48,6 +48,21 @@ class SEL1Reg(SECore):
         return l
 
 
+class SESpherical(SECore):
+    def __init__(self):
+        self.last_only = [0, 1]
+        self.basecmd = "python train/extract_semantics.py --task celebahq --model-name stylegan --extractor spherical --gpu %s --batch-size 1 --iter-num 20000 --last-only %d --expr record/celebahq%d"
+
+    def args_gen(self, gpus):
+        l = []
+        count = 0
+        for j in self.last_only:
+            gpu = gpus[count]
+            l.append((count, (gpu, j, j)))
+            count = (count + 1) % len(gpus)
+        return l
+    
+
 def assign_run(command_generator, gpus, false_exec=False):
     slots = [""] * len(gpus)
     for index, cmd in command_generator(gpus):
@@ -77,4 +92,4 @@ if "jericho" in uname:
     gpus = ["0"]; assign_run(SECore().command, gpus)
     #gpus = ["0"]; assign_run(direct_run, gpus)
 elif "instance" in uname:
-    gpus = ["0"]; assign_run(SEL1Reg().command, gpus)
+    gpus = ["0"]; assign_run(SESpherical().command, gpus)

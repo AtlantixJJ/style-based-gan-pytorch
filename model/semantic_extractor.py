@@ -250,8 +250,8 @@ class LinearSphericalSemanticExtractor(BaseSemanticExtractor):
         sides = []
         for i in range(len(self.dims)):
             cur = prev + self.dims[i]
-            y = F.conv2d(feat[:, prev:cur], self.weight[:, prev : cur])
-            sides.append(y)
+            sides.append(F.conv2d(feat[:, prev:cur], self.weight[:, prev : cur]))
+            prev = cur
 
         # cumulative results
         outputs = []
@@ -259,7 +259,10 @@ class LinearSphericalSemanticExtractor(BaseSemanticExtractor):
         for i in range(len(stage)):
             x = x + sides[i]
             size = min(stage[i].shape[2], sides[i].shape[2])
-            outputs.append(F.interpolate(x, size=size, mode="bilinear"))
+            if x.shape[3] != size:
+                outputs.append(F.interpolate(x, size=size, mode="bilinear"))
+            else:
+                outputs.append(x)
         
         return outputs
 
