@@ -96,7 +96,7 @@ elif "proggan" in args.model:
 
 
 def get_extractor_name(model_path):
-    keywords = ["nonlinear", "linear", "generative", "cascade"]
+    keywords = ["nonlinear", "linear", "spherical", "generative", "cascade"]
     for k in keywords:
         if k in model_path:
             return k
@@ -557,6 +557,7 @@ if "contribution" in args.task:
 
 if "agreement" in args.task:
     model_file = model_files[-1]
+    batch_size = 1
     latent = torch.randn(batch_size, latent_size, device=device)
     if noise:
         generator.set_noise(noise)
@@ -567,13 +568,14 @@ if "agreement" in args.task:
     print("=> Load from %s" % model_file)
     state_dict = torch.load(model_file, map_location='cpu')
     missed = sep_model.load_state_dict(state_dict)
-
+    is_resize = "spherical" not in model_file
     evaluator = evaluate.MaskCelebAEval()
-    for i in tqdm.tqdm(range(30 * LEN // batch_size)):
+    for i in tqdm.tqdm(range(30 * LEN)):
         with torch.no_grad():
             gen, stage = generator.get_stage(latent)
+            gen = gen.clamp(-1, 1)
             est_label = sep_model.predict(stage)
-            label = external_model.segment_batch(gen.clamp(-1, 1))
+            label = external_model.segment_batch(gen, resize=is_resize)
         label = utils.torch2numpy(label)
 
         for j in range(batch_size):
@@ -583,6 +585,7 @@ if "agreement" in args.task:
     evaluator.aggregate()
     clean_dic = evaluator.summarize()
     np.save(savepath + "_agreement", clean_dic)
+
 
 if "seg" in args.task:
     for i, model_file in enumerate(model_files):
