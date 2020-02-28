@@ -45,7 +45,6 @@ data = torch.cat([
     F.interpolate(s.cpu(), size=512, mode="bilinear")[0]
         for s in stage])
 data = data.permute(1, 2, 0)
-print(data.shape)
 np.save(args.name, utils.torch2numpy(data))
 image = (image.clamp(-1, 1) + 1) / 2
 vutils.save_image(image, args.name + "_image.png")
