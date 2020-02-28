@@ -245,7 +245,6 @@ class LinearSphericalSemanticExtractor(BaseSemanticExtractor):
         if last_only:
             return [F.conv2d(feat, self.weight)]
 
-        """
         prev = 0
         # side outputs
         sides = []
@@ -259,10 +258,10 @@ class LinearSphericalSemanticExtractor(BaseSemanticExtractor):
         x = 0
         for i in range(len(stage)):
             x = x + sides[i]
-            outputs.append(x)
+            size = min(stage[i].shape[2], sides[i].shape[2])
+            outputs.append(F.interpolate(x, size=size, mode="bilinear"))
         
         return outputs
-        """
 
     """
     def copy_weight_from(self, coef):

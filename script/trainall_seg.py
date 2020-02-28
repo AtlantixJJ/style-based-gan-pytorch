@@ -74,7 +74,7 @@ def direct_run(gpus):
 uname = subprocess.run(["uname", "-a"], capture_output=True)
 uname = uname.stdout.decode("ascii")
 if "jericho" in uname:
-    #gpus = ["0"]; assign_run(SECore().command, gpus)
-    gpus = ["0"]; assign_run(direct_run, gpus)
+    gpus = ["0"]; assign_run(SECore().command, gpus)
+    #gpus = ["0"]; assign_run(direct_run, gpus)
 elif "instance" in uname:
     gpus = ["0"]; assign_run(SEL1Reg().command, gpus)
