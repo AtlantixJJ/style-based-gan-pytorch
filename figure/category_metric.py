@@ -12,11 +12,11 @@ style.use('ggplot')
 colors = list(matplotlib.colors.cnames.keys())
 
 data_dir = "record"
-tasks = ["celeba_eyeg_wgan128", "celeba_eyeg_wgan64", "celebahq_hat_wgan128", "celebahq_hat_wgan64"]
+tasks = ["celeba_eyeg_wgan128", "celebahq_hat_wgan128"]
 
 # analyze global data
 for task in tasks:
-    files = glob.glob(f"{data_dir}/{task}*global_dic.npy")
+    files = glob.glob(f"{data_dir}/{task}/*global_dic.npy")
     files.sort()
     dic = np.load(files[0], allow_pickle=True)[()]
     summary = {k:[] for k in dic.keys()}
@@ -29,7 +29,7 @@ for task in tasks:
     utils.plot_dic(summary, "global linearity", "global.png")
 
     # analyze classwise data
-    files = glob.glob(f"{data_dir}/{task}*class_dic.npy")
+    files = glob.glob(f"{data_dir}/{task}/*class_dic.npy")
     files.sort()
     dic = np.load(files[0], allow_pickle=True)[()]
     summary = {k:[] for k in utils.CELEBA_REDUCED_CATEGORY}
@@ -43,4 +43,5 @@ for task in tasks:
             if len(v[v>0]) > 0:
                 x = v.std()
             summary[utils.CELEBA_REDUCED_CATEGORY[i]].append(x)
+    summary = {k:v for k, v in summary.items() if k in task}
     utils.plot_dic(summary, "class linearity", f"{task}_class.png")
