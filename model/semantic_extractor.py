@@ -245,18 +245,24 @@ class LinearSphericalSemanticExtractor(BaseSemanticExtractor):
         if last_only:
             return [F.conv2d(feat, self.weight)]
 
+        """
         prev = 0
         # side outputs
-        outputs = []
+        sides = []
         for i in range(len(self.dims)):
             cur = prev + self.dims[i]
             y = F.conv2d(feat[:, prev:cur], self.weight[:, prev : cur])
-            outputs.append(y)
+            sides.append(y)
+
         # cumulative results
+        outputs = []
+        x = 0
         for i in range(len(stage)):
-            outputs.append(sum(outputs[:i+1]))
+            x = x + sides[i]
+            outputs.append(x)
         
         return outputs
+        """
 
     """
     def copy_weight_from(self, coef):
