@@ -180,9 +180,9 @@ def random_projection(data):
     return data.dot(x), data.dot(y)
 
 def random_projection_torch(data):
-    x = torch.randn(data.shape[2])
+    x = torch.randn(data.shape[1])
     x /= x.norm(2)
-    y = torch.randn(data.shape[2])
+    y = torch.randn(data.shape[1])
     y -= x * x.dot(y)
     y /= y.norm(2)
 
@@ -254,8 +254,8 @@ if "visualize" in args.task:
             for i in range(16):
                 x, y = random_projection_torch(data[pred.view(-1) == i])
                 cs = (np.array(utils.CELEBA_COLORS)/255.)[i]
-                ax = plt.subplot(2, 2, 1 + i)
-                ax.scatter(x, y, s=1, c=cs)
+                ax = plt.subplot(4, 4, 1 + i)
+                ax.scatter(x, y, s=1, c=cs.reshape(1, 3))
             plt.savefig(f"random_single_projection_{ind}.png")
             plt.close()
 

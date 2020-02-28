@@ -25,7 +25,7 @@ colors = list(matplotlib.colors.cnames.keys())
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--model", default="")
-parser.add_argument("--seed", default="")
+#parser.add_argument("--seed", default="")
 parser.add_argument("--name", default="feats")
 args = parser.parse_args()
 
@@ -33,7 +33,7 @@ device = "cpu"
 model_path = "checkpoint/face_celebahq_1024x1024_stylegan.pth"
 generator = model.load_stylegan(model_path).to(device)
 
-torch.manual_seed(int(args.seed))
+#torch.manual_seed(int(args.seed))
 latent_size = 512
 latent = torch.randn(1, latent_size).to(device)
 
