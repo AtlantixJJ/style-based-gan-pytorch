@@ -3,24 +3,11 @@ Calculate the feature of StyleGAN and do RCC clustering.
 """
 import sys
 sys.path.insert(0, ".")
-import os, math
-import matplotlib.pyplot as plt
-import torch
-import numpy as np
-from tqdm import tqdm
-from model.tf import StyledGenerator
-import argparse
-import torch.nn.functional as F
-from torchvision import utils as vutils
-from lib.face_parsing import unet
-import evaluate, utils, dataset, loss
-from model.semantic_extractor import LinearSemanticExtractor
-import pickle
-
+import os, math, argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "--model", default="checkpoint/karras2019stylegan-celebahq-1024x1024.for_g_all.pt")
+    "--model", default="checkpoint/face_celebahq_1024x1024_stylegan.pth")
 parser.add_argument(
     "--data-dir", default="datasets/Synthesized")
 parser.add_argument(
@@ -44,8 +31,21 @@ parser.add_argument(
 parser.add_argument(
     "--debug", default=0, type=int)
 args = parser.parse_args()
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
+print(os.environ['CUDA_VISIBLE_DEVICES'])
 
+import matplotlib.pyplot as plt
+import torch
+import numpy as np
+from tqdm import tqdm
+from model.tf import StyledGenerator
+import torch.nn.functional as F
+from torchvision import utils as vutils
+from lib.face_parsing import unet
+import evaluate, utils, dataset, loss
+from model.semantic_extractor import LinearSemanticExtractor
+import pickle
 
 def fg_bg_idmap(x):
     return utils.idmap(x,
@@ -103,7 +103,7 @@ latent = torch.randn(1, 512).to(device)
 colorizer = utils.Colorize(args.total_class)
 image, stage = generator.get_stage(latent, True)
 stylegan_dims = [s.shape[1] for s in stage]
-train_iter = min(int(30000 / args.train_size), args.train_iter)
+train_iter = min(int(10000 / args.train_size), args.train_iter)
 
 def test(generator, linear_model, test_dl):
     result = []
