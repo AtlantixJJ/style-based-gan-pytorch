@@ -11,7 +11,7 @@ style.use('seaborn-poster') #sets the size of the charts
 style.use('ggplot')
 colors = list(matplotlib.colors.cnames.keys())
 
-data_dir = sys.argv[1]
+data_dir = "record"
 tasks = ["celeba_eyeg_wgan128", "celeba_eyeg_wgan64", "celebahq_hat_wgan128", "celebahq_hat_wgan64"]
 
 # analyze global data
