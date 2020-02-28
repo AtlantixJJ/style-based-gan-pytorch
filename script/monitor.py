@@ -259,6 +259,18 @@ if "visualize" in args.task:
             plt.savefig(f"random_single_projection_{ind}.png")
             plt.close()
 
+            print("=> Weight single class projection")
+            fig = plt.figure(figsize=(40, 36))
+            for i in range(16):
+                x, y = weight_projection_torch(
+                    data[pred.view(-1) == i],
+                    w[i], xs[i], ys[i])
+                cs = (np.array(utils.CELEBA_COLORS)/255.)[i]
+                ax = plt.subplot(4, 4, 1 + i)
+                ax.scatter(x, y, s=1, c=cs.reshape(1, 3))
+            plt.savefig(f"weight_single_projection_{ind}.png")
+            plt.close()
+
             print("=> Weight projection")
             fig = plt.figure(figsize=(40, 36))
             for i in range(16):
