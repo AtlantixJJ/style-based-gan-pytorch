@@ -13,25 +13,28 @@ class CelebAMaskHQ():
         self.train_dataset = []
         self.test_dataset = []
         self.mode = mode
+        t = "train" if self.mode else "test"
+        self.files = open(f"{self.img_path}/../{t}.list", "r").read().split("\n")
         self.preprocess()
         
         if mode == True:
+            
             self.num_images = len(self.train_dataset)
         else:
             self.num_images = len(self.test_dataset)
 
     def preprocess(self):
-        
-        for i in range(len([name for name in os.listdir(self.img_path) if os.path.isfile(os.path.join(self.img_path, name))])):
+        #files = [name for name in os.listdir(self.img_path) if os.path.isfile(os.path.join(self.img_path, name))]
+
+        for i in range(len(self.files)):
             img_path = os.path.join(self.img_path, str(i)+'.jpg')
             label_path = os.path.join(self.label_path, str(i)+'.png')
-            print (img_path, label_path) 
             if self.mode == True:
                 self.train_dataset.append([img_path, label_path])
             else:
                 self.test_dataset.append([img_path, label_path])
             
-        print('Finished preprocessing the CelebA dataset...')
+        print("=> data size: %d" % len(self.train_dataset))
 
     def __getitem__(self, index):
         
