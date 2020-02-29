@@ -9,7 +9,7 @@ def get_extractor_name(model_path):
     names = ["SNSE", "LSE", "SLSE", "CNSE", "UNet-512"]
     for i, k in enumerate(keywords):
         if k in model_path:
-            return names[i]
+            return model_path#names[i]
 
 def get_best_model(table, best_ind, name, delimiter=","):
     best_model = table.split("\n")[best_ind + 1]
@@ -65,7 +65,8 @@ def process_dir(dir):
     l.extend([global_latex_head, global_tabular, class_latex_head, class_tabular])
     return l
 
-dirs = glob.glob("record/celebahq[0-1]")
+dir = "record/l1" #"record/celebahq[0-1]"
+dirs = glob.glob(dir)
 dirs.sort()
 global_table = []
 class_table = []

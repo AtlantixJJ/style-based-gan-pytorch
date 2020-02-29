@@ -3,7 +3,7 @@ import os
 import time
 import torch
 import datetime
-
+import tqdm
 import torch.nn as nn
 from torch.autograd import Variable
 from torchvision.utils import save_image
@@ -76,9 +76,9 @@ class Trainer(object):
             start = 0
 
         # Start time
+        self.G.train()
         start_time = time.time()
-        for step in range(start, self.total_step):
-            self.G.train()
+        for step in tqdm.tqdm(range(start, self.total_step)):
             try:
                 imgs, labels = next(data_iter)
             except:
@@ -111,9 +111,6 @@ class Trainer(object):
                 print("Elapsed [{}], G_step [{}/{}], Cross_entrophy_loss: {:.4f}".
                       format(elapsed, step + 1, self.total_step, c_loss.data))
 
-            label_batch_predict = generate_label(labels_predict, self.imsize)
-            label_batch_real = generate_label(labels_real, self.imsize)
-
 	        # scalr info on tensorboardX		
             writer.add_scalar('Loss/Cross_entrophy_loss', c_loss.data, step) 
 
@@ -124,7 +121,7 @@ class Trainer(object):
                 save_image(denorm(labels_sample),
                             os.path.join(self.sample_path, '{}_predict.png'.format(step + 1)))
 
-            if (step+1) % model_save_step==0:
+            if (step+1) % model_save_step == 0:
                 print("=> Save model %d" % (step + 1))
                 torch.save(self.G.state_dict(),
                             os.path.join(self.model_save_path, '{}_G.pth'.format(step + 1)))
