@@ -7,7 +7,7 @@ basecmd = "python train/fixsegtrain.py --task fixseg --seg-cfg conv-16-1 --gpu 0
 
 class SECore(object):
     def __init__(self):
-        self.last_only = [0, 1]
+        self.last_only = [1, 0]
         self.extractors = [
             "linear",
             "nonlinear",

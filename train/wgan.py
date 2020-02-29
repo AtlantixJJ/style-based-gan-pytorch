@@ -2,9 +2,11 @@
 Semantic enhanced discriminator training.
 python script/wgan.py --imsize 64
 # hat128
-python train/wgan.py --imsize 128 --load expr/celeba_wgan128/gen_iter_050000.model --disc-net expr/celeba_wgan128/disc_iter_050000.model --batch-size 64 --gpu 0 --save-iter 10 --disp-iter 10 --iter-num 500 --dataset ../datasets/CelebAMask-HQ/hat/image --task celeba_hat_wgan --lr 0.0002 --warmup 100
+python train/wgan.py --imsize 128 --load expr/celeba_wgan128/gen_iter_050000.model --disc-net expr/celeba_wgan128/disc_iter_050000.model --batch-size 64 --gpu 0 --save-iter 1 --disp-iter 1 --iter-num 100 --dataset ../datasets/CelebAMask-HQ/hat/image --task celeba_hat_wgan --lr 0.0002 --warmup 100
 # eyeg128
-python train/wgan.py --imsize 128 --load expr/celeba_wgan128/gen_iter_050000.model --disc-net expr/celeba_wgan128/disc_iter_050000.model --batch-size 64 --gpu 0 --save-iter 10 --disp-iter 10 --iter-num 500 --dataset ../datasets/CelebAMask-HQ/eye_g/image --task celeba_eyeg_wgan --lr 0.0002 --warmup 100
+python train/wgan.py --imsize 128 --load expr/celeba_wgan128/gen_iter_050000.model --disc-net expr/celeba_wgan128/disc_iter_050000.model --batch-size 64 --gpu 0 --save-iter 1 --disp-iter 10 --iter-num 100 --dataset ../datasets/CelebAMask-HQ/eye_g/image --task celeba_eyeg_wgan --lr 0.0002 --warmup 100
+# earr128
+python train/wgan.py --imsize 128 --load expr/celeba_wgan128/gen_iter_050000.model --disc-net expr/celeba_wgan128/disc_iter_050000.model --batch-size 64 --gpu 0 --save-iter 1 --disp-iter 10 --iter-num 100 --dataset ../datasets/CelebAMask-HQ/ear_r/image --task celeba_earr_wgan --lr 0.0002 --warmup 100
 """
 import sys
 sys.path.insert(0, ".")
@@ -95,6 +97,9 @@ def wgan_gp(D, x_real, x_fake):
 
 
 record = cfg.record
+
+torch.save(sg.module.state_dict(), cfg.expr_dir + "/gen_iter_%06d.model" % 0)
+torch.save(disc.module.state_dict(), cfg.expr_dir + "/disc_iter_%06d.model" % 0)
 
 pbar = tqdm(utils.infinite_dataloader(cfg.dl, cfg.n_iter + 1), total=cfg.n_iter)
 for ind, real_image in enumerate(pbar):

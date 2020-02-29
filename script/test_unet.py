@@ -14,17 +14,17 @@ import dataset
 import config, segmenter
 from lib.face_parsing import unet
 
-rootdir = "datasets/CelebAMask-HQ/"
+rootdir = "../datasets/CelebAMask-HQ/"
 ds = dataset.ImageSegmentationDataset(
-    root=rootdir,
-    size=512,
-    image_dir="CelebA-HQ-img",
-    label_dir="CelebAMask-HQ-mask",
-    idmap=utils.CelebAIDMap(),
-    file_list=f"{rootdir}/test.list")
+        root=rootdir,
+        size=512,
+        image_dir="CelebA-HQ-img",
+        label_dir="CelebAMask-HQ-mask",
+        idmap=utils.CelebAIDMap(),
+        file_list=f"{rootdir}/test.list")
 dl = torch.utils.data.DataLoader(ds, batch_size=4)
 
-state_dict = torch.load("lib/face_parsing/models/parsenet/75960_G.pth", map_location='cpu')
+state_dict = torch.load(sys.argv[1], map_location='cpu')
 faceparser = unet.unet()
 faceparser.load_state_dict(state_dict)
 faceparser = faceparser.cuda()
