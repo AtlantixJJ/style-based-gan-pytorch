@@ -10,6 +10,15 @@ from torch.autograd import Function
 
 from lib.op import FusedLeakyReLU, fused_leaky_relu, upfirdn2d
 
+def from_pth_file(fpath):
+    resolution = 1024
+    if "256x256" in fpath:
+        resolution = 256
+    model = Generator(resolution, 512, 8)
+    state_dict = torch.load(fpath, map_location="cpu")
+    missed = model.load_state_dict(state_dict)
+    print(missed)
+    return model
 
 class PixelNorm(nn.Module):
     def __init__(self):
@@ -415,6 +424,7 @@ class Generator(nn.Module):
         self.upsamples = nn.ModuleList()
         self.to_rgbs = nn.ModuleList()
         self.noises = nn.Module()
+        self.random_noise = True
 
         in_channel = self.channels[4]
 
@@ -460,6 +470,16 @@ class Generator(nn.Module):
 
         return noises
 
+    def generate_noise(self):
+        return self.make_noise()
+
+    def set_noise(self, noise):
+        if noise is None:
+            self.random_noise = True
+        else:
+            for i in range(self.num_layers):
+                getattr(self.noises, f'noise_{i}').copy_(noise[i])
+
     def mean_latent(self, n_latent):
         latent_in = torch.randn(
             n_latent, self.style_dim, device=self.input.input.device
@@ -471,7 +491,37 @@ class Generator(nn.Module):
     def get_latent(self, input):
         return self.style(input)
 
-    def forward(
+    def forward(self, latent):
+        if latent.shape[1] == 512:
+            latent = self.style(latent)
+            latent = latent.unsqueeze(1).repeat(1, self.n_latent, 1)
+
+        if self.random_noise:
+            noise = [None] * self.num_layers
+        else:
+            noise = [getattr(self.noises, f'noise_{i}')
+                        for i in range(self.num_layers)]
+
+        out = self.input(latent)
+        out = self.conv1(out, latent[:, 0], noise=noise[0])
+
+        skip = self.to_rgb1(out, latent[:, 1])
+
+        i = 1
+        for conv1, conv2, noise1, noise2, to_rgb in zip(
+            self.convs[::2], self.convs[1::2], noise[1::2], noise[2::2], self.to_rgbs
+        ):
+            out = conv1(out, latent[:, i], noise=noise1)
+            out = conv2(out, latent[:, i + 1], noise=noise2)
+            skip = to_rgb(out, latent[:, i + 2], skip)
+
+            i += 2
+
+        image = skip
+
+        return image
+
+    def calc(
         self,
         styles,
         return_latents=False,

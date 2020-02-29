@@ -144,7 +144,7 @@ n_class = len(external_model.get_label_and_category_names()[1]) + 1
 utils.set_seed(65537)
 latent = torch.randn(1, latent_size).to(device)
 noise = False
-op = getattr(generator, "generator_noise", None)
+op = getattr(generator, "generate_noise", None)
 if callable(op):
     noise = op()
 
