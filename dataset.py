@@ -205,6 +205,8 @@ class CollectedDataset(torch.utils.data.Dataset):
         s += f"=> Collected dataset at {self.root}\n"
         s += f"=> Length {len(self)}\n"
         s += f"=> Data keys: {' '.join(self.keys)}\n"
+        for key in self.dic.keys():
+            s += f"=> {key}: {len(self.dic[key])}\n"
         return s
 
     def __len__(self):

@@ -21,25 +21,24 @@ from model.semantic_extractor import get_semantic_extractor
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--model", default="checkpoint/fixseg_conv-16-1.model")
+parser.add_argument("--model", default="checkpoint/face_celebahq_1024x1024_stylegan.pth")
 parser.add_argument("--external-model", default="checkpoint/faceparse_unet_512.pth")
 parser.add_argument("--n-class", default=16, type=int)
 parser.add_argument("--extractor", default="linear")
 parser.add_argument("--sep-model", default="checkpoint/celebahq_stylegan_linear_extractor.model")
 parser.add_argument("--output", default="results")
-parser.add_argument("--data-dir", default="data_compare")
-parser.add_argument("--seg-cfg", default="conv-16-1")
+parser.add_argument("--data-dir", default="data/celeba_compare_hard")
 parser.add_argument("--lr", default=1e-2, type=int)
-parser.add_argument("--n-iter", default=50, type=int)
-parser.add_argument("--n-reg", default=3, type=int)
+parser.add_argument("--n-iter", default=10, type=int)
+parser.add_argument("--n-reg", default=0, type=int)
 parser.add_argument("--seed", default=65537, type=int)
 args = parser.parse_args()
 
 
 optim_types = [
+    "label-ML-external",
     "baseline-image-ML",
-    "label-ML-internal",
-    "label-ML-external"
+    "label-ML-internal"
     ]
 
 # constants setup
@@ -47,13 +46,13 @@ torch.manual_seed(args.seed)
 device = 'cuda'
 
 # build model
-generator = model.tf.StyledGenerator(semantic=args.seg_cfg).to(device)
+generator = model.tf.StyledGenerator().to(device)
 generator.load_state_dict(torch.load(args.model))
 generator.eval()
 
 # sep model
 with torch.no_grad():
-    latent = torch.randn_like(1, 512).to(device)
+    latent = torch.randn(1, 512).to(device)
     image, stage = generator.get_stage(latent)
     dims = [s.shape[1] for s in stage]
 sep_model = get_semantic_extractor(args.extractor)(
@@ -90,7 +89,7 @@ for ind, dic in enumerate(dl):
         extended_latent_ = generator.g_mapping(latent_).detach()
         generalized_latent_ = extended_latent_[:, 0:1, :].detach()
         orig_image, stage = generator.get_stage(extended_latent_)
-        orig_seg = sep_model(stage)
+        orig_seg = sep_model(stage)[0]
         ext_seg = idmap.diff_mapid(external_model(orig_image.clamp(-1, 1)))
     orig_image = (1 + orig_image.clamp(-1, 1)) / 2
     ext_label = ext_seg.argmax(1)
@@ -137,7 +136,7 @@ for ind, dic in enumerate(dl):
                 noises=noises_,
                 image_stroke=dic["image_stroke"],
                 image_mask=dic["image_mask"],
-                method="baseline-image-LL",
+                method=t,
                 lr=args.lr,
                 n_iter=args.n_iter,
                 n_reg=args.n_reg)
@@ -147,7 +146,20 @@ for ind, dic in enumerate(dl):
                 model=generator,
                 sep_model=external_model if "external" in t else sep_model,
                 mapping_network=generator.g_mapping.simple_forward,
-                latent=latent,
+                latent=latent_,
+                noises=noises_,
+                label_stroke=label_stroke,
+                label_mask=label_mask,
+                method=t.replace("ML", "LL"),
+                lr=args.lr,
+                n_iter=args.n_iter,
+                n_reg=args.n_reg)
+            mix_latent_ = res[2].expand(18, -1).detach().clone()
+            res = optim.edit_label_stroke(
+                model=generator,
+                sep_model=external_model if "external" in t else sep_model,
+                mapping_network=generator.g_mapping.simple_forward,
+                latent=mix_latent_,
                 noises=noises_,
                 label_stroke=label_stroke,
                 label_mask=label_mask,
@@ -155,6 +167,7 @@ for ind, dic in enumerate(dl):
                 lr=args.lr,
                 n_iter=args.n_iter,
                 n_reg=args.n_reg)
+
             label_viz = ext_target_label_viz if "external" in t else int_target_label_viz
             images.append(label_viz)
         

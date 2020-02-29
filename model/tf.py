@@ -144,7 +144,7 @@ class BlurLayer(nn.Module):
     def __init__(self, kernel=[1, 2, 1], normalize=True, flip=False, stride=1):
         super(BlurLayer, self).__init__()
         kernel=[1, 2, 1]
-        kernel = torch.Tensor(kernel, dtype=torch.float32)
+        kernel = torch.tensor(kernel, dtype=torch.float32)
         kernel = kernel[:, None] * kernel[None, :]
         kernel = kernel[None, None]
         if normalize:
@@ -211,7 +211,10 @@ class G_mapping(nn.Sequential):
             ('dense7_act', act)
         ]
         super().__init__(OrderedDict(layers))
-        
+
+    def simple_forward(self, x):
+        return super().forward(x)
+
     def forward(self, x):
         x = super().forward(x)
         # Broadcast
@@ -391,10 +394,16 @@ class StyledGenerator(nn.Module):
         self.g_synthesis = G_synthesis(resolution=resolution)
 
     def forward(self, x):
-        return self.g_synthesis(self.g_mapping(x))
+        if x.shape[1] != 18:
+            # able to take EL as input
+            x = self.g_mapping(x)
+        return self.g_synthesis(x)
 
     def get_stage(self, x, detach=False):
-        return self.g_synthesis.get_stage(self.g_mapping(x), detach)
+        if x.shape[1] != 18:
+            # able to take EL as input
+            x = self.g_mapping(x)
+        return self.g_synthesis.get_stage(x, detach)
 
     def generate_noise(self):
         if not hasattr(self, "noise_layers"):

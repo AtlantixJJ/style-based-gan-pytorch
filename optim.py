@@ -44,11 +44,12 @@ def get_el_from_latent(latent, mapping_network, method):
 
 
 def get_image_seg_celeba(model, el, sep_model, method):
-    if "internal" in method:
+    if "internal" in method or "baseline" in method:
+        # for baseline, the segmentation is computed but not used
         image, stage = model.get_stage(el)
         return image, sep_model(stage)[0]
     elif "external" in method:
-        image = model(el, seg=False)
+        image = model(el)
         # [NOTICE]: This is hardcode for CelebA
         seg = utils.CelebAIDMap().diff_mapid(
                 sep_model(image.clamp(-1, 1)))
@@ -56,16 +57,14 @@ def get_image_seg_celeba(model, el, sep_model, method):
 
 
 def edit_label_stroke(model, latent, noises, label_stroke, label_mask,
-    n_iter=5, n_reg=0, lr=1e-2, method="celossreg-label-ML-internal", sep_model=None, mapping_network=None):
+    n_iter=5, n_reg=0, lr=1e-2, method="label-ML-internal", sep_model=None, mapping_network=None):
     latent = latent.detach().clone()
     latent.requires_grad = True
     optim = torch.optim.Adam([latent], lr=lr)
     model.set_noise(noises)
-    record = {"mseloss": [], "gradnorm": []}
-    if "celossreg" in method:
-        record.update({"celoss": [], "segdiff": []})
-        n_reg = 0 # no regularization in baseline method
-
+    record = {
+        "mseloss": [], "gradnorm": [],
+        "celoss": [], "segdiff": []}
     el = get_el_from_latent(latent, mapping_network, method)
     orig_image, orig_seg = get_image_seg_celeba(model, el, sep_model, method)
     orig_image = orig_image.detach().clone()
@@ -77,19 +76,15 @@ def edit_label_stroke(model, latent, noises, label_stroke, label_mask,
         el = get_el_from_latent(latent, mapping_network, method)
         image, seg = get_image_seg_celeba(model, el, sep_model, method)
 
-        diff_mask = 0
-        if "celossreg" in method:
-            current_label = seg.argmax(1)
-            diff_mask = (current_label != target_label).float()
-            total_diff = diff_mask.sum()
-            if total_diff < 1:
-                celoss = 0
-            else:
-                celoss = mask_cross_entropy_loss(diff_mask, seg, target_label)
-            record["segdiff"].append(utils.torch2numpy(total_diff))
-            record["celoss"].append(utils.torch2numpy(celoss))
-        else:
+        current_label = seg.argmax(1)
+        diff_mask = (current_label != target_label).float()
+        # editing area has 4 times lager loss
+        diff_mask = 3 * label_mask + diff_mask 
+        total_diff = diff_mask.sum()
+        if total_diff < 1:
             celoss = 0
+        else:
+            celoss = mask_cross_entropy_loss(diff_mask, seg, target_label)
 
         mseloss = 0
         if diff_mask is not 0:
@@ -100,6 +95,8 @@ def edit_label_stroke(model, latent, noises, label_stroke, label_mask,
         latent.grad = grad
         optim.step()
 
+        record["segdiff"].append(utils.torch2numpy(total_diff))
+        record["celoss"].append(utils.torch2numpy(celoss))
         record["mseloss"].append(utils.torch2numpy(mseloss))
         record["gradnorm"].append(utils.torch2numpy(grad_norm))
 

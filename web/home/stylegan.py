@@ -394,7 +394,10 @@ class StyledGenerator(nn.Module):
         self.g_synthesis = G_synthesis(resolution=resolution)
 
     def forward(self, x):
-        return self.g_synthesis(self.g_mapping(x))
+        if x.shape[1] != 18:
+            # able to take EL as input
+            x = self.g_mapping(x)
+        return self.g_synthesis(x)
 
     def get_stage(self, x, detach=False):
         if x.shape[1] != 18:
