@@ -5,7 +5,7 @@ python script/calc_linearity_simple.py --imsize 64 --model expr/celeba_wgan64/
 python script/calc_linearity_simple.py --imsize 64 --model expr/celeba_eyeg_wgan64/
 python script/calc_linearity_simple.py --imsize 64 --model expr/celeba_eyeg_wgan64/gen_iter_001000.model --recursive 0
 """
-import sys, argparse
+import sys, os, argparse
 sys.path.insert(0, ".")
 
 parser = argparse.ArgumentParser()
@@ -22,7 +22,7 @@ args = parser.parse_args()
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 device = "cuda"
 
-import torch, glob, os
+import torch, glob
 import numpy as np
 import model, fid, utils, evaluate
 from lib.face_parsing.unet import unet
