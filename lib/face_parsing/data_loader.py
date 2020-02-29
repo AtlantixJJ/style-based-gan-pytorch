@@ -90,7 +90,7 @@ class Data_Loader():
         loader = torch.utils.data.DataLoader(dataset=dataset,
                                              batch_size=self.batch,
                                              shuffle=True,
-                                             num_workers=2,
+                                             num_workers=8,
                                              drop_last=False)
         return loader
 

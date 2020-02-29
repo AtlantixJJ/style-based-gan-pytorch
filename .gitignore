@@ -1,4 +1,5 @@
 # data files
+lib/face_parsing/models/
 *.csv
 *.npy
 *.pkl
