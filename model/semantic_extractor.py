@@ -9,6 +9,8 @@ def get_semantic_extractor(config):
         return LinearSemanticExtractor
     elif config == "spherical":
         return LinearSphericalSemanticExtractor
+    elif config == "projective":
+        return ProjectiveLinearSemanticExtractor
     elif config == "nonlinear":
         return NonLinearSemanticExtractor
     elif config == "generative":
@@ -220,6 +222,57 @@ class NonLinearSemanticExtractor(LinearSemanticExtractor):
         self.optim = torch.optim.Adam(self.semantic_extractor.parameters(), lr=1e-3)
 
 
+class ProjectiveLinearSemanticExtractor(LinearSemanticExtractor):
+    """
+    Project the feature to 2-dim plane
+    """
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.build()
+
+    def build(self):
+        semantic_projector = nn.ModuleList([
+            nn.Conv2d(dim, 2, 1)
+                for dim in self.dims])
+        semantic_visualizer = nn.ModuleList([
+            nn.Conv2d(2, self.n_class, 1)
+                for dim in self.dims])
+        self.semantic_branch = nn.ModuleList([
+                semantic_projector,
+                semantic_visualizer
+            ])
+        self.optim = torch.optim.Adam(self.semantic_branch.parameters(), lr=1e-3)
+
+    def forward(self, stage, last_only=False, projection=False):
+        outputs = []
+        projects = []
+        semantic_projector, semantic_visualizer = self.semantic_branch
+        for i, seg_input in enumerate(stage):
+            proj = semantic_projector[i](seg_input)
+            seg = semantic_visualizer[i](proj)
+            projects.append(proj)
+            outputs.append(seg)
+        size = outputs[-1].shape[2]
+
+        if last_only:
+            size = stage[-1].shape[2]
+            layers = [F.interpolate(s, size=size, mode="bilinear") for s in outputs]
+            if projection:
+                projection = sum([F.interpolate(p, size=size, mode="bilinear") for p in projects])
+                return [sum(layers)], projection
+            return [sum(layers)]
+
+        # summation series
+        """
+        for i in range(1, len(stage)):
+            size = stage[i].shape[2]
+            layers = [F.interpolate(s, size=size, mode="bilinear")
+                for s in outputs[:i]]
+            sum_layers = sum(layers) + outputs[i]
+            outputs.append(sum_layers)
+
+        return outputs
+        """
 
 class LinearSphericalSemanticExtractor(BaseSemanticExtractor):
     """
