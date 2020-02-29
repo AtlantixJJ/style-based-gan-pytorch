@@ -1,14 +1,12 @@
 """
-python script/calc_linearity_simple.py --model expr/celeba_wgan128/ --gpu 2
+python script/calc_linearity_simple.py --model expr/celeba_hat_wgan128/ --gpu 2 --recursive 0
+python script/calc_linearity_simple.py --model expr/celeba_eyeg_wgan128/ --gpu 3 --recursive 0
 python script/calc_linearity_simple.py --imsize 64 --model expr/celeba_wgan64/
 python script/calc_linearity_simple.py --imsize 64 --model expr/celeba_eyeg_wgan64/
 python script/calc_linearity_simple.py --imsize 64 --model expr/celeba_eyeg_wgan64/gen_iter_001000.model --recursive 0
 """
-import sys, argparse, torch, glob, os
+import sys, argparse
 sys.path.insert(0, ".")
-import numpy as np
-import model, fid, utils, evaluate
-from lib.face_parsing.unet import unet
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--imsize", default=128, type=int)
@@ -22,8 +20,12 @@ parser.add_argument("--train-iter", default=1000, type=int)
 parser.add_argument("--test-size", default=256, type=int)
 args = parser.parse_args()
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
-
 device = "cuda"
+
+import torch, glob, os
+import numpy as np
+import model, fid, utils, evaluate
+from lib.face_parsing.unet import unet
 
 if args.recursive == 1:
     # This is root, run for all the expr directory
