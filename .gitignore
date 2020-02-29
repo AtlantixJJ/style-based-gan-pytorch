@@ -20,6 +20,7 @@ data_compare
 web/collect_data
 complex
 ffhq_mul_sl0
+lib/face_parsing/runs
 
 # Byte-compiled / optimized / DLL files
 *__pycache__/
