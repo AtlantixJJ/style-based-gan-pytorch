@@ -61,7 +61,7 @@ class SESpherical(SECore):
             l.append((count, (gpu, j, j)))
             count = (count + 1) % len(gpus)
         return l
-    
+
 
 def assign_run(command_generator, gpus, false_exec=False):
     slots = [""] * len(gpus)

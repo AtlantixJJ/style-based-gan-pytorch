@@ -7,7 +7,7 @@ from lib.netdissect.segmenter import UnifiedParsingSegmenter
 def get_segmenter(task, fpath=None, device="cuda"):
     if task == "bedroom":
         return UnifiedParsingSegmenter()
-    elif task == "celebahq":
+    elif task == "celebahq" or task == "ffhq":
         return CelebAMaskHQSegmenter(fpath, device)
 
 

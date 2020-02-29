@@ -521,6 +521,43 @@ class Generator(nn.Module):
 
         return image
 
+    def get_stage(self, latent, detach=False):
+        if latent.shape[1] == 512:
+            latent = self.style(latent)
+            latent = latent.unsqueeze(1).repeat(1, self.n_latent, 1)
+
+        if self.random_noise:
+            noise = [None] * self.num_layers
+        else:
+            noise = [getattr(self.noises, f'noise_{i}')
+                        for i in range(self.num_layers)]
+
+        stage = []
+        out = self.input(latent)
+        out = self.conv1(out, latent[:, 0], noise=noise[0])
+        if detach:
+            stage.append(out.detach())
+        else:
+            stage.append(out)
+        skip = self.to_rgb1(out, latent[:, 1])
+
+        i = 1
+        for conv1, conv2, noise1, noise2, to_rgb in zip(
+            self.convs[::2], self.convs[1::2], noise[1::2], noise[2::2], self.to_rgbs
+        ):
+            out = conv1(out, latent[:, i], noise=noise1)
+            out = conv2(out, latent[:, i + 1], noise=noise2)
+            skip = to_rgb(out, latent[:, i + 2], skip)
+            if detach:
+                stage.append(out.detach())
+            else:
+                stage.append(out)
+            i += 2
+
+        image = skip
+
+        return image, stage
+
     def calc(
         self,
         styles,
