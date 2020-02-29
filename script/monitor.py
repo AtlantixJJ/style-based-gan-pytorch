@@ -95,7 +95,7 @@ elif "proggan" in args.model:
     latent_size = 512 
 
 def get_extractor_name(model_path):
-    keywords = ["nonlinear", "linear", "spherical", "generative", "cascade"]
+    keywords = ["nonlinear", "linear", "spherical", "generative", "cascade", "projective"]
     for k in keywords:
         if k in model_path:
             return k
@@ -215,6 +215,39 @@ def project_direction(ws):
         xs.append(x)
         ys.append(y)
     return xs, ys
+
+
+if "projective" in args.task:
+    H, W = image.shape[2:]
+
+    model_file = model_files[-1]
+    sep_model = get_semantic_extractor(get_extractor_name(model_file))(
+        n_class=n_class,
+        dims=dims).to(device)
+    orig_weight = torch.load(model_file, map_location=device)
+    sep_model.load_state_dict(orig_weight)
+
+    for ind in range(4):
+        with torch.no_grad():
+            latent.normal_()
+            image, stage = generator.get_stage(latent)
+            image = (image.clamp(-1, 1) + 1) / 2
+            seg, projection = sep_model(stage, True, True)
+            pred = seg[0].argmax(1)
+            pred_viz = colorizer(pred).float().unsqueeze(0) / 255.
+            projection = F.interpolate(projection, 256, mode="bilinear")
+            pred = F.interpolate(seg[0], 256, mode="bilinear").argmax(1)
+            c = (np.array(utils.CELEBA_COLORS)/255.)[pred.view(-1).tolist()]
+            x = projection[0, 0].view(-1).cpu()
+            y = projection[0, 1].view(-1).cpu()
+            plt.scatter(x, y, s=1, c=c)
+            plt.tight_layout()
+            plt.savefig("test.png")
+            plt.close()
+
+            vutils.save_image(utils.catlist([image, pred_viz]), "image.png")
+
+
 
 
 if "visualize" in args.task:
