@@ -95,7 +95,7 @@ elif "proggan" in args.model:
     latent_size = 512 
 
 def get_extractor_name(model_path):
-    keywords = ["nonlinear", "linear", "spherical", "generative", "cascade"]
+    keywords = ["nonlinear", "linear", "spherical", "generative", "cascade", "projective"]
     for k in keywords:
         if k in model_path:
             return k
@@ -215,6 +215,25 @@ def project_direction(ws):
         xs.append(x)
         ys.append(y)
     return xs, ys
+
+
+if "projective" in args.task:
+    H, W = image.shape[2:]
+
+    model_file = model_files[-1]
+    sep_model = get_semantic_extractor(get_extractor_name(model_file))(
+        n_class=n_class,
+        dims=dims).to(device)
+    orig_weight = torch.load(model_file, map_location=device)
+    sep_model.load_state_dict(orig_weight)
+    for ind in range(4):
+        with torch.no_grad():
+            latent.normal_()
+            image, stage = generator.get_stage(latent)
+            seg, projection = sep_model(stage, True, True)
+            seg = seg[0]
+            break
+
 
 
 if "visualize" in args.task:
