@@ -232,11 +232,9 @@ class ProjectiveLinearSemanticExtractor(LinearSemanticExtractor):
 
     def build(self):
         semantic_projector = nn.ModuleList([
-            nn.Conv2d(dim, 2, 1)
+            nn.Conv2d(dim, 2, 1, bias=False)
                 for dim in self.dims])
-        semantic_visualizer = nn.ModuleList([
-            nn.Conv2d(2, self.n_class, 1)
-                for dim in self.dims])
+        semantic_visualizer = nn.Conv2d(2, self.n_class, 1, bias=False)
         self.semantic_branch = nn.ModuleList([
                 semantic_projector,
                 semantic_visualizer
@@ -244,23 +242,19 @@ class ProjectiveLinearSemanticExtractor(LinearSemanticExtractor):
         self.optim = torch.optim.Adam(self.semantic_branch.parameters(), lr=1e-3)
 
     def forward(self, stage, last_only=False, projection=False):
-        outputs = []
         projects = []
         semantic_projector, semantic_visualizer = self.semantic_branch
         for i, seg_input in enumerate(stage):
             proj = semantic_projector[i](seg_input)
-            seg = semantic_visualizer[i](proj)
             projects.append(proj)
-            outputs.append(seg)
-        size = outputs[-1].shape[2]
-
+        size = stage[-1].shape[2]
+        project = sum([F.interpolate(p, size=size, mode="bilinear")
+            for p in projects])
+        seg = semantic_visualizer(project)
         if last_only:
-            size = stage[-1].shape[2]
-            layers = [F.interpolate(s, size=size, mode="bilinear") for s in outputs]
             if projection:
-                projection = sum([F.interpolate(p, size=size, mode="bilinear") for p in projects])
-                return [sum(layers)], projection
-            return [sum(layers)]
+                return [seg], project
+            return [seg]
 
         # summation series
         """

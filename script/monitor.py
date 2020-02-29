@@ -226,13 +226,27 @@ if "projective" in args.task:
         dims=dims).to(device)
     orig_weight = torch.load(model_file, map_location=device)
     sep_model.load_state_dict(orig_weight)
+
     for ind in range(4):
         with torch.no_grad():
             latent.normal_()
             image, stage = generator.get_stage(latent)
+            image = (image.clamp(-1, 1) + 1) / 2
             seg, projection = sep_model(stage, True, True)
-            seg = seg[0]
-            break
+            pred = seg[0].argmax(1)
+            pred_viz = colorizer(pred).float().unsqueeze(0) / 255.
+            projection = F.interpolate(projection, 256, mode="bilinear")
+            pred = F.interpolate(seg[0], 256, mode="bilinear").argmax(1)
+            c = (np.array(utils.CELEBA_COLORS)/255.)[pred.view(-1).tolist()]
+            x = projection[0, 0].view(-1).cpu()
+            y = projection[0, 1].view(-1).cpu()
+            plt.scatter(x, y, s=1, c=c)
+            plt.tight_layout()
+            plt.savefig("test.png")
+            plt.close()
+
+            vutils.save_image(utils.catlist([image, pred_viz]), "image.png")
+
 
 
 
