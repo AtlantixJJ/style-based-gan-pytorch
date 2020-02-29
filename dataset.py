@@ -63,7 +63,7 @@ class ImageSegmentationDataset(torch.utils.data.Dataset):
     """
     Image and segmentation pair dataset
     """
-    def __init__(self, root, size=(1024, 1024), image_dir="train", label_dir="label", idmap=None, random_flip=True):
+    def __init__(self, root, size=(1024, 1024), image_dir="train", label_dir="label", idmap=None, random_flip=True, file_list=None):
         if type(size) is int:
             self.size = (size, size)
         elif type(size) is tuple or type(size) is list:
@@ -73,15 +73,22 @@ class ImageSegmentationDataset(torch.utils.data.Dataset):
         self.image_dir = osj(root, image_dir)
         self.label_dir = osj(root, label_dir)
         self.idmap = idmap
+        self.file_list = file_list
 
         self.normal_transform = transforms.Compose([
             transforms.Resize(self.size),
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
-        self.imagefiles = sum([[file for file in files if ".jpg" in file or ".png" in file] for path, dirs, files in os.walk(self.image_dir) if files], [])
+        if self.file_list is None:
+            self.imagefiles = sum([[file for file in files if ".jpg" in file or ".png" in file] for path, dirs, files in os.walk(self.image_dir) if files], [])
+            self.labelfiles = sum([[file for file in files if ".png" in file] for path, dirs, files in os.walk(self.label_dir) if files], [])
+        else:
+            files = open(file_list, "r").read().split("\n")
+            self.imagefiles = [f"{f}.jpg" for f in files if len(f) > 0]
+            self.labelfiles = [f"{f}.png" for f in files if len(f) > 0]
+
         self.imagefiles.sort()
-        self.labelfiles = sum([[file for file in files if ".png" in file] for path, dirs, files in os.walk(self.label_dir) if files], [])
         self.labelfiles.sort()
 
         self.rng = np.random.RandomState(1116)

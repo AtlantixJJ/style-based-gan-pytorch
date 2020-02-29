@@ -11,22 +11,20 @@ import glob
 import numpy as np
 import utils, evaluate
 import dataset
-from model.tfseg import StyledGenerator
 import config, segmenter
 from lib.face_parsing import unet
 
-rootdir = "../datasets/CelebAMask-HQ/"
+rootdir = "datasets/CelebAMask-HQ/"
 ds = dataset.ImageSegmentationDataset(
     root=rootdir,
     size=512,
     image_dir="CelebA-HQ-img",
     label_dir="CelebAMask-HQ-mask",
-    idmap=utils.CelebAIDMap())
+    idmap=utils.CelebAIDMap(),
+    file_list=f"{rootdir}/test.list")
 dl = torch.utils.data.DataLoader(ds, batch_size=4)
 
-segmenter.get_segmenter("celebahq", "checkpoint/faceparse_unet_512.pth")
-
-state_dict = torch.load("checkpoint/faceparse_unet_512.pth", map_location='cpu')
+state_dict = torch.load("lib/face_parsing/models/parsenet/75960_G.pth", map_location='cpu')
 faceparser = unet.unet()
 faceparser.load_state_dict(state_dict)
 faceparser = faceparser.cuda()
@@ -44,4 +42,4 @@ for i, (x, y) in tqdm(enumerate(dl)):
     for i in range(tar_seg.shape[0]):
         evaluator.calc_single(tar_seg[i], y[i])
 evaluator.aggregate()
-np.save("results/tar_record.npy", evaluator.summarize())
+np.save("results/unet-512.npy", evaluator.summarize())
