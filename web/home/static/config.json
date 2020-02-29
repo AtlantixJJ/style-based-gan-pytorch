@@ -1,28 +1,33 @@
 {
     "collect_data_dir": "collect_data",
     "models": {
-        "CelebA/CELoss-ML-Internal": {
+        "CelebA": {
             "model_def" : "home.wrapper.WrapedStyledGenerator",
             "external_model" : "",
             "out_dim" : 3,
             "output_size" : 1024,
             "model_args": {
-                "method" : "celossreg-ML-internal",
                 "resolution" : 1024,
-                "load_path" : "../checkpoint/fixseg_conv-16-1.model",
-                "seg_cfg": "conv-16-1",
+                "method" : "celossreg-ML-internal",
+                "model_path" : "../checkpoint/face_celebahq_1024x1024_stylegan.pth",
+                "n_class": 16,
+                "extractor": "linear",
+                "sep_model_path": "../checkpoint/celebahq_stylegan_linear_extractor.model", 
                 "gpu" : 0
             }
-        },"Bedroom/CELoss-ML-Internal": {
+        },"Bedroom": {
             "model_def" : "home.wrapper.WrapedStyledGenerator",
             "external_model" : "",
             "out_dim" : 3,
             "output_size" : 256,
             "model_args": {
-                "method" : "celossreg-ML-internal",
                 "resolution" : 256,
-                "load_path" : "../checkpoint/karras2019stylegan-bedrooms-256x256.for_g_all.pt",
-                "seg_cfg": "conv-16-1",
+                "method" : "celossreg-ML-internal",
+                "model_path" : "../checkpoint/bedroom_lsun_256x256_stylegan.pth",
+                "n_class": 392,
+                "category_groups": [[0, 337], [337, 363], [363, 392]],
+                "extractor": "linear",
+                "sep_model_path": "../checkpoint/bedroom_stylegan_linear_extractor.model", 
                 "gpu" : 0
             }
         }

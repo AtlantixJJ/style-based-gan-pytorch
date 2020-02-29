@@ -17,10 +17,15 @@ import argparse
 import glob
 import optim, model, utils, dataset
 from lib.face_parsing import unet
+from model.semantic_extractor import get_semantic_extractor
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--model", default="checkpoint/fixseg_conv-16-1.model")
 parser.add_argument("--external-model", default="checkpoint/faceparse_unet_512.pth")
+parser.add_argument("--n-class", default=16, type=int)
+parser.add_argument("--extractor", default="linear")
+parser.add_argument("--sep-model", default="checkpoint/celebahq_stylegan_linear_extractor.model")
 parser.add_argument("--output", default="results")
 parser.add_argument("--data-dir", default="data_compare")
 parser.add_argument("--seg-cfg", default="conv-16-1")
@@ -42,9 +47,21 @@ torch.manual_seed(args.seed)
 device = 'cuda'
 
 # build model
-generator = model.tfseg.StyledGenerator(semantic=args.seg_cfg).to(device)
+generator = model.tf.StyledGenerator(semantic=args.seg_cfg).to(device)
 generator.load_state_dict(torch.load(args.model))
 generator.eval()
+
+# sep model
+with torch.no_grad():
+    latent = torch.randn_like(1, 512).to(device)
+    image, stage = generator.get_stage(latent)
+    dims = [s.shape[1] for s in stage]
+sep_model = get_semantic_extractor(args.extractor)(
+    n_class=args.n_class,
+    dims=dims)
+sep_model.to(device).eval()
+state_dict = torch.load(args.sep_model)
+missed = sep_model.load_state_dict(state_dict)
 
 # external model baseline
 external_model = unet.unet()
@@ -72,7 +89,8 @@ for ind, dic in enumerate(dl):
     with torch.no_grad():
         extended_latent_ = generator.g_mapping(latent_).detach()
         generalized_latent_ = extended_latent_[:, 0:1, :].detach()
-        orig_image, orig_seg = generator(extended_latent_)
+        orig_image, stage = generator.get_stage(extended_latent_)
+        orig_seg = sep_model(stage)
         ext_seg = idmap.diff_mapid(external_model(orig_image.clamp(-1, 1)))
     orig_image = (1 + orig_image.clamp(-1, 1)) / 2
     ext_label = ext_seg.argmax(1)
@@ -113,7 +131,7 @@ for ind, dic in enumerate(dl):
         if "image" in t:
             res = optim.edit_image_stroke(
                 model=generator,
-                external_model=external_model,
+                sep_model=external_model if "external" in t else sep_model,
                 mapping_network=generator.g_mapping.simple_forward,
                 latent=latent,
                 noises=noises_,
@@ -127,7 +145,7 @@ for ind, dic in enumerate(dl):
         elif "label" in t:
             res = optim.edit_label_stroke(
                 model=generator,
-                external_model=external_model,
+                sep_model=external_model if "external" in t else sep_model,
                 mapping_network=generator.g_mapping.simple_forward,
                 latent=latent,
                 noises=noises_,

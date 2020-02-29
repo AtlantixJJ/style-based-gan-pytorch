@@ -76,7 +76,7 @@ class ImageGenerationAPI(object):
             print("=> Generate given image stroke")
             res = model.generate_given_image_stroke(
                 latent, noise, image_stroke, image_mask)
-        elif image_mask.sum() < 1:
+        else:#elif image_mask.sum() < 1:
             print("=> Generate given label stroke")
             res = model.generate_given_label_stroke(
                 latent, noise, label_stroke, label_mask)

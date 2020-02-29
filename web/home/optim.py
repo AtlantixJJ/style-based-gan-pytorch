@@ -43,18 +43,20 @@ def get_el_from_latent(latent, mapping_network, method):
     return el
 
 
-def get_image_seg_celeba(model, el, external_model, method):
+def get_image_seg_celeba(model, el, sep_model, method):
     if "internal" in method:
-        return model(el)
+        image, stage = model.get_stage(el)
+        return image, sep_model(stage)[0]
     elif "external" in method:
         image = model(el, seg=False)
         # [NOTICE]: This is hardcode for CelebA
-        seg = utils.diff_idmap(external_model(image.clamp(-1, 1)))
+        seg = utils.CelebAIDMap().diff_mapid(
+                sep_model(image.clamp(-1, 1)))
         return image, seg
 
 
 def edit_label_stroke(model, latent, noises, label_stroke, label_mask,
-    n_iter=5, n_reg=0, lr=1e-2, method="celossreg-label-ML-internal", external_model=None, mapping_network=None):
+    n_iter=5, n_reg=0, lr=1e-2, method="celossreg-label-ML-internal", sep_model=None, mapping_network=None):
     latent = latent.detach().clone()
     latent.requires_grad = True
     optim = torch.optim.Adam([latent], lr=lr)
@@ -65,7 +67,7 @@ def edit_label_stroke(model, latent, noises, label_stroke, label_mask,
         n_reg = 0 # no regularization in baseline method
 
     el = get_el_from_latent(latent, mapping_network, method)
-    orig_image, orig_seg = get_image_seg_celeba(model, el, external_model, method)
+    orig_image, orig_seg = get_image_seg_celeba(model, el, sep_model, method)
     orig_image = orig_image.detach().clone()
     orig_label = orig_seg.argmax(1)
     target_label = orig_label.float() * (1 - label_mask) + label_stroke * label_mask
@@ -73,7 +75,7 @@ def edit_label_stroke(model, latent, noises, label_stroke, label_mask,
 
     for _ in tqdm(range(n_iter)):
         el = get_el_from_latent(latent, mapping_network, method)
-        image, seg = get_image_seg_celeba(model, el, external_model, method)
+        image, seg = get_image_seg_celeba(model, el, sep_model, method)
 
         diff_mask = 0
         if "celossreg" in method:
@@ -104,7 +106,7 @@ def edit_label_stroke(model, latent, noises, label_stroke, label_mask,
         # celoss regularization
         for _ in range(n_reg):
             el = get_el_from_latent(latent, mapping_network, method)
-            image, seg = get_image_seg_celeba(model, el, external_model, method)
+            image, seg = get_image_seg_celeba(model, el, sep_model, method)
             revise_label = seg.argmax(1).long()
             # directly use cross entropy may also decrease other part
             diff_mask = (revise_label != orig_label).float()
@@ -121,14 +123,14 @@ def edit_label_stroke(model, latent, noises, label_stroke, label_mask,
 
     with torch.no_grad():
         el = get_el_from_latent(latent, mapping_network, method)
-        image, seg = get_image_seg_celeba(model, el, external_model, method)
+        image, seg = get_image_seg_celeba(model, el, sep_model, method)
         image = (1 + image.clamp(-1, 1)) / 2
         label = seg.argmax(1)
     return image, label, latent, noises, record
 
 
 def edit_image_stroke(model, latent, noises, image_stroke, image_mask,
-    n_iter=5, n_reg=0, lr=1e-2, method="celossreg-label-ML-internal", external_model=None, mapping_network=None):
+    n_iter=5, n_reg=0, lr=1e-2, method="celossreg-label-ML-internal", sep_model=None, mapping_network=None):
     latent = latent.detach().clone()
     latent.requires_grad = True
     optim = torch.optim.Adam([latent], lr=lr)
@@ -139,13 +141,13 @@ def edit_image_stroke(model, latent, noises, image_stroke, image_mask,
         n_reg = 0 # no regularization in baseline method
     
     el = get_el_from_latent(latent, mapping_network, method)
-    orig_image, orig_seg = get_image_seg_celeba(model, el, external_model, method)
+    orig_image, orig_seg = get_image_seg_celeba(model, el, sep_model, method)
     orig_image = orig_image.detach().clone()
     orig_label = orig_seg.detach().clone().argmax(1)
 
     for _ in tqdm(range(n_iter)):
         el = get_el_from_latent(latent, mapping_network, method)
-        image, seg = get_image_seg_celeba(model, el, external_model, method)
+        image, seg = get_image_seg_celeba(model, el, sep_model, method)
 
         if "celossreg" in method:
             current_label = seg.argmax(1)
@@ -172,7 +174,7 @@ def edit_image_stroke(model, latent, noises, image_stroke, image_mask,
 
     with torch.no_grad():
         el = get_el_from_latent(latent, mapping_network, method)
-        image, seg = get_image_seg_celeba(model, el, external_model, method)
+        image, seg = get_image_seg_celeba(model, el, sep_model, method)
         image = (1 + image.clamp(-1, 1)) / 2
         label = seg.argmax(1)
     return image, label, latent, noises, record

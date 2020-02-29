@@ -64,7 +64,7 @@ Date.prototype.format = function (format) {
   }return format;
 };
 
-var MAX_LINE_WIDTH = 10;
+var MAX_LINE_WIDTH = 20;
 
 function setColor(color) {
   graph.setCurrentColor(color);
@@ -210,11 +210,11 @@ function init() {
 
   var slider = document.getElementById('slider');
   noUiSlider.create(slider, {
-    start: 5,
+    start: MAX_LINE_WIDTH / 2,
     step: 1,
     range: {
       'min': 1,
-      'max': 10
+      'max': MAX_LINE_WIDTH
     },
     behaviour: 'drag-tap',
     connect: [true, false],
@@ -226,7 +226,7 @@ function init() {
   });
 
   setColor('black');
-  setLineWidth(5);
+  setLineWidth(MAX_LINE_WIDTH / 2);
 
   $('#download-sketch').click(function () {
     download(

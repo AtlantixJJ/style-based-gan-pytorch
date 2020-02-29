@@ -6,6 +6,17 @@ import pickle
 import numpy as np
 
 
+def from_pth_file(fpath):
+    resolution = 1024
+    if "256x256" in fpath:
+        resolution = 256
+    model = StyledGenerator(resolution)
+    state_dict = torch.load(fpath, map_location="cpu")
+    missed = model.load_state_dict(state_dict)
+    print(missed)
+    return model
+
+
 class MyLinear(nn.Module):
     """Linear layer with equalized learning rate and custom learning rate multiplier."""
     def __init__(self, input_size, output_size, gain=2**(0.5), use_wscale=False, lrmul=1, bias=True):
@@ -30,7 +41,6 @@ class MyLinear(nn.Module):
         if bias is not None:
             bias = bias * self.b_mul
         return F.linear(x, self.weight * self.w_mul, bias)
-
 
 class MyConv2d(nn.Module):
     """Conv layer with equalized learning rate and custom learning rate multiplier."""
@@ -87,84 +97,6 @@ class MyConv2d(nn.Module):
             x = x + bias.view(1, -1, 1, 1)
         return x
 
-
-class ExtendedConv(nn.Module):
-    """Conv layer with equalized learning rate and custom learning rate multiplier."""
-    def __init__(self, input_channels, output_channels, kernel_size, gain=2**(0.5), bias=True, args=""):
-        super().__init__()
-        self.args = args
-        he_std = gain * (input_channels * kernel_size ** 2) ** (-0.5) # He init
-        self.kernel_size = kernel_size
-        self.weight = torch.nn.Parameter(torch.randn(output_channels, input_channels, kernel_size, kernel_size) * he_std)
-        if bias:
-            self.bias = torch.nn.Parameter(torch.zeros(output_channels))
-        else:
-            self.bias = None
-
-    def forward(self, x):
-        w = self.weight
-        if "positive" in self.args:
-            w = F.relu(w)
-        x = F.conv2d(x, w, self.bias, padding=self.kernel_size // 2)
-        return x
-
-
-class MultiResolutionConvolution(nn.Module):
-    def __init__(self, in_dims=[512, 512, 256, 64, 32, 16], out_dim=16,
-        kernel_size=1, args="l2_bias"):
-        super(MultiResolutionConvolution, self).__init__()
-        self.args = args
-        self.mode = "nearest" if "nearest" in self.args else "bilinear"
-        self.ksize = kernel_size
-        self.in_dims = in_dims
-        self.segments = []
-        cur = 0
-        for dim in in_dims:
-            self.segments.append((cur, cur + dim))
-            cur += dim
-        self.weight = nn.Parameter(torch.zeros(out_dim, sum(in_dims), 1, 1))
-        torch.nn.init.kaiming_normal_(self.weight)
-        self.bias = nn.Parameter(torch.zeros(len(in_dims), out_dim))
-    
-    def get_orthogonal_weight(self):
-        W = self.weight[:, :, 0, 0].permute(1, 0) # (1520, 16)
-        self.Ms = []
-        for i in range(len(self.segments)):
-            bg, ed = self.segments[i]
-            trunc_Q, trunc_R = torch.qr(W[bg:ed])
-            I = torch.eye(ed - bg, ed - bg).cuda()
-            M = I - torch.matmul(trunc_Q, trunc_Q.permute(1, 0))
-            M = M.permute(1, 0).unsqueeze(2).unsqueeze(3) # (dim, dim, 1, 1)
-            self.Ms.append(M)
-
-    # orthogonalize the delta
-    def orthogonalize(self, i, delta):
-        new_delta = F.conv2d(delta, self.Ms[i])
-        print("%.3f %.3f" % (new_delta.min(), new_delta.max()))
-        return new_delta
-
-    def forward(self, x, ret_layers=False):
-        """
-        x is list of multi resolution feature map
-        """
-        outs = []
-        prev = 0
-
-        for i in range(len(self.in_dims)):
-            cur = prev + self.in_dims[i]
-            y = 0
-            if "bias" in self.args:
-                y = F.conv2d(x[i], self.weight[:, prev : cur], self.bias[i])
-            else:
-                y = F.conv2d(x[i], self.weight[:, prev : cur])
-            outs.append(y)
-
-            prev = cur
-        
-        size = max([out.size(3) for out in outs])
-        if ret_layers:
-            return outs
-        return sum([F.interpolate(out, size, mode=self.mode) for out in outs])
 
 class NoiseLayer(nn.Module):
     """adds noise. noise is per pixel (constant over channels) with per-channel weight"""
@@ -234,7 +166,6 @@ class BlurLayer(nn.Module):
         )
         return x
 
-
 def upscale2d(x, factor=2, gain=1):
     assert x.dim() == 4
     if gain != 1:
@@ -280,7 +211,7 @@ class G_mapping(nn.Sequential):
             ('dense7_act', act)
         ]
         super().__init__(OrderedDict(layers))
-        
+
     def simple_forward(self, x):
         return super().forward(x)
 
@@ -400,7 +331,6 @@ class G_synthesis(nn.Module):
         ):
         
         super().__init__()
-        self.ortho_w = None
         def nf(stage):
             return min(int(fmap_base / (2.0 ** (stage * fmap_decay))), fmap_max)
         self.dlatent_size = dlatent_size
@@ -413,9 +343,7 @@ class G_synthesis(nn.Module):
         num_styles = num_layers if use_styles else 1
         #self.torgbs = nn.ModuleList()
         blocks = []
-        self.stage = []
         for res in range(2, resolution_log2 + 1):
-            self.stage.append(0)
             channels = nf(res-1)
             name = '{s}x{s}'.format(s=2**res)
             if res == 2:
@@ -433,259 +361,78 @@ class G_synthesis(nn.Module):
         #self.torgbs.append(self.torgb)
         self.blocks = nn.ModuleDict(OrderedDict(blocks))
         
-    def forward(self, dlatents_in, orthogonal=None, ortho_bias=0):
-        cnt = 0
-        stage = []    
+    def forward(self, dlatents_in):
         for i, m in enumerate(self.blocks.values()):
             if i == 0:
                 x = m(dlatents_in[:, 2*i:2*i+2])
             else:
                 x = m(x, dlatents_in[:, 2*i:2*i+2])
-            if orthogonal is not None and x.shape[3] >= 16 and x.shape[3] <= 256:
-                x = ortho_bias[i] + orthogonal(cnt, x - ortho_bias[i])
-                cnt += 1
-            stage.append(x)
+        rgb = self.torgb(x)
+        return rgb
+
+    def get_stage(self, dlatents_in, detach):
+        stage = []
+        for i, m in enumerate(self.blocks.values()):
+            if i == 0:
+                x = m(dlatents_in[:, 2*i:2*i+2])
+            else:
+                x = m(x, dlatents_in[:, 2*i:2*i+2])
+            
+            if detach:
+                stage.append(x.detach())
+            else:
+                stage.append(x)
         rgb = self.torgb(x)
         return rgb, stage
 
 
 class StyledGenerator(nn.Module):
-    def __init__(self, resolution=1024, semantic="mul-16"):
+    def __init__(self, resolution=1024):
         super().__init__()
+        self.resolution = resolution
         self.g_mapping = G_mapping()
         self.g_synthesis = G_synthesis(resolution=resolution)
 
-        res = semantic.split("-")
-        self.segcfg, self.n_class = res[:2]
-        self.args = "_".join(res[2:])
-        self.n_class = int(self.n_class)
+    def forward(self, x):
+        return self.g_synthesis(self.g_mapping(x))
 
-        self.resample_mode = "nearest" if "nearest" in self.args else "bilinear"
+    def get_stage(self, x, detach=False):
+        if x.shape[1] != 18:
+            # able to take EL as input
+            x = self.g_mapping(x)
+        return self.g_synthesis.get_stage(x, detach)
 
-        self.ksize = 1
-        self.n_layer = 1
-        self.semantic_dim = 64
-        self.padsize = (self.ksize - 1) // 2
-
-        if "conv" in self.segcfg:
-            self.n_layer = int(self.args.split("_")[0])
-            # final layer not good, but good classification on early layers
-            self.build_conv_extractor()
-        elif "cas" in self.segcfg:
-            # good in general, but some details are still lost
-            self.build_cascade_extractor()
-        elif "gen" in self.segcfg:
-            self.ksize = 3
-            # generally the same with cas, a little worse, some details are lost
-            self.build_gen_extractor()
-        elif "cat" in self.segcfg:
-            self.build_cat_extractor()
-        elif "mul" in self.segcfg:
-            ind = self.args.find("sl") # staring layer
-            self.full_dims = [512, 512, 512, 512, 256, 128, 64, 32, 16]
-            self.mul_start_layer = int(self.args[ind + 2])
-            self.build_multi_extractor()
-
-    def build_multi_extractor(self):
-        self.semantic_branch = MultiResolutionConvolution(
-            #        4      8   16  32   64   128 256 512 1024
-            in_dims=self.full_dims[self.mul_start_layer:],
-            out_dim=self.n_class,
-            kernel_size=self.ksize,
-            args=self.args
-        )
-
-    def build_gen_extractor(self):
-        def conv_block(in_dim, out_dim):
-            midim = (in_dim + out_dim) // 2
-            if self.n_layer == 1:
-                _m = [MyConv2d(in_dim, out_dim, self.ksize), nn.ReLU(inplace=True)]
-            else:
-                _m = []
-                _m.append(MyConv2d(in_dim, midim, self.ksize))
-                _m.append(nn.ReLU(inplace=True))
-                for i in range(self.n_layer - 2):
-                    _m.append(MyConv2d(midim, midim, self.ksize))
-                    _m.append(nn.ReLU(inplace=True))
-                _m.append(MyConv2d(midim, out_dim, self.ksize))
-                _m.append(nn.ReLU(inplace=True))
-            return nn.Sequential(*_m)
-
-        semantic_extractor = nn.ModuleList([
-            conv_block(512, 512), # 4
-            conv_block(512, 512), # 8
-            conv_block(512, 512), # 16
-            conv_block(512, 512), # 32
-            conv_block(256, 256), # 64
-            conv_block(128, 128), # 128
-            conv_block(64 , 64 ), # 256
-            conv_block(32 , 32 ), # 512
-            conv_block(16 , 16 ) # 1024
-        ])
-        # start from 64
-        semantic_visualizer = nn.ModuleList([
-            MyConv2d(256, self.n_class, 1),
-            MyConv2d(128, self.n_class, 1),
-            MyConv2d(64 , self.n_class, 1),
-            MyConv2d(32 , self.n_class, 1),
-            MyConv2d(16 , self.n_class, 1)])
+    def generate_noise(self):
+        if not hasattr(self, "noise_layers"):
+            self.noise_layers = [l for n,l in self.named_modules() if "noise" in n]
         
-        semantic_reviser = nn.ModuleList([
-            conv_block(512, 512),
-            conv_block(512, 512),
-            conv_block(512, 512),
-            conv_block(512, 512),
-            conv_block(512, 256),
-            conv_block(256, 128),
-            conv_block(128, 64 ),
-            conv_block(64 , 32 ),
-            conv_block(32 , 16 ),
-            conv_block(16 , 16 )])
+        noise = []
+        for i in range(len(self.noise_layers)):
+            size = 4 * 2 ** (i // 2)
+            noise.append(torch.randn(1, 1, size, size))
 
-        self.semantic_branch = nn.ModuleList([
-            semantic_extractor, # 0
-            semantic_reviser, # 1
-            semantic_visualizer]) # 2
+        return noise
 
-    def build_cascade_extractor(self):
-        def conv_block(in_dim, out_dim, ksize):
-            midim = (in_dim + out_dim) // 2
-            if self.n_layer == 1:
-                _m = [MyConv2d(in_dim, out_dim, ksize), nn.ReLU(inplace=True)]
-            else:
-                _m = []
-                _m.append(MyConv2d(in_dim, midim, ksize))
-                _m.append(nn.ReLU(inplace=True))
-                for i in range(self.n_layer - 2):
-                    _m.append(MyConv2d(midim, midim, ksize))
-                    _m.append(nn.ReLU(inplace=True))
-                _m.append(MyConv2d(midim, out_dim, ksize))
-                _m.append(nn.ReLU(inplace=True))
-            return nn.Sequential(*_m)
-
-        semantic_extractor = nn.ModuleList([
-            conv_block(512, self.semantic_dim, self.ksize),
-            conv_block(512, self.semantic_dim, self.ksize),
-            conv_block(512, self.semantic_dim, self.ksize),
-            conv_block(512, self.semantic_dim, self.ksize),
-            conv_block(256, self.semantic_dim, self.ksize),
-            conv_block(128, self.semantic_dim, self.ksize),
-            conv_block(64 , self.semantic_dim, self.ksize),
-            conv_block(32 , self.semantic_dim, self.ksize) # 512
-        ])
-        semantic_reviser = nn.ModuleList([
-            conv_block(self.semantic_dim, self.semantic_dim, 3)
-                for i in range(len(semantic_extractor) - 1)
-            ])
-        semantic_visualizer = nn.ModuleList([
-            MyConv2d(self.semantic_dim, self.n_class, 1)
-                for i in range(len(semantic_extractor) - 4)
-            ])
+    def set_noise(self, noises):
+        if not hasattr(self, "noise_layers"):
+            self.noise_layers = [l for n,l in self.named_modules() if "noise" in n]
         
-        self.semantic_branch = nn.ModuleList([
-            semantic_extractor, # 0
-            semantic_reviser, # 1
-            semantic_visualizer]) # 2
+        if noises is None:
+            for i in range(len(self.noise_layers)):
+                self.noise_layers[i].noise = None
+            return len(self.noise_layers)
 
-    def build_conv_extractor(self):
-        def conv_block(in_dim, out_dim, ksize):
-            if self.n_layer == 1:
-                _m = [ExtendedConv(in_dim, out_dim, ksize, bias=False, args=self.args)]
-            else:
-                midim = (in_dim + out_dim) // 2
-                _m = []
-                _m.append(MyConv2d(in_dim, midim, ksize))
-                for i in range(self.n_layer - 2):
-                    _m.append(nn.ReLU(inplace=True))
-                    _m.append(MyConv2d(midim, midim, ksize))
-                _m.append(MyConv2d(midim, out_dim, ksize))
-            return nn.Sequential(*_m)
+        for i in range(len(noises)):
+            self.noise_layers[i].noise = noises[i]
 
-        # start from 16x16 resolution
-        self.semantic_extractor = nn.ModuleList([
-            conv_block(512, self.n_class, self.ksize),
-            conv_block(512, self.n_class, self.ksize),
-            conv_block(512, self.n_class, self.ksize),
-            conv_block(512, self.n_class, self.ksize),
-            conv_block(256, self.n_class, self.ksize),
-            conv_block(128, self.n_class, self.ksize),
-            conv_block(64 , self.n_class, self.ksize),
-            conv_block(32 , self.n_class, self.ksize),
-            conv_block(16 , self.n_class, self.ksize)
-        ])
+    def get_noise(self):
+        noises = []
+        if not hasattr(self, "noise_layers"):
+            self.noise_layers = [l for n,l in self.named_modules() if "noise" in n]
 
-        self.semantic_branch = self.semantic_extractor
-
-    def extract_segmentation_gen(self, stage):
-        extractor, reviser, visualizer = self.semantic_branch
-        count = 0
-        outputs = []
-        for i, seg_input in enumerate(stage):
-            if i == 0:
-                hidden = extractor[i](seg_input)
-            else:
-                hidden = F.interpolate(hidden, scale_factor=2, mode=self.resample_mode)
-                hidden = reviser[i](hidden)
-                hidden = hidden + extractor[i](seg_input)
-            if seg_input.shape[3] >= 64:
-                outputs.append(visualizer[count](hidden))
-                count += 1
-            
-        return outputs
-
-    def extract_segmentation_cascade(self, stage):
-        extractor, reviser, visualizer = self.semantic_branch
-        count = 0
-        outputs = []
-        for i, seg_input in enumerate(stage):
-            if seg_input.size(3) >= 1024:
-                break
-            
-            if i == 0:
-                hidden = extractor[i](seg_input)
-            else:
-                hidden = reviser[i - 1](F.interpolate(hidden, scale_factor=2))
-                hidden = hidden + extractor[i](seg_input)
-            if seg_input.size(3) >= 64:
-                outputs.append(visualizer[count](hidden))
-                count += 1
-        return outputs
-    
-    def extract_segmentation_conv(self, stage):
-        count = 0
-        outputs = []
-        for i, seg_input in enumerate(stage):
-            outputs.append(self.semantic_extractor[count](seg_input))
-            count += 1
-        size = outputs[-1].shape[2]
-
-        # summation series
-        for i in range(1, len(stage)):
-            size = stage[i].shape[2]
-            layers = [F.interpolate(s, size=size, mode="bilinear")
-                for s in outputs[:i]]
-            sum_layers = sum(layers) + outputs[i]
-            outputs.append(sum_layers / i)
-
-        return outputs
-
-    def extract_segmentation_multi(self, stage):
-        #for ind in range(len(stage)):
-        #    if stage[ind].size(2) >= 16:
-        #        break
-        return [self.semantic_branch(stage[self.mul_start_layer:])]
-
-    def freeze(self, train=False):
-        self.freeze_g_mapping(train)
-        self.freeze_g_synthesis(train)
-
-    def freeze_g_mapping(self, train=False):
-        for param in self.g_mapping.parameters():
-            param.requires_grad = train
-
-    def freeze_g_synthesis(self, train=False):
-        for param in self.g_synthesis.parameters():
-            param.requires_grad = train
+        for i in range(len(self.noise_layers)):
+            noises.append(self.noise_layers[i].noise.detach().view(-1))
+        return torch.cat(noises)
 
     def parse_noise(self, vec): # from vec to list
         if not hasattr(self, "noise_layers"):
@@ -698,80 +445,76 @@ class StyledGenerator(nn.Module):
             noise.append(vec[prev : prev + size ** 2].view(1, 1, size, size))
             prev += size ** 2
         return noise
-
-    def generate_noise(self): # generate noise list
-        if not hasattr(self, "noise_layers"):
-            self.noise_layers = [l for n,l in self.named_modules() if "noise" in n]
         
-        noise = []
-        for i in range(len(self.noise_layers)):
-            size = 4 * 2 ** (i // 2)
-            noise.append(torch.randn(1, 1, size, size))
 
-        return noise
+if 0:
+    # Need to run this on StyleGAN repo
+    import dnnlib, dnnlib.tflib, pickle, torch, collections
+    dnnlib.tflib.init_tf()
+    weights = pickle.load(open('../srgan/checkpoint/karras2019stylegan-bedrooms-256x256.pkl','rb'))
+    weights_pt = [collections.OrderedDict([(k, torch.from_numpy(v.value().eval())) for k,v in w.trainables.items()]) for w in weights]
+    torch.save(weights_pt, '../srgan/checkpoint/karras2019stylegan-bedrooms-256x256.pt')
 
-    def set_noise(self, noises): # set noise list or None
-        if not hasattr(self, "noise_layers"):
-            self.noise_layers = [l for n,l in self.named_modules() if "noise" in n]
-        
-        if noises is None:
-            for i in range(len(self.noise_layers)):
-                self.noise_layers[i].noise = None
-            return len(self.noise_layers)
-
-        for i in range(len(noises)):
-            self.noise_layers[i].noise = noises[i]
-
-    def forward(self, x, seg=True, detach=False, ortho_bias=None):
-        if type(x) is list: # ML (1, 512)
-            ws = [self.g_mapping.simple_forward(z) for z in x]
-            x = torch.stack(ws, dim=1)
-        elif x.shape[1] == 512: # LL
-            x = self.g_mapping(x)
-        elif x.shape[1] == 1: # GL
-            x = x.expand(-1, 18, -1)
-        elif x.shape[1] == 18: # EL
-            x = x
+def build(raw_pt='checkpoint/karras2019stylegan-celebahq-1024x1024.pt', resolution=1024):
+    g_all = torch.nn.Sequential(OrderedDict([
+        ('g_mapping', G_mapping()),
+        #('truncation', Truncation(avg_latent)),
+        ('g_synthesis', G_synthesis(resolution=resolution))    
+    ]))
+    # then on the PyTorch side run
+    state_G, state_D, state_Gs = torch.load(raw_pt)
+    def key_translate(k):
+        k = k.lower().split('/')
+        if k[0] == 'g_synthesis':
+            if not k[1].startswith('torgb'):
+                k.insert(1, 'blocks')
+            k = '.'.join(k)
+            k = (k.replace('const.const','const').replace('const.bias','bias').replace('const.stylemod','epi1.style_mod.lin')
+                    .replace('const.noise.weight','epi1.top_epi.noise.weight')
+                    .replace('conv.noise.weight','epi2.top_epi.noise.weight')
+                    .replace('conv.stylemod','epi2.style_mod.lin')
+                    .replace('conv0_up.noise.weight', 'epi1.top_epi.noise.weight')
+                    .replace('conv0_up.stylemod','epi1.style_mod.lin')
+                    .replace('conv1.noise.weight', 'epi2.top_epi.noise.weight')
+                    .replace('conv1.stylemod','epi2.style_mod.lin')
+                    .replace('torgb_lod0','torgb'))
         else:
-            print("!> Error shape")
+            k = '.'.join(k)
+        return k
 
-        if ortho_bias is not None:
-            image, stage = self.g_synthesis(x,
-                orthogonal=self.semantic_branch.orthogonalize,
-                ortho_bias=ortho_bias)
-        else:
-            image, stage = self.g_synthesis(x)
-        self.stage = stage
+    def weight_translate(k, w):
+        k = key_translate(k)
+        if k.endswith('.weight'):
+            if w.dim() == 2:
+                w = w.t()
+            elif w.dim() == 1:
+                pass
+            else:
+                assert w.dim() == 4
+                w = w.permute(3, 2, 0, 1)
+        return w
 
-        if detach:
-            for i in range(len(self.stage)):
-                self.stage[i] = self.stage[i].detach()
+    # we delete the useless torgb filters
+    param_dict = {key_translate(k) : weight_translate(k, v) for k,v in state_Gs.items() if 'torgb_lod' not in key_translate(k)}
+    if 1:
+        sd_shapes = {k : v.shape for k,v in g_all.state_dict().items()}
+        param_shapes = {k : v.shape for k,v in param_dict.items() }
 
-        if seg:
-            seg = self.extract_segmentation(stage)[-1]
-            return image, seg
-        return image
-    
-    def extract_segmentation(self, stage):
-        if "conv" in self.segcfg:
-            return self.extract_segmentation_conv(stage)
-        elif "cas" in self.segcfg:
-            return self.extract_segmentation_cascade(stage)
-        elif "gen" in self.segcfg:
-            return self.extract_segmentation_gen(stage)
-        elif "cat" in self.segcfg:
-            return self.extract_segmentation_cat(stage)
-        elif "mul" in self.segcfg:
-            return self.extract_segmentation_multi(stage)
+        for k in list(sd_shapes)+list(param_shapes):
+            pds = param_shapes.get(k)
+            sds = sd_shapes.get(k)
+            if pds is None:
+                print ("sd only", k, sds)
+            elif sds is None:
+                print ("pd only", k, pds)
+            elif sds != pds:
+                print ("mismatch!", k, pds, sds)
 
-    def predict(self, latent):
-        # start from w+, output (512, 512)
-        if latent.dim() == 3 and latent.shape[1] == 18:
-            gen = self.g_synthesis(latent).clamp(-1, 1)
-            #gen_np = gen[0].detach().cpu().numpy()
-            #gen_np = ((gen_np + 1) * 127.5).transpose(1, 2, 0)
-            seg_logit = self.extract_segmentation()[-1]
-            seg_logit = F.interpolate(seg_logit, (512, 512), mode="bilinear")
-            seg = seg_logit.argmax(dim=1)
-            #seg = seg.numpy()
-        return gen, seg
+    g_all.load_state_dict(param_dict, strict=False) # needed for the blur kernels
+    torch.save(g_all.state_dict(), raw_pt.replace(".pt", ".for_g_all.pt"))
+
+if __name__ == "__main__":
+    # celeba 1024
+    # build("checkpoint/karras2019stylegan-celebahq-1024x1024.pt")
+    # bedroom 256
+    build("checkpoint/karras2019stylegan-bedrooms-256x256.pt", 256)

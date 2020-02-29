@@ -1,4 +1,3 @@
-from __future__ import print_function
 import time, math, glob, os, sys
 import matplotlib.pyplot as plt
 from matplotlib import cm
