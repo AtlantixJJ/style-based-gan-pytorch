@@ -111,55 +111,18 @@ def get_extractor_name(model_path):
         if k in model_path:
             return k
 
-def find_min_max_weight(module):
-    vals = []
-    for i, conv in enumerate(module):
-        w = utils.torch2numpy(conv[0].weight)
-        vals.append(w.min())
-        vals.append(w.max())
-    return min(vals), max(vals)
-
-def concat_weight(module):
-    vals = []
-    ws = []
-    for i, conv in enumerate(module):
-        w = conv[0].weight[:, :, 0, 0]
-        ws.append(w)
-    ws = torch.cat(ws, 1)
-    return ws
-
-def plot_weight_layerwise(module, minimum=-1, maximum=1, subfix=""):
-    for i, conv in enumerate(module):
-        w = utils.torch2numpy(conv[0].weight)[:, :, 0, 0]
-
-        fig = plt.figure(figsize=(16, 12))
-        for j in range(16):
-            ax = plt.subplot(4, 4, j + 1)
-            ax.scatter(list(range(len(w[j]))), w[j], marker='.', s=20)
-            ax.axes.get_xaxis().set_visible(False)
-            ax.set_ylim([minimum, maximum])
-        plt.tight_layout()
-        fig.savefig(f"{savepath}_l{i}{subfix}.png", bbox_inches='tight')
-        plt.close()
-
-def get_norm_layerwise(module, minimum=-1, maximum=1, subfix=""):
-    norms = []
-    for i, conv in enumerate(module):
-        w = conv[0].weight[:, :, 0, 0]
-        norms.append(w.norm(2, dim=1))
-    return utils.torch2numpy(torch.stack(norms))
-
 print(task, model_path, device)
 external_model = segmenter.get_segmenter(task, model_path, device)
 labels, cats = external_model.get_label_and_category_names()
 category_groups = utils.get_group(labels)
 category_groups_label = utils.get_group(labels, False)
+n_class = category_groups[-1][1]
 utils.set_seed(65537)
 latent = torch.randn(1, latent_size).to(device)
 noise = False
 op = getattr(generator, "generate_noise", None)
 if callable(op):
-    noise = op()
+    noise = op(device)
 
 with torch.no_grad():
     image, stage = generator.get_stage(latent)
@@ -173,7 +136,7 @@ if len(model_files) == 0:
     exit(0)
 
 if "fast" in args.task:
-    LEN = 10
+    LEN = 100
 else:
     LEN = 1000
 
@@ -607,8 +570,12 @@ if "surgery" in args.task:
         early_layer_surgery(new_weight, st)
         subfix = f"_e{st}_n"
         sep_model.load_state_dict(new_weight)
-        mini, maxi = find_min_max_weight(sep_model.semantic_extractor)
-        plot_weight_layerwise(sep_model.semantic_extractor, mini, maxi, subfix)
+        if "spherical" not in model_file:
+            mini, maxi = find_min_max_weight(
+                sep_model.semantic_extractor)
+            plot_weight_layerwise(
+                sep_model.semantic_extractor,
+                mini, maxi, subfix)
         latent = torch.randn(1, latent_size, device=device)
         images = []
         for i in range(8):
@@ -634,6 +601,56 @@ if "surgery" in args.task:
         vutils.save_image(torch.cat(images), f"{savepath}_surgery{subfix}.png", nrow=6)
 
 
+def find_min_max_weight(module):
+    vals = []
+    for i, conv in enumerate(module):
+        w = utils.torch2numpy(conv[0].weight)
+        vals.append(w.min())
+        vals.append(w.max())
+    return min(vals), max(vals)
+
+def concat_weight(module):
+    vals = []
+    ws = []
+    for i, conv in enumerate(module):
+        w = conv[0].weight[:, :, 0, 0]
+        ws.append(w)
+    ws = torch.cat(ws, 1)
+    return ws
+
+def plot_weight_layerwise(module, minimum=-1, maximum=1, subfix=""):
+    for i, conv in enumerate(module):
+        w = utils.torch2numpy(conv[0].weight)[:, :, 0, 0]
+
+        fig = plt.figure(figsize=(16, 12))
+        for j in range(16):
+            ax = plt.subplot(4, 4, j + 1)
+            ax.scatter(list(range(len(w[j]))), w[j], marker='.', s=20)
+            ax.axes.get_xaxis().set_visible(False)
+            ax.set_ylim([minimum, maximum])
+        plt.tight_layout()
+        fig.savefig(f"{savepath}_l{i}{subfix}.png", bbox_inches='tight')
+        plt.close()
+
+def plot_weight_concat(w, minimum=-1, maximum=1, subfix=""):
+    fig = plt.figure(figsize=(16, 12))
+    for j in range(16):
+        ax = plt.subplot(4, 4, j + 1)
+        ax.scatter(list(range(len(w[j]))), w[j], marker='.', s=20)
+        ax.axes.get_xaxis().set_visible(False)
+        ax.set_ylim([minimum, maximum])
+    plt.tight_layout()
+    fig.savefig(f"{savepath}_weight_{subfix}.png", bbox_inches='tight')
+    plt.close()
+
+def get_norm_layerwise(module, minimum=-1, maximum=1, subfix=""):
+    norms = []
+    for i, conv in enumerate(module):
+        w = conv[0].weight[:, :, 0, 0]
+        norms.append(w.norm(2, dim=1))
+    return utils.torch2numpy(torch.stack(norms))
+
+
 if "weight" in args.task:
     model_file = model_files[-1]
     sep_model = get_semantic_extractor(get_extractor_name(model_file))(
@@ -642,15 +659,31 @@ if "weight" in args.task:
     sep_model.load_state_dict(torch.load(model_file, map_location="cpu"))
     
     # weight vector
-    minimum, maximum = find_min_max_weight(sep_model.semantic_extractor)
-    ws = concat_weight(sep_model.semantic_extractor)
+    minimum = maximum = ws = 0
+    if "spherical" in model_file:
+        ws = sep_model.weight[:, :, 0, 0]
+        minimum, maximum = ws.min().detach(), ws.max().detach()
+    else:
+        minimum, maximum = find_min_max_weight(
+            sep_model.semantic_extractor)
+        ws = concat_weight(sep_model.semantic_extractor)
     norm = ws.norm(2, dim=1)
-    print(norm.shape)
+
     arr = [[name, val] for name, val in zip(utils.CELEBA_REDUCED_CATEGORY, norm)]
     arr.sort(key=lambda x: x[1])
     for i in range(ws.shape[0]):
         print("=> %s : %.4f" % (arr[i][0], arr[i][1]))
-    norms = get_norm_layerwise(sep_model.semantic_extractor)
+    
+    norms = 0
+    if "spherical" in model_file:
+        cumdim = np.cumsum(dims)
+        norms = [ws[:, prev:cur].norm(2, 1)
+            for prev, cur in zip(cumdim[:-1], cumdim[1:])]
+        norms = torch.stack(norms, 0).detach()
+    else:
+        norms = get_norm_layerwise(sep_model.semantic_extractor)
+
+
     fig = plt.figure(figsize=(16, 12))
     for j in range(16):
         ax = plt.subplot(4, 4, j + 1)
@@ -659,7 +692,7 @@ if "weight" in args.task:
     plt.tight_layout()
     fig.savefig(f"{savepath}_normclass.png", bbox_inches='tight')
     plt.close()
-
+    
     fig = plt.figure(figsize=(16, 12))
     for j in range(norms.shape[0]):
         ax = plt.subplot(4, 4, j + 1)
@@ -668,8 +701,14 @@ if "weight" in args.task:
     plt.tight_layout()
     fig.savefig(f"{savepath}_normlayer.png", bbox_inches='tight')
     plt.close()
-
-    plot_weight_layerwise(sep_model.semantic_extractor, maximum, minimum)
+    if "spherical" in model_file:
+        plot_weight_concat(
+            ws.detach().numpy(),
+            maximum, minimum)
+    else:
+        plot_weight_layerwise(
+            sep_model.semantic_extractor,
+            maximum, minimum)
 
     """
     # orthogonal status
@@ -730,7 +769,6 @@ if "contribution" in args.task:
     np.save(savepath + "_contrib", contrib.detach().cpu().numpy())
 
 
-
 if "lsun-agreement" in args.task:
     model_file = model_files[-1]
     batch_size = 1
@@ -786,9 +824,10 @@ if "celeba-agreement" in args.task:
         generator.set_noise(noise)
     sep_model = get_semantic_extractor(get_extractor_name(model_file))(
         n_class=n_class,
-        dims=dims).to(device)
-    sep_model.eval()
+        dims=dims)
+    sep_model.to(device).eval()
     print("=> Load from %s" % model_file)
+    is_resize = "spherical" not in model_file
     state_dict = torch.load(model_file, map_location='cpu')
     missed = sep_model.load_state_dict(state_dict)
     evaluator = evaluate.MaskCelebAEval()
@@ -797,7 +836,8 @@ if "celeba-agreement" in args.task:
             gen, stage = generator.get_stage(latent)
             gen = gen.clamp(-1, 1)
             est_label = sep_model.predict(stage)
-            label = external_model.segment_batch(gen)
+            label = external_model.segment_batch(gen,
+                resize=is_resize)
         label = utils.torch2numpy(label)
 
         for j in range(batch_size):

@@ -405,14 +405,15 @@ class StyledGenerator(nn.Module):
             x = self.g_mapping(x)
         return self.g_synthesis.get_stage(x, detach)
 
-    def generate_noise(self):
+    def generate_noise(self, device='cuda'):
         if not hasattr(self, "noise_layers"):
             self.noise_layers = [l for n,l in self.named_modules() if "noise" in n]
         
         noise = []
         for i in range(len(self.noise_layers)):
             size = 4 * 2 ** (i // 2)
-            noise.append(torch.randn(1, 1, size, size))
+            noise.append(torch.randn(1, 1, size, size,
+                device=device))
 
         return noise
 
