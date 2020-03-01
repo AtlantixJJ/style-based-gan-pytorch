@@ -50,16 +50,14 @@ class SEL1Reg(SECore):
 
 class SESpherical(SECore):
     def __init__(self):
-        self.last_only = [0, 1]
-        self.basecmd = "python train/extract_semantics.py --task celebahq --model-name stylegan --extractor spherical --gpu %s --batch-size 1 --iter-num 20000 --last-only %d --expr record/celebahq%d"
+        self.basecmd = "python train/extract_semantics.py --task celebahq --model-name stylegan --extractor spherical --gpu %s --batch-size 1 --iter-num 10000 --last-only 1 --expr record/celebahq1"
 
     def args_gen(self, gpus):
         l = []
         count = 0
-        for j in self.last_only:
-            gpu = gpus[count]
-            l.append((count, (gpu, j, j)))
-            count = (count + 1) % len(gpus)
+        gpu = gpus[count]
+        l.append((count, (gpu,)))
+        count = (count + 1) % len(gpus)
         return l
 
 
@@ -95,8 +93,8 @@ def direct_run(gpus):
 uname = subprocess.run(["uname", "-a"], capture_output=True)
 uname = uname.stdout.decode("ascii")
 if "jericho" in uname:
-    #gpus = ["0"]; assign_run(SEL1Reg().command, gpus)
-    gpus = ["0"]; assign_run(direct_run, gpus)
+    gpus = ["0"]; assign_run(SESpherical().command, gpus)
+    #gpus = ["0"]; assign_run(direct_run, gpus)
 elif "instance" in uname:
     gpus = ["0"]; assign_run(SESpherical().command, gpus)
 else:
