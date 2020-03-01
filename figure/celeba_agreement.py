@@ -48,6 +48,7 @@ def process_dir(dir):
     for f in files:
         name = get_extractor_name(f)
         dic = np.load(f, allow_pickle=True)[()]
+        dic["mIoU"][12] = -1
         dic = calc_subset(dic)
         res = utils.format_test_result(dic, global_metrics)
         global_csv, class_csv = res[2:]
