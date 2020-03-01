@@ -83,16 +83,17 @@ for ind, model_file in enumerate(model_files):
         model_path)
     generator.to(device).eval()
 
-    latent = latents[count:count+1]
-    paper_res.extend(get_output(
-        generator, model_file, external_model, latent,
-        flag=1))
-    count += 1
-    latent = latents[count:count+1]
-    appendix_res.extend(get_output(
-        generator, model_file, external_model, latent,
-        flag=3))
-    count += 1
+    for _ in range(2):
+        latent = latents[count:count+1]
+        paper_res.extend(get_output(
+            generator, model_file, external_model, latent,
+            flag=1))
+        count += 1
+        latent = latents[count:count+1]
+        appendix_res.extend(get_output(
+            generator, model_file, external_model, latent,
+            flag=3))
+        count += 1
 
 vutils.save_image(
     process(paper_res),
