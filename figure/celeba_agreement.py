@@ -9,7 +9,7 @@ def get_extractor_name(model_path):
     names = ["SNSE", "LSE", "SLSE", "CNSE", "UNet-512"]
     for i, k in enumerate(keywords):
         if k in model_path:
-            return model_path#names[i]
+            return names[i]
 
 def get_best_model(table, best_ind, name, delimiter=","):
     best_model = table.split("\n")[best_ind + 1]
@@ -21,7 +21,7 @@ def calc_subset(dic):
     indice["face"] = [1, 2, 4, 5, 6, 7, 8, 9, 10, 14]
     # eye glasses, ear ring, neck lace, hat, cloth
     indice["other"] = [3, 11, 12, 13, 15]
-    for metric in ["AP", "AR", "IoU"]:
+    for metric in ["IoU"]:
         for t in ["face", "other"]:
             arr = np.array(dic[metric])
             v = arr[indice[t]]
@@ -30,8 +30,8 @@ def calc_subset(dic):
     return dic
 
 
-global_metrics = ["mAP", "mAR", "mIoU"]
-for metric in ["AP", "AR", "IoU"]:
+global_metrics = ["mIoU"]
+for metric in ["IoU"]:
     for t in ["face", "other"]:
         global_metrics.append(f"m{metric}_{t}")
 
@@ -48,7 +48,7 @@ def process_dir(dir):
     for f in files:
         name = get_extractor_name(f)
         dic = np.load(f, allow_pickle=True)[()]
-        dic["mIoU"][12] = -1
+        #dic["mIoU"][12] = -1
         dic = calc_subset(dic)
         res = utils.format_test_result(dic, global_metrics)
         global_csv, class_csv = res[2:]
@@ -66,7 +66,7 @@ def process_dir(dir):
     l.extend([global_latex_head, global_tabular, class_latex_head, class_tabular])
     return l
 
-dir = "record/celebahq[0-1]"
+dir = "record/celebahq1"
 dirs = glob.glob(dir)
 dirs.sort()
 global_table = []
