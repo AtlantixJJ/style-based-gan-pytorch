@@ -92,7 +92,7 @@ for ind, model_file in enumerate(model_files):
         latent = latents[count:count+1]
         appendix_res.extend(get_output(
             generator, model_file, external_model, latent,
-            flag=3))
+            flag=2))
         count += 1
 
 vutils.save_image(
@@ -100,4 +100,4 @@ vutils.save_image(
     f"qualitative_lsun_paper.png", nrow=6)
 vutils.save_image(
     process(appendix_res),
-    f"qualitative_lsun_appendix.png", nrow=7)
+    f"qualitative_lsun_appendix.png", nrow=5)
