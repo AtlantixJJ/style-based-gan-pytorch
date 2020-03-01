@@ -60,7 +60,11 @@ for ind in tqdm(range(cfg.n_iter)):
     with torch.no_grad(): # fix main network
         gen, stage = generator.get_stage(latent, detach=True)
         gen = gen.clamp(-1, 1)
-        label = external_model.segment_batch(gen, resize=is_resize)
+        label = 0
+        if not is_resize:
+            label = external_model.segment_batch(gen, resize=False)
+        else:
+            label = external_model.segment_batch(gen)
 
     multi_segs = sep_model(stage, last_only=cfg.last_only)
     if len(category_groups_label) == 1:
