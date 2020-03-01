@@ -602,6 +602,13 @@ def stdout_resume():
 """
 
 
+def listkey_convert(name, listkey):
+    for key in listkey:
+        if key in name:
+            return key
+    return ""
+
+
 def list_collect_data(data_dir, keys=["origin_latent", "origin_noise", "image_stroke", "image_mask", "label_stroke", "label_mask"]):
     dic = {}
     for key in keys:
