@@ -140,7 +140,9 @@ def get_norm_layerwise(module, minimum=-1, maximum=1, subfix=""):
 
 print(task, model_path, device)
 external_model = segmenter.get_segmenter(task, model_path, device)
-n_class = len(external_model.get_label_and_category_names()[1]) + 1
+labels, cats = external_model.get_label_and_category_names()
+category_groups = utils.get_group(labels)
+category_groups_label = utils.get_group(labels, False)
 utils.set_seed(65537)
 latent = torch.randn(1, latent_size).to(device)
 noise = False
@@ -160,7 +162,7 @@ if len(model_files) == 0:
     exit(0)
 
 if "fast" in args.task:
-    LEN = 50
+    LEN = 10
 else:
     LEN = 1000
 
@@ -246,8 +248,6 @@ if "projective" in args.task:
             plt.close()
 
             vutils.save_image(utils.catlist([image, pred_viz]), "image.png")
-
-
 
 
 if "visualize" in args.task:
@@ -719,7 +719,55 @@ if "contribution" in args.task:
     np.save(savepath + "_contrib", contrib.detach().cpu().numpy())
 
 
-if "agreement" in args.task:
+
+if "lsun-agreement" in args.task:
+    model_file = model_files[-1]
+    batch_size = 1
+    latent = torch.randn(batch_size, latent_size, device=device)
+    if noise:
+        generator.set_noise(noise)
+    sep_model = get_semantic_extractor(get_extractor_name(model_file))(
+        n_class=n_class,
+        category_groups=category_groups,
+        dims=dims).to(device)
+    sep_model.eval()
+    print("=> Load from %s" % model_file)
+    state_dict = torch.load(model_file, map_location='cpu')
+    missed = sep_model.load_state_dict(state_dict)
+    is_resize = "spherical" not in model_file
+    metrics = [evaluate.DetectionMetric(n_class=cg[1]-cg[0])
+        for i, cg in enumerate(category_groups)]
+    for ind in tqdm.tqdm(range(30 * LEN)):
+        with torch.no_grad():
+            gen, stage = generator.get_stage(latent)
+            gen = gen.clamp(-1, 1)
+            label = external_model.segment_batch(gen, resize=is_resize)
+        label = utils.torch2numpy(label)
+
+        multi_segs = sep_model(stage)
+        for i, segs in enumerate(multi_segs):
+            if label[:, i].max() <= 0:
+                continue
+            cg = category_groups_label[i]
+            l = label[:, i, :, :] - cg[0]
+            l[l<0] = 0
+            
+            # collect training statistic
+            est_label = segs[-1].argmax(1)
+            for j in range(est_label.shape[0]):
+                metrics[i](
+                    utils.torch2numpy(est_label[j]),
+                    utils.torch2numpy(l[j]))
+    # show metric
+    for i in range(len(category_groups)):
+        metrics[i].aggregate()
+        print(metrics[i])
+    np.save(
+        f"{savepath}_agreement.npy",
+        [metrics[i].result for i in range(len(metrics))])
+
+
+if "celeba-agreement" in args.task:
     model_file = model_files[-1]
     batch_size = 1
     latent = torch.randn(batch_size, latent_size, device=device)
@@ -732,14 +780,13 @@ if "agreement" in args.task:
     print("=> Load from %s" % model_file)
     state_dict = torch.load(model_file, map_location='cpu')
     missed = sep_model.load_state_dict(state_dict)
-    is_resize = "spherical" not in model_file
     evaluator = evaluate.MaskCelebAEval()
     for i in tqdm.tqdm(range(30 * LEN)):
         with torch.no_grad():
             gen, stage = generator.get_stage(latent)
             gen = gen.clamp(-1, 1)
             est_label = sep_model.predict(stage)
-            label = external_model.segment_batch(gen, resize=is_resize)
+            label = external_model.segment_batch(gen)
         label = utils.torch2numpy(label)
 
         for j in range(batch_size):
