@@ -93,3 +93,5 @@ if "jericho" in uname:
     #gpus = ["0"]; assign_run(direct_run, gpus)
 elif "instance" in uname:
     gpus = ["0"]; assign_run(SESpherical().command, gpus)
+else:
+    gpus = ["4", "5", "6", "7"]; assign_run(SEL1Reg().command, gpus)
