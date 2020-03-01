@@ -24,7 +24,7 @@ for f in files:
     X = feats.reshape(H * W, C)#.reshape(C, H * W).transpose(1, 0)
 
     for K in range(2, 16):
-        skm = SphericalKMeans(n_clusters=K, copy_x=True, n_jobs=4, verbose=True, max_iter=1000)
+        skm = SphericalKMeans(n_clusters=K, copy_x=False, n_jobs=4, verbose=True, max_iter=1000)
         skm.fit(X)
         pickle.dump(skm, open(f"{args.dataset}/skm_{ind}_{K}.pkl", 'wb'))
 
