@@ -89,7 +89,7 @@ for ind, model_file in enumerate(model_files):
 
 vutils.save_image(
     process(paper_res),
-    f"qualitative_celeba_paper.png", nrow=6)
+    f"qualitative_celeba_paper.pdf", nrow=6)
 #vutils.save_image(
 #    process(appendix_res),
 #    f"qualitative_celeba_appendix.png", nrow=7)

@@ -43,7 +43,7 @@ for task in tasks:
             if len(v[v>0]) > 0:
                 x = v.std()
             summary[utils.CELEBA_REDUCED_CATEGORY[i]].append(x)
-    utils.plot_dic(summary, "class linearity", f"{task}_fullclass.png")
+    utils.plot_dic(summary, "class linearity", f"{task}_fullclass.pdf")
     summary = {k:v for k, v in summary.items() if k in task}
     if len(summary) > 0:
-        utils.plot_dic(summary, "class linearity", f"{task}_class.png")
+        utils.plot_dic(summary, "class linearity", f"{task}_class.pdf")

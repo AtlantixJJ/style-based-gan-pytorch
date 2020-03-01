@@ -100,5 +100,5 @@ for i in range(3):
     axins.set_xlim(*axins_xlim) # apply the x-limits
     axins.set_ylim(*ains_ylim) # apply the y-limits
     ax.indicate_inset_zoom(axins)
-plt.savefig("fewshot_result.png", box_inches="tight")
+plt.savefig("fewshot_result.pdf", box_inches="tight")
 plt.close()

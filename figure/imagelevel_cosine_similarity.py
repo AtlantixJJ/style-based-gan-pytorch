@@ -66,4 +66,4 @@ for ind in range(len(tables)):
                         ha="center", va="center", color="w")
     ax.set_title(name[ind])
 fig.tight_layout()
-plt.savefig("imagelevel_cosine_similarity.png", box_inches="tight")
+plt.savefig("imagelevel_cosine_similarity.pdf", box_inches="tight")

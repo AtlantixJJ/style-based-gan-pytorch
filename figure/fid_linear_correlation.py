@@ -69,6 +69,6 @@ ax.plot(fids)
 ax.set_xlabel("Model Snapshot")
 ax.set_ylabel("FID")
 plt.tight_layout()
-plt.savefig(f"{task}_fid_linear_separability_correlation.png",
+plt.savefig(f"{task}_fid_linear_separability_correlation.pdf",
     box_inches="tight")
 plt.close()
