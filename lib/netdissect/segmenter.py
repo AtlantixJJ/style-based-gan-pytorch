@@ -55,7 +55,7 @@ class UnifiedParsingSegmenter(BaseSegmenter):
     for the three largest object classes (sky, building, person).
     '''
 
-    def __init__(self, segsizes=None, segdiv=None):
+    def __init__(self, segsizes=None, segdiv=None, device='cuda'):
         # Create a segmentation model
         if segsizes is None:
             segsizes = [256]
@@ -64,9 +64,10 @@ class UnifiedParsingSegmenter(BaseSegmenter):
         segvocab = 'upp'
         segarch = ('resnet50', 'upernet')
         epoch = 40
+        self.device = device
         segmodel = load_unified_parsing_segmentation_model(
                 segarch, segvocab, epoch)
-        segmodel.cuda()
+        segmodel.to(self.device)
         self.segmodel = segmodel
         self.segsizes = segsizes
         self.segdiv = segdiv
@@ -153,11 +154,11 @@ class UnifiedParsingSegmenter(BaseSegmenter):
         sizes = [(s, s) for s in self.segsizes]
         pred = {category: torch.zeros(
             len(tensor_images), len(self.segmodel.labeldata[category]),
-            seg_shape[0], seg_shape[1]).cuda()
+            seg_shape[0], seg_shape[1]).to(self.device)
             for category in ['object', 'material']}
         part_pred = {partobj_index: torch.zeros(
             len(tensor_images), len(partindex),
-            seg_shape[0], seg_shape[1]).cuda()
+            seg_shape[0], seg_shape[1]).to(self.device)
             for partobj_index, partindex in enumerate(self.part_index)}
         for size in sizes:
             if size == tensor_images.shape[2:]:
@@ -304,7 +305,7 @@ class SemanticSegmenter(BaseSegmenter):
         # Verify segmentation model to has every out_channel labeled.
         assert len(segmodel.meta.labels) == list(c for c in segmodel.modules()
             if isinstance(c, torch.nn.Conv2d))[-1].out_channels
-        segmodel.cuda()
+        segmodel.to(self.device)
         self.segmodel = segmodel
         self.segdiv = segdiv
         # Image normalization
@@ -413,7 +414,7 @@ class SemanticSegmenter(BaseSegmenter):
         sizes = [(s, s) for s in self.segsizes]
         pred = torch.zeros(
             len(tensor_images), (self.num_underlying_classes),
-            seg_shape[0], seg_shape[1]).cuda()
+            seg_shape[0], seg_shape[1]).to(self.device)
         for size in sizes:
             if size == tensor_images.shape[2:]:
                 resized = tensor_images
@@ -560,7 +561,7 @@ def test_main():
     from PIL import Image
     testim = Image.open('script/testdata/test_church_242.jpg')
     tensor_im = (torch.from_numpy(numpy.asarray(testim)).permute(2, 0, 1)
-            .float() / 255 * 2 - 1)[None, :, :, :].cuda()
+            .float() / 255 * 2 - 1)[None, :, :, :].to(self.device)
     segmenter = UnifiedParsingSegmenter()
     seg = segmenter.segment_batch(tensor_im)
     bc = torch.bincount(seg.view(-1))
