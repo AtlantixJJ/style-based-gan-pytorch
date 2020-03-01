@@ -18,9 +18,9 @@ mask = np.zeros((512, 512)).astype("bool")
 prev = 0
 colors = []
 prev_region = 0
-for k in [2, 3, 4, 5, 6, 8, 12, 16]:
+for k in range(2, 16):
     print(f"=> {k}")
-    img = utils.imread(f"{data_dir}/skm_{k}.png")
+    img = utils.imread(f"{data_dir}/skm_1_{k}.png")
     mask.fill(True)
     region = []
     # update color
@@ -40,6 +40,7 @@ for k in [2, 3, 4, 5, 6, 8, 12, 16]:
     
     if prev_region is 0:
         prev_region = copy.deepcopy(region)
+        utils.imwrite(f"{data_dir}/new_skm_1_{k}.png", img)
         continue
 
     # reassign color
@@ -62,7 +63,6 @@ for k in [2, 3, 4, 5, 6, 8, 12, 16]:
         pm.fill(False)
         region[ind][0] = pc
         newimg[cr] = pc
-    utils.imwrite(f"{data_dir}/new1_skm_{k}.png", newimg)
 
     # assign new color
     for i in range(len(region)):
@@ -75,5 +75,5 @@ for k in [2, 3, 4, 5, 6, 8, 12, 16]:
         region[i][0] = colors[-count]
 
     prev_region = copy.deepcopy(region)
-    utils.imwrite(f"{data_dir}/new_skm_{k}.png", newimg)
+    utils.imwrite(f"{data_dir}/new_skm_1_{k}.png", newimg)
     

@@ -3,10 +3,18 @@ from lib.face_parsing.unet import unet
 import utils
 from lib.netdissect.segmenter import UnifiedParsingSegmenter
 
+"""
+Convert single label to multilabel
+"""
+def convert_multi_label(seg, cg, i):
+    label = utils.torch2numpy(seg[0]).argmax(0)
+    label[label > 0] += cg[i][0]
+    return label
+
 
 def get_segmenter(task, fpath=None, device="cuda"):
     if task == "bedroom" or task == "church":
-        return UnifiedParsingSegmenter()
+        return UnifiedParsingSegmenter(device=device)
     elif task == "celebahq" or task == "ffhq":
         return CelebAMaskHQSegmenter(fpath, device)
 

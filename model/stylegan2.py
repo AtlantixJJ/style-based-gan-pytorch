@@ -470,7 +470,7 @@ class Generator(nn.Module):
 
         return noises
 
-    def generate_noise(self):
+    def generate_noise(self, device):
         return self.make_noise()
 
     def set_noise(self, noise):

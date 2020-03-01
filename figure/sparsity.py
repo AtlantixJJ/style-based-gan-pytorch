@@ -34,6 +34,7 @@ def concat_weight(module):
     ws = torch.cat(ws, 1)
     return ws
 
+s = []
 for model_file in model_files:
     sep_model = func(n_class=16, dims=dims)
     sep_model.load_state_dict(torch.load(model_file))
@@ -46,4 +47,6 @@ for model_file in model_files:
     mIoU = dic['mIoU']
     mIoU_face = dic['mIoU_face']
     mIoU_other = dic['mIoU_other']
-    print("%f %f %f %f" % (sparsity, mIoU, mIoU_face, mIoU_other))
+    s.append("%f,%f,%f,%f" % (sparsity, mIoU, mIoU_face, mIoU_other))
+with open("sparsity.csv", "w") as f:
+    f.write("\n".join(s))

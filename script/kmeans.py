@@ -10,10 +10,19 @@ import glob
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset", default="datasets/kmeans")
+parser.add_argument("--resume", default="")
 args = parser.parse_args()
 
 files = glob.glob(f"{args.dataset}/kmeans_feats*.npy")
 files.sort()
+
+resume_i = resume_k = -1
+if len(args.resume) > 0:
+    resume_i, resume_k = args.resume.split("-")
+    resume_i = int(resume_i)
+    resume_k = int(resume_k)
+    files = files[resume_i:]
+
 for f in files:
     feats = np.load(f, allow_pickle=True)
     ind = f.find("feats")
@@ -23,8 +32,12 @@ for f in files:
     H, W, C = feats.shape
     X = feats.reshape(H * W, C)#.reshape(C, H * W).transpose(1, 0)
 
-    for K in range(2, 16):
-        skm = SphericalKMeans(n_clusters=K, copy_x=False, n_jobs=4, verbose=True, max_iter=1000)
+    st = 2
+    if resume_k > 0:
+        st = resume_k
+
+    for K in range(st, 16):
+        skm = SphericalKMeans(n_clusters=K, copy_x=True, n_jobs=4, verbose=True, max_iter=1000)
         skm.fit(X)
         pickle.dump(skm, open(f"{args.dataset}/skm_{ind}_{K}.pkl", 'wb'))
 

@@ -76,6 +76,10 @@ elif "stylegan2" in args.model:
         task = "bedroom"
         colorizer = lambda x: segment_visualization_single(x, 256)
         model_path = "checkpoint/bedroom_lsun_256x256_stylegan2.pth"
+    if "church" in args.model:
+        task = "church"
+        colorizer = lambda x: segment_visualization_single(x, 256)
+        model_path = "checkpoint/church_lsun_256x256_stylegan2.pth"
     elif "ffhq" in args.model:
         task = "ffhq"
         model_path = "checkpoint/face_ffhq_1024x1024_stylegan2.pth"
@@ -100,6 +104,10 @@ elif "proggan" in args.model:
         colorizer = lambda x: segment_visualization_single(x, 256)
         task = "bedroom"
         model_path = "checkpoint/bedroom_lsun_256x256_proggan.pth"
+    if "church" in args.model:
+        colorizer = lambda x: segment_visualization_single(x, 256)
+        task = "church"
+        model_path = "checkpoint/church_lsun_256x256_proggan.pth"
     generator = model.load_proggan(model_path).to(device)
     model_path = "checkpoint/faceparse_unet_512.pth"
     batch_size = 2
@@ -295,6 +303,7 @@ if "visualize" in args.task:
                 ax.scatter(x, y, s=1, c=c)
             plt.savefig(f"random_projection_{ind}.png")
             plt.close()
+
     """
     latent.uniform_(); latent.normal_()
     datafiles = glob.glob("../datasets/StyleGANFeats/*.npy")
