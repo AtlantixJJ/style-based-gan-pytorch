@@ -10,9 +10,8 @@ style.use('seaborn-poster') #sets the size of the charts
 style.use('ggplot')
 colors = list(matplotlib.colors.cnames.keys())
 
-task = sys.argv[1] # bedroom/church
 data_dir = "record/lsun"
-files = glob.glob(f"{data_dir}/{task}*.npy")
+files = glob.glob(f"{data_dir}/*.npy")
 files.sort()
 cg = [[0, 336], [336, 361], [361, 390]]
 object_metric = evaluate.DetectionMetric(
@@ -95,17 +94,17 @@ class Summary(object):
     def write_class(self, subfix="object"):
         self.ct = [self.class_csv_head] + self.ct
         self.cu = self.class_latex_head + self.cu
-        with open(f"{task}_{subfix}_class_result.csv", "w") as f:
+        with open(f"{subfix}_class_result.csv", "w") as f:
             f.write("\n".join(self.ct))
-        with open(f"{task}_{subfix}_class_tabular.tex", "w") as f:
+        with open(f"{subfix}_class_tabular.tex", "w") as f:
             f.write("\n".join(self.cu))
 
     def write_global(self, subfix="object"):
         self.gt = [self.global_csv_head] + self.gt
         self.gu = self.global_latex_head + self.gu
-        with open(f"{task}_{subfix}_global_result.csv", "w") as f:
+        with open(f"{subfix}_global_result.csv", "w") as f:
             f.write("\n".join(self.gt))
-        with open(f"{task}_{subfix}_global_tabular.tex", "w") as f:
+        with open(f"{subfix}_global_tabular.tex", "w") as f:
             f.write("\n".join(self.gu))
 
 object_summary = Summary()
