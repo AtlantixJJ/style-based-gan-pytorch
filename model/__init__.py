@@ -3,11 +3,13 @@ import model.disc
 import model.inception
 import model.simple
 import model.semantic_extractor
-import model.stylegan2
-
+try:
+    import model.stylegan2
+    from model.stylegan2 import from_pth_file as load_stylegan2
+except:
+    pass
 #from model.simple import from_pth_file as load_dcgan
 from model.tf import from_pth_file as load_stylegan
-from model.stylegan2 import from_pth_file as load_stylegan2
 from lib.netdissect.proggan import from_pth_file as load_proggan
 
 def load_model_from_pth_file(model_name, fpath):
