@@ -35,7 +35,7 @@ class SECore(object):
 class SEL1Reg(SECore):
     def __init__(self):
         self.l1_reg = [1e-6, 1e-5, 3e-5, 6e-5, 1e-4, 2e-4, 4e-4, 6e-4, 8e-4, 1e-3]
-        self.basecmd = "python train/extract_semantics.py --task celebahq --model-name stylegan --extractor linear --l1-reg %f --gpu %s --batch-size 1 --iter-num 10000 --last-only 1 --expr record/l1/"
+        self.basecmd = "CUDA_VISIBLE_DEVICES=%d python train/extract_semantics.py --task celebahq --model-name stylegan --extractor linear --l1-reg %f --gpu %s --batch-size 1 --iter-num 10000 --last-only 1 --expr record/l1/"
 
     def args_gen(self, gpus):
         l = []
@@ -43,7 +43,7 @@ class SEL1Reg(SECore):
         for i in range(len(self.l1_reg)):
             l1 = self.l1_reg[i]
             gpu = gpus[count]
-            l.append((count, (l1, gpu)))
+            l.append((count, (gpu, l1, gpu)))
             count = (count + 1) % len(gpus)
         return l
 
