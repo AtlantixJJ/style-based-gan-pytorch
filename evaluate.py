@@ -145,6 +145,9 @@ class DetectionMetric(object):
         self.result = {}
         self.reset()
 
+    def load_from_dic(self, dic):
+        self.result = dic
+
     def reset(self):
         self.num = 0
         del self.result

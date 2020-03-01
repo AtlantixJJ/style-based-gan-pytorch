@@ -1,0 +1,389 @@
+- object
+wall object
+sky object
+floor object
+tree object
+building object
+person object
+ceiling object
+table object
+window object
+road object
+grass object
+chair object
+car object
+plant object
+painting object
+door object
+sidewalk object
+light object
+cabinet object
+signboard object
+lamp object
+ground object
+curtain object
+pole object
+mountain object
+fence object
+streetlight object
+bed object
+sofa object
+box object
+earth object
+shelf object
+bottle object
+cushion object
+water object
+book object
+flower object
+carpet object
+mirror object
+vase object
+flowerpot object
+sink object
+dog object
+armchair object
+rock object
+wall socket object
+sconce object
+pillow object
+cat object
+step object
+pot object
+plate object
+railing object
+clock object
+bag object
+column object
+bicycle object
+cloth object
+coffee table object
+ashcan object
+spotlight object
+bench object
+boat object
+basket object
+work surface object
+bowl object
+desk object
+airplane object
+bird object
+house object
+plaything object
+sea object
+paper object
+television object
+chandelier object
+cup object
+pottedplant object
+path object
+switch object
+stairway object
+van object
+stove object
+truck object
+awning object
+chest of drawers object
+traffic light object
+seat object
+poster object
+glass object
+flag object
+telephone object
+fireplace object
+rope object
+towel object
+monitor object
+bucket object
+bush object
+stool object
+field object
+tray object
+bannister object
+trade name object
+wood object
+fan object
+horse object
+motorbike object
+base object
+train object
+bathtub object
+toilet object
+refrigerator object
+counter object
+wardrobe object
+food object
+candlestick object
+blind object
+computer object
+board object
+palm object
+bus object
+track object
+microwave object
+sand object
+sculpture object
+fluorescent object
+countertop object
+swivel chair object
+snow object
+river object
+air conditioner object
+ottoman object
+jar object
+stair object
+pack object
+bridge object
+skyscraper object
+minibike object
+loudspeaker object
+figurine object
+can object
+sheep object
+cow object
+bookcase object
+bedclothes object
+exhaust hood object
+hill object
+napkin object
+doorframe object
+umbrella object
+manhole object
+case object
+container object
+coach object
+dishwasher object
+text object
+knife object
+crt screen object
+magazine object
+curb object
+oven object
+monitoring device object
+gate object
+blanket object
+radiator object
+platform object
+central reservation object
+bulletin board object
+laptop object
+shoe object
+pool table object
+metal object
+fruit object
+keyboard object
+coffee maker object
+candle object
+faucet object
+pipe object
+handbag object
+wineglass object
+mug object
+wire object
+apparel object
+land object
+pitcher object
+remote control object
+bar object
+grill object
+ball object
+backpack object
+grandstand object
+beam object
+pane object
+fork object
+hedge object
+notebook object
+toilet tissue object
+parking meter object
+pen object
+fireplug object
+screen door object
+brush object
+heater object
+booklet object
+kitchen island object
+tower object
+ladder object
+hat object
+shower object
+soap dispenser object
+spoon object
+post object
+antenna object
+buffet object
+kettle object
+traveling bag object
+stage object
+printer object
+teapot object
+chest object
+embankment object
+rack object
+document object
+crane object
+mouse object
+silver screen object
+animal object
+pier object
+post box object
+rod object
+vent object
+console table object
+camera object
+statue object
+jacket object
+dishrag object
+microphone object
+fountain object
+paper towel object
+pool ball object
+washer object
+mouse pad object
+partition object
+banner object
+tent object
+runway object
+towel rack object
+hanger object
+guitar object
+place mat object
+system object
+ashtray object
+soap object
+cue object
+booth object
+deck chair object
+bouquet object
+waterfall object
+dirt track object
+vending machine object
+eyeglass object
+drawer object
+saddle object
+canister object
+helmet object
+hovel object
+shutter object
+telephone booth object
+shirt object
+cradle object
+candelabrum object
+tank object
+toaster object
+traffic cone object
+soap dish object
+arcade machine object
+machine object
+net object
+easel object
+cart object
+skylight object
+cross object
+newspaper object
+canopy object
+barrel object
+smoke object
+footbridge object
+wheel object
+baby buggy object
+fire extinguisher object
+shower stall object
+swimming pool object
+sales booth object
+scaffolding object
+fridge object
+patty object
+altar object
+streetcar object
+decoration object
+tapestry object
+trouser object
+billboard object
+file cabinet object
+cap object
+bread object
+cage object
+hot tub object
+drawing object
+saucepan object
+piano object
+dish object
+conveyer belt object
+arcade object
+equipment object
+trunk object
+cd object
+court object
+blackboard object
+lake object
+ship object
+railroad train object
+lighthouse object
+bus stop object
+exhibitor object
+jersey object
+plinth object
+fabric object
+projector object
+forecourt object
+eiderdown object
+mat object
+cash register object
+calendar object
+briefcase object
+stick object
+chimney object
+brick material
+cardboard material
+carpet material
+ceramic material
+fabric material
+foliage material
+food material
+fur material
+glass material
+hair material
+laminate material
+leather material
+metal material
+mirror material
+painted material
+paper material
+plastic material
+polished stone material
+rubber material
+skin material
+stone material
+tile material
+wallpaper material
+wicker material
+wood material
+cloud part
+roof part
+balcony part
+shop window part
+metal shutter part
+dormer part
+entrance part
+dome part
+balustrade part
+garage door part
+fire escape part
+grille part
+arcades part
+terrace part
+leg part
+head part
+torso part
+arm part
+eye part
+ear part
+nose part
+neck part
+hand part
+hair part
+mouth part
+foot part
+eyebrow part
+back part

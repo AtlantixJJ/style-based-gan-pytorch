@@ -783,26 +783,26 @@ if "lsun-agreement" in args.task:
     print("=> Load from %s" % model_file)
     state_dict = torch.load(model_file, map_location='cpu')
     missed = sep_model.load_state_dict(state_dict)
-    is_resize = "spherical" not in model_file
     metrics = [evaluate.DetectionMetric(n_class=cg[1]-cg[0])
         for i, cg in enumerate(category_groups)]
     for ind in tqdm.tqdm(range(30 * LEN)):
         with torch.no_grad():
             gen, stage = generator.get_stage(latent)
             gen = gen.clamp(-1, 1)
-            label = external_model.segment_batch(gen, resize=is_resize)
+            label = external_model.segment_batch(gen)
         label = utils.torch2numpy(label)
 
         multi_segs = sep_model(stage)
-        for i, segs in enumerate(multi_segs):
+
+        for i, seg in enumerate(multi_segs):
             if label[:, i].max() <= 0:
                 continue
             cg = category_groups_label[i]
             l = label[:, i, :, :] - cg[0]
             l[l<0] = 0
-            
+
             # collect training statistic
-            est_label = segs[-1].argmax(1)
+            est_label = seg.argmax(1)
             for j in range(est_label.shape[0]):
                 metrics[i](
                     utils.torch2numpy(est_label[j]),

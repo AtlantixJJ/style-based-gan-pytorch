@@ -682,11 +682,14 @@ def format_agreement_result(dic):
     return model_global_latex, class_latex, model_global_csv, class_csv, best_ind
 
 
-def format_test_result(dic, global_metrics=["mAP", "mAR", "mIoU"], class_metrics=["AP", "AR", "IoU"]):
-    label_list = CELEBA_REDUCED_CATEGORY
+def format_test_result(dic,
+    global_metrics=["pixelacc", "mAP", "mAR", "mIoU"],
+    class_metrics=["AP", "AR", "IoU"],
+    label_list=CELEBA_REDUCED_CATEGORY):
     class_metrics = ["AP", "AR", "IoU"]
 
     # table 1: global metrics
+    global_latex = global_csv = 0
     numbers = [dic[m] for m in global_metrics]
     numbers = np.array(numbers)
     strs = [["model"] + global_metrics]
@@ -699,7 +702,7 @@ def format_test_result(dic, global_metrics=["mAP", "mAR", "mIoU"], class_metrics
     strs = [["metric"] + label_list]
     numbers = []
     for metric in class_metrics:
-        data = dic[metric][1:] # ignore background
+        data = dic[metric]
         numbers.append(data)
     numbers = np.array(numbers) # (3, 16)
     for i in range(len(class_metrics)):
