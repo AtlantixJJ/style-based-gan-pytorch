@@ -5,4 +5,7 @@ import sys
 sys.path.insert(0, ".")
 import lib.rcc
 import lib.face_parsing
-import lib.op
+try:
+    import lib.op
+except:
+    print("!> StyleGAN2 not available")
