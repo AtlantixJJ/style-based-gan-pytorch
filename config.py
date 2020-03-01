@@ -12,7 +12,7 @@ import utils
 
 NUM_WORKER = 4
 CELEBA_STYLEGAN_PATH = "checkpoint/face_celebahq_1024x1024_stylegan.pth"
-
+FFHQ_STYLEGAN_PATH = "checkpoint/face_ffhq_1024x1024_stylegan.pth"
 
 
 

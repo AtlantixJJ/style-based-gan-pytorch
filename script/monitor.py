@@ -29,7 +29,6 @@ parser.add_argument("--model", default="")
 parser.add_argument("--gpu", default="0")
 parser.add_argument("--recursive", default="0")
 args = parser.parse_args()
-print(args.gpu)
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
 if args.recursive == "1":
@@ -72,6 +71,18 @@ elif "simple" in args.model:
     model_path = "checkpoint/faceparse_unet_128.pth"
     batch_size = 64
     latent_size = 128
+elif "stylegan2" in args.model:
+    if "bedroom" in args.model:
+        task = "bedroom"
+        colorizer = lambda x: segment_visualization_single(x, 256)
+        model_path = "checkpoint/bedroom_lsun_256x256_stylegan2.pth"
+    elif "ffhq" in args.model:
+        task = "ffhq"
+        model_path = "checkpoint/face_ffhq_1024x1024_stylegan2.pth"
+    generator = model.load_stylegan2(model_path).to(device)
+    model_path = "checkpoint/faceparse_unet_512.pth"
+    batch_size = 2
+    latent_size = 512
 elif "stylegan" in args.model:
     if "bedroom" in args.model:
         task = "bedroom"
@@ -146,7 +157,7 @@ category_groups_label = utils.get_group(labels, False)
 utils.set_seed(65537)
 latent = torch.randn(1, latent_size).to(device)
 noise = False
-op = getattr(generator, "generator_noise", None)
+op = getattr(generator, "generate_noise", None)
 if callable(op):
     noise = op()
 

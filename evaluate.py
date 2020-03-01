@@ -339,7 +339,7 @@ class SeparabilityEvaluator(object):
         self.n_class = n_class
         self.metric = DetectionMetric(n_class=n_class)
         self.fix_latents = torch.randn(test_size, self.latent_dim)
-        op = getattr(self.model, "generator_noise", None)
+        op = getattr(self.model, "generate_noise", None)
         if callable(op):
             self.has_noise = True
             self.fix_noises = [op() for _ in range(test_size)]
