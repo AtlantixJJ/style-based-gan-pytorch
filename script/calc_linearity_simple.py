@@ -10,7 +10,7 @@ sys.path.insert(0, ".")
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--imsize", default=128, type=int)
-parser.add_argument("--model", default="checkpoint/fixseg_conv-16-1.model")
+parser.add_argument("--model", default="expr/wgan128")
 parser.add_argument("--external-model", default="checkpoint/faceparse_unet_512.pth")
 parser.add_argument("--recursive", default=1, type=int)
 parser.add_argument("--start", default=0, type=int)
@@ -24,7 +24,7 @@ device = "cuda"
 
 import torch, glob
 import numpy as np
-import model, fid, utils, evaluate
+import model, fid, utils, evaluate, dataset
 from lib.face_parsing.unet import unet
 
 if args.recursive == 1:
