@@ -8,7 +8,9 @@ import torch.nn.functional as F
 import model, utils, evaluate, segmenter
 from model.semantic_extractor import get_semantic_extractor
 from lib.netdissect.segviz import segment_visualization_single
+from lib.netdissect.segviz import high_contrast
 from torchvision import utils as vutils
+import cv2
 
 # setup and constants
 data_dir = "record/lsun"
@@ -18,11 +20,12 @@ external_model = segmenter.get_segmenter(
 label_list, cats = external_model.get_label_and_category_names()
 cg = utils.get_group(label_list)
 cg_label = utils.get_group(label_list, False)
-label_list = [l[0] for l in label_list]
+label_list = np.array([l[0] for l in label_list])
 object_metric = evaluate.DetectionMetric(
     n_class=cg[0][1] - cg[0][0])
 material_metric = evaluate.DetectionMetric(
     n_class=cg[1][1] - cg[1][0])
+metrics = [object_metric, material_metric]
 n_class = 392
 colorizer = lambda x: segment_visualization_single(x, 256)
 model_files = glob.glob(f"{data_dir}/*")
@@ -30,8 +33,19 @@ model_files = [f for f in model_files if ".npy" not in f]
 model_files = [glob.glob(f"{f}/*.model")[0] for f in model_files]
 model_files.sort()
 func = get_semantic_extractor("linear")
-torch.manual_seed(65537)
+torch.manual_seed(1005)
 latents = torch.randn(len(model_files) * 4, 512).to(device)
+
+def get_classes(l, start=0):
+    x = np.array(l)
+    y = x.argsort()
+    k = 0
+    while x[y[k]] < 1e-3:
+        k += 1
+    y = y[k:][::-1]
+    # all classes are the same
+    names = label_list[y + start] 
+    return x[y], names.tolist(), y + start
 
 def get_output(generator, model_file, external_model, latent,
     flag=2):
@@ -60,17 +74,41 @@ def get_output(generator, model_file, external_model, latent,
             seg, cg_label, i)
         pred_group_viz = colorizer(pred_group)
         res.extend([pred_group_viz, label_viz])
-    return res
 
+        # evaluate
+        l = label[:, i, :, :] - cg_label[i][0]
+        l[l<0] = 0
 
-def process(res):
-    res = torch.from_numpy(np.stack(res))
-    return res.permute(0, 3, 1, 2).float() / 255.
+        # collect training statistic
+        est_label = seg.argmax(1)
+        gts = []
+        cts = []
+        for j in range(est_label.shape[0]):
+            metrics[i](
+                utils.torch2numpy(est_label[j]),
+                utils.torch2numpy(l[j]))
+            gt, ct = metrics[i].aggregate()
+            gts.append(copy.deepcopy(gt))
+            cts.append(copy.deepcopy(ct))
+            metrics[i].reset()
 
+    return res, gts, cts
+
+def get_text(gts, cts):
+    s = []
+    for i in range(len(gts)):
+        vals, names, cats = get_classes(cts[i]["IoU"])
+        iou = gts[i]["mIoU"]
+        s.append([f"mIoU {iou:.3f}", high_contrast[0]])
+        s.extend([[f"{name} {val:.3f}", high_contrast[cat]]
+            for cat, name, val in zip(cats, names, vals)])
+    return s[:7]
 
 # get result from all models
 paper_res = []
 appendix_res = []
+paper_texts = []
+appendix_texts = []
 count = 0
 for ind, model_file in enumerate(model_files):
     task = utils.listkey_convert(model_file, ["bedroom", "church"])
@@ -85,19 +123,52 @@ for ind, model_file in enumerate(model_files):
 
     for _ in range(2):
         latent = latents[count:count+1]
-        paper_res.extend(get_output(
+        res, gts, cts = get_output(
             generator, model_file, external_model, latent,
-            flag=1))
-        count += 1
-        latent = latents[count:count+1]
-        appendix_res.extend(get_output(
-            generator, model_file, external_model, latent,
-            flag=2))
+            flag=1)
+        paper_res.extend(res)
+        paper_texts.append(get_text(gts, cts))
         count += 1
 
+        latent = latents[count:count+1]
+        res, gts, cts = get_output(
+            generator, model_file, external_model, latent,
+            flag=2)
+        appendix_res.extend(res)
+        appendix_texts.append(get_text(gts, cts))
+        count += 1
+
+N_imgs = len(paper_res)
+N_col = 6
+N_row = N_imgs // N_col
+imsize = 256
+canvas_width = imsize * (N_col + 2)
+canvas_height = imsize * N_row
+canvas = np.zeros((canvas_height, canvas_width, 3), dtype="uint8")
+canvas.fill(100)
+
+for idx, img in enumerate(paper_res):
+    row, col = idx // N_col, idx % N_col
+    col += 1
+    canvas[imsize * row : imsize * (row + 1),
+            imsize * col : imsize * (col + 1)] = img
+    if idx % 3 == 0:
+        idx = idx // 3
+        delta = imsize * (N_col + 1) if idx % 2 == 1 else 0
+        for i, (text, rgb) in enumerate(paper_texts[idx]):
+            i += 1
+            cv2.putText(canvas, text,
+                (5 + delta, idx // 2 * imsize + 35 * i),
+                cv2.FONT_HERSHEY_DUPLEX, 1, rgb)
+
+"""
 vutils.save_image(
-    process(paper_res),
-    f"qualitative_lsun_paper.pdf", nrow=6)
-vutils.save_image(
-    process(appendix_res),
-    f"qualitative_lsun_appendix.pdf", nrow=5)
+    torch.from_numpy(canvas).permute(2, 0, 1).float() / 255.,
+    f"qualitative_lsun_paper_{sys.argv[1]}.pdf", nrow=6)
+"""
+fig = plt.figure(figsize=(30, 15))
+plt.imshow(canvas)
+plt.axis("off")
+plt.tight_layout()
+plt.savefig(f"qualitative_lsun_paper.pdf", box_inches="tight")
+plt.close()

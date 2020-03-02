@@ -12,7 +12,7 @@ from torchvision import utils as vutils
 
 # setup and constants
 data_dir = "record/celebahq1"
-device = "cpu"
+device = "cuda"
 external_model = segmenter.get_segmenter(
     "celebahq", "checkpoint/faceparse_unet_512.pth", device=device)
 label_list, cats = external_model.get_label_and_category_names()

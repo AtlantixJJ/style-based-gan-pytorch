@@ -49,5 +49,7 @@ for category, task in zip(categories, tasks):
             summary[utils.CELEBA_REDUCED_CATEGORY[i]].append(x)
     utils.plot_dic(summary, "", f"{task}_fullclass.pdf")
     summary = {k:v for k, v in summary.items() if k == category}
+    if category == "hat":
+        summary["hat"] = summary["hat"][1:]
     if len(summary) > 0:
         utils.plot_dic(summary, "", f"{task}_class.pdf")
