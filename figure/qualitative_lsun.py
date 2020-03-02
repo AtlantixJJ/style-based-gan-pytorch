@@ -145,7 +145,7 @@ imsize = 256
 canvas_width = imsize * (N_col + 2)
 canvas_height = imsize * N_row
 canvas = np.zeros((canvas_height, canvas_width, 3), dtype="uint8")
-canvas.fill(100)
+canvas.fill(255)
 
 for idx, img in enumerate(paper_res):
     row, col = idx // N_col, idx % N_col
@@ -158,8 +158,9 @@ for idx, img in enumerate(paper_res):
         for i, (text, rgb) in enumerate(paper_texts[idx]):
             i += 1
             cv2.putText(canvas, text,
-                (5 + delta, idx // 2 * imsize + 35 * i),
-                cv2.FONT_HERSHEY_DUPLEX, 1, rgb)
+                (5 + delta, idx // 2 * imsize + 33 * i),
+                cv2.FONT_HERSHEY_DUPLEX, 1, (0, 0, 0),
+                2 if "mIoU" in text else 1, cv2.LINE_AA)
 
 """
 vutils.save_image(

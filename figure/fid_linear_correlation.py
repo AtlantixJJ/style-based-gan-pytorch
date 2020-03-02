@@ -5,6 +5,11 @@ import glob
 import utils
 import matplotlib.pyplot as plt
 
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+from matplotlib import cm
+cmap = cm.get_cmap("plasma")
+
 import matplotlib
 import matplotlib.style as style
 style.use('seaborn-poster') #sets the size of the charts
@@ -87,8 +92,8 @@ y = y[1:minimum]
 x = np.array(x[1:minimum])
 
 # colorization
-ind = np.arange(20, 20 + len(x)).reshape(1, 1, -1)
-cs = utils.heatmap_numpy(ind/ind.max())[0, 0]
+ind = np.arange(3, 3 + len(x)).reshape(1, 1, -1)
+cs = cmap(ind/55.)[0, 0]
 
 fig = plt.figure(figsize=(12, 4))
 ax = plt.subplot(1, 3, 1)
@@ -96,17 +101,29 @@ ax.plot(x)
 ax.set_xlabel("Model Snapshot")
 ax.set_ylabel("TSL")
 
-corref = np.corrcoef(x, y)[0, 1]
 ax = plt.subplot(1, 3, 2)
+ax.plot(fids[1:minimum])
+ax.set_xlabel("Model Snapshot")
+ax.set_ylabel("FID")
+
+corref = np.corrcoef(x, y)[0, 1]
+ax = plt.subplot(1, 3, 3)
 ax.set_title("R=%.3f" % corref)
 ax.scatter(x, y, s=6, c=cs)
 ax.set_xlabel("TSL")
 ax.set_ylabel("FID") 
+divider = make_axes_locatable(ax)
+cax = divider.append_axes('right', size='5%', pad=0.05)
+cbar = plt.colorbar(
+    cm.ScalarMappable(cmap=cmap),
+    cax=cax)
+ticks = [0, 10, 20, 30, 40, 50]
+cbar.set_ticks([t/50. for t in ticks])
+cbar.set_ticklabels([str(t) for t in ticks])
 
-ax = plt.subplot(1, 3, 3)
-ax.plot(fids[1:minimum])
-ax.set_xlabel("Model Snapshot")
-ax.set_ylabel("FID")
+for i in range(1, 5):
+    ax.annotate(str(i), (x[i-1]+0.001, y[i-1]+4))
+ax.annotate("5", (x[4]+0.001, y[4]-5))
 
 plt.tight_layout()
 plt.savefig(f"{task}_fid_linear_separability_correlation.pdf",
