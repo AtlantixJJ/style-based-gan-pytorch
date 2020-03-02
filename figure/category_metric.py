@@ -32,6 +32,8 @@ categories = ["eye_g", "hat", "ear_r", ""]
 for category, task in zip(categories, tasks):
     files = glob.glob(f"{data_dir}/{task}/*global_dic.npy")
     files.sort()
+    if len(files) == 0:
+        continue
     dic = np.load(files[0], allow_pickle=True)[()]
     summary = {k:[] for k in dic.keys()}
     for f in files:
