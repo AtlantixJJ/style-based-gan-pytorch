@@ -35,6 +35,8 @@ def concat_weight(module):
     return ws
 
 def get_name(fp):
+    ind = fp.rfind("/")
+    fp = fp[ind+1:]
     ind = fp.find("l1")
     fp = fp[ind+2:]
     ind = fp.find("_")
