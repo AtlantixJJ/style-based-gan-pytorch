@@ -342,15 +342,15 @@ class SeparabilityEvaluator(object):
         self.n_class = n_class
         self.metric = DetectionMetric(n_class=n_class)
         self.test_dl = test_dl
-        """
-        self.fix_latents = torch.randn(test_size, self.latent_dim)
+        self.fix_latents = torch.from_numpy(
+            np.load("datasets/simple_latent.npy"))
+        self.fix_latents = self.fix_latents.float().to(self.device)
         op = getattr(self.model, "generate_noise", None)
         if callable(op):
             self.has_noise = True
             self.fix_noises = [op() for _ in range(test_size)]
         else:
             self.has_noise = False
-        """
         self.reset()
 
     def reset(self):
@@ -362,17 +362,14 @@ class SeparabilityEvaluator(object):
 
     def __call__(self):
         segms = []
-        for i, sample in enumerate(tqdm(self.test_dl)):
-            if i > self.test_size:
-                break
-            latent, noise, image, label = sample
-            label = label[:, :, :, 0]
-            latent = latent[0].to(self.device)
-            noises = self.model.parse_noise(noise[0].to(self.device))
-            self.model.set_noise(noises)
-            image, stage = self.model.get_stage(latent)
-            est_label = self.sep_model.predict(stage) 
-            segms.append(est_label)
+        for i in range(self.fix_latents.shape[0]):
+            latent = self.fix_latents[i:i+1].to(self.device)
+            if self.has_noise:
+                noise = [n.to(self.device) for n in self.fix_noises[i]]
+                self.model.set_noise(noise)
+            image, stage = self.model.get_stage(latent, detach=True)
+            seg = self.sep_model(stage)[-1]
+            segms.append(seg.argmax(1))
         segms = utils.torch2numpy(torch.cat(segms))
         if self.prev_segm is 0:
             self.prev_segm = segms
@@ -399,7 +396,7 @@ class LinearityEvaluator(object):
     def __init__(self, model, external_model,
             last_only=1,
             train_iter=1000, batch_size=1, latent_dim=512,
-            test_size=256, n_class=16):
+            test_dl=None, test_size=256, n_class=16):
         self.model = model
         self.external_model = external_model
         self.last_only = last_only
@@ -415,7 +412,7 @@ class LinearityEvaluator(object):
             dims=self.dims).to(self.device)
         self.sep_eval = SeparabilityEvaluator(
             self.model, self.sep_model, self.external_model,
-            latent_dim, test_size, n_class)
+            latent_dim, test_size, n_class, test_dl)
 
 
     def __call__(self, model, name):
