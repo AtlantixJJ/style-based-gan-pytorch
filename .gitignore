@@ -7,6 +7,7 @@ lib/face_parsing/models/
 *.png
 *.mp4
 *.tar.gz
+*.pdf
 datasets
 record
 results
