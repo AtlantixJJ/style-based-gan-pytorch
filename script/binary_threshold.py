@@ -26,7 +26,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument(
     "--gpu", default="0")
 parser.add_argument(
-    "--test-dir", default="../datasets/Synthesized_test")
+    "--test-dir", default="datasets/Synthesized_test")
 parser.add_argument(
     "--test-size", default=256, type=int)
 parser.add_argument(
