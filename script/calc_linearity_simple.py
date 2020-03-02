@@ -20,7 +20,7 @@ parser.add_argument("--train-iter", default=1000, type=int)
 parser.add_argument("--test-size", default=256, type=int)
 parser.add_argument("--test-dir", default="datasets/Synthesized_test")
 args = parser.parse_args()
-os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
+#os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 device = "cuda"
 
 import torch, glob
