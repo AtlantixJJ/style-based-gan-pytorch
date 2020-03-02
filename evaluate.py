@@ -230,7 +230,7 @@ class MaskCelebAEval(object):
         
         self.dic = {}
         self.dic["class"] = utils.CELEBA_REDUCED_CATEGORY # class information
-        self.ignore_classes = [0]
+        self.ignore_classes = [0, 13]
         self.dic["result"] = [] # result of each example
         self.n_class = len(self.dic["class"])
         self.dic["class_result"] = [[] for i in range(self.n_class)]
