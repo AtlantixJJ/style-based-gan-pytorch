@@ -321,7 +321,7 @@ if "visualize" in args.task:
 
 if "celeba-evaluator" in args.task:
     recordfile = args.model + "/training_evaluation.npy"
-    metric = evaluate.SimpleIoUMetric()
+    metric = evaluate.SimpleIoUMetric(ignore_classes=[0, 13])
     metric.result = np.load(recordfile, allow_pickle=True)[0]
     metric.aggregate(start=len(metric.result) // 2)
     global_dic = metric.global_result

@@ -48,7 +48,6 @@ def process_dir(dir):
     for f in files:
         name = get_extractor_name(f)
         dic = np.load(f, allow_pickle=True)[()]
-        #dic["mIoU"][12] = -1
         dic["IoU"][13] = -1
         arr = np.array(dic["IoU"])
         dic["mIoU"] = arr[arr>-1].mean()
