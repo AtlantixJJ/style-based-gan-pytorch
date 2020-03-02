@@ -34,6 +34,19 @@ def concat_weight(module):
     ws = torch.cat(ws, 1)
     return ws
 
+def calc_subset(dic):
+    indice = {}
+    indice["face"] = [1, 2, 4, 5, 6, 7, 8, 9, 10, 14]
+    # eye glasses, ear ring, neck lace, hat, cloth
+    indice["other"] = [3, 11, 12, 13, 15]
+    for metric in ["IoU"]:
+        for t in ["face", "other"]:
+            arr = np.array(dic[metric])
+            v = arr[indice[t]]
+            v = v[v>-1]
+            dic[f"m{metric}_{t}"] = v.mean()
+    return dic
+
 s = []
 for model_file in model_files:
     sep_model = func(n_class=16, dims=dims)
@@ -45,6 +58,10 @@ for model_file in model_files:
         "_agreement.npy")
     dic = np.load(file_name, allow_pickle=True)[()]
     mIoU = dic['mIoU']
+    dic["IoU"][13] = -1
+    arr = np.array(dic["IoU"])
+    mIoU = arr[arr>-1].mean()
+    dic = calc_subset(dic)
     mIoU_face = dic['mIoU_face']
     mIoU_other = dic['mIoU_other']
     s.append("%f,%f,%f,%f" % (sparsity, mIoU, mIoU_face, mIoU_other))
