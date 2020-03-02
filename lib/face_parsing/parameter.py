@@ -17,7 +17,6 @@ def get_parameters():
     parser.add_argument('--batch_size', type=int, default=16)
     parser.add_argument('--num_workers', type=int, default=4)
     parser.add_argument('--g_lr', type=float, default=3e-4)
-    parser.add_argument('--total_step', type=int, default=100000, help='how many times to update the generator')
     parser.add_argument('--batch_size', type=int, default=8)
     parser.add_argument('--num_workers', type=int, default=4)
     parser.add_argument('--g_lr', type=float, default=0.001)
