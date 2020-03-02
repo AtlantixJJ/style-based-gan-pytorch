@@ -18,6 +18,7 @@ parser.add_argument("--last-only", default=1, type=int)
 parser.add_argument("--gpu", default="0")
 parser.add_argument("--train-iter", default=1000, type=int)
 parser.add_argument("--test-size", default=256, type=int)
+parser.add_argument("--test-dir", default="datasets/Synthesized_test")
 args = parser.parse_args()
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 device = "cuda"
@@ -45,6 +46,14 @@ if args.recursive == 1:
         print(cmd)
         os.system(cmd)
     exit(0)
+
+
+test_ds = dataset.LatentSegmentationDataset(
+    latent_dir=args.test_dir + "/latent",
+    noise_dir=args.test_dir + "/noise",
+    image_dir=None,
+    seg_dir=args.test_dir + "/label")
+test_dl = torch.utils.data.DataLoader(test_ds, batch_size=1, shuffle=False)
 
 
 state_dict = torch.load(args.external_model, map_location='cpu')
