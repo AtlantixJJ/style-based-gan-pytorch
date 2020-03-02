@@ -26,8 +26,8 @@ def plot_dic(dic, file=None):
 
 
 data_dir = "record"
-tasks = ["celeba_eyeg_wgan128", "celeba_hat_wgan128", "wgan128"]
-categories = ["eye_g", "hat", ""]
+tasks = ["celeba_eyeg_wgan128", "celeba_hat_wgan128", "celeba_earr_wgan128", "wgan128"]
+categories = ["eye_g", "hat", "ear_r", ""]
 # analyze global data
 for category, task in zip(categories, tasks):
     files = glob.glob(f"{data_dir}/{task}/*global_dic.npy")

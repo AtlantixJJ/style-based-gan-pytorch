@@ -86,6 +86,12 @@ for ind, model_file in enumerate(model_files):
         #appendix_res.extend(get_output(
         #    generator, model_file, external_model, latent))
         #count += 1
+fig = plt.figure(figsize=(30, 15))
+plt.imshow(canvas)
+plt.axis("off")
+plt.tight_layout()
+plt.savefig(f"qualitative_lsun_paper.pdf", box_inches="tight")
+plt.close()
 
 vutils.save_image(
     process(paper_res),
