@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 import torch.nn.functional as F
-import model
+import model, utils
 from model.semantic_extractor import get_semantic_extractor
 
 import matplotlib
@@ -40,6 +40,7 @@ model_files = [f"{m}/stylegan_linear_extractor.model"
     for m in model_files]
 func = get_semantic_extractor("linear")
 
+
 def concat_weight(module):
     vals = []
     ws = []
@@ -48,6 +49,22 @@ def concat_weight(module):
         ws.append(w)
     ws = torch.cat(ws, 1)
     return ws
+
+
+def plot_weight_layerwise(module, minimum=-1, maximum=1, subfix=""):
+    for i, conv in enumerate(module):
+        w = utils.torch2numpy(conv[0].weight)[:, :, 0, 0]
+
+        fig = plt.figure(figsize=(16, 12))
+        for j in range(16):
+            ax = plt.subplot(4, 4, j + 1)
+            ax.scatter(list(range(len(w[j]))), w[j], marker='.', s=20)
+            ax.axes.get_xaxis().set_visible(False)
+            ax.set_ylim([minimum, maximum])
+        plt.tight_layout()
+        fig.savefig(f"l{i}{subfix}.png", bbox_inches='tight')
+        plt.close()
+
 
 def get_name(fp):
     ind = fp.rfind("/")
@@ -88,7 +105,10 @@ for model_file in model_files:
     threshold = model_file.replace(
         "/stylegan_linear_extractor.model",
         "threshold.txt")
-    threshold = float(open(threshold, "r").read().strip())
+    try:
+        threshold = float(open(threshold, "r").read().strip())
+    except:
+        continue
     state_dict = torch.load(model_file)
     sep_model.load_state_dict(state_dict)
     w = concat_weight(sep_model.semantic_extractor)
@@ -118,19 +138,68 @@ for line in s:
     lr.append(items[0])
     sparsity.append(items[1])
     miou.append(items[3])
-data = list(zip(sparsity, miou))
+data = list(zip(sparsity, lr, miou))
 data.sort(key=lambda x : x[0])
 data = np.array(data)
 sparsity = data[:, 0]
-miou = data[:, 1] / data[:, 1].max()
+lr = data[:, 1]
+miou = data[:, 2] / data[:, 2].max()
 plt.scatter(sparsity, miou)
 plt.axvline(x=0.05, c=(0.7, 0.7, 0.8))
 plt.xticks(
     ticks=[0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
     labels=["0.05", "0.1", "0.2", "0.3", "0.4", "0.5", "0.6"])
-#for i in range(len(sparsity)):
-#    plt.annotate(lr[i], (sparsity[i], miou[i]))
+for i in range(len(sparsity)):
+    plt.annotate(lr[i], (sparsity[i], miou[i]))
 plt.xlabel("L0 sparsity")
 plt.ylabel("Percentage of mIoU preserved")
-plt.savefig('1_100_sparsity.pdf', box_inches="tight")
+plt.savefig('1_100_sparsity.png', box_inches="tight")
+plt.close()
+
+name = "0.0004"
+model_file = f"{data_dir}/celebahq_stylegan_linear_l1{name}/stylegan_linear_extractor.model"
+state_dict = torch.load(model_file, map_location="cpu")
+threshold = f"{data_dir}/celebahq_stylegan_linear_l1{name}threshold.txt"
+threshold = float(open(threshold, "r").read().strip())
+surgery(state_dict, threshold)
+sep_model.load_state_dict(state_dict)
+w = concat_weight(sep_model.semantic_extractor)
+with torch.no_grad():
+    minimum, maximum = w.min(), w.max()
+
+plot_weight_layerwise(
+    sep_model.semantic_extractor,
+    minimum, maximum, name)
+
+fig = plt.figure(figsize=(12, 12))
+
+mask = w.abs() > threshold
+class_belonging = mask.sum(0)
+ax = plt.subplot(3, 1, 1)
+ax.scatter(
+    np.arange(0, class_belonging.shape[0]),
+    class_belonging,
+    s=2,
+    marker='.')
+
+mask = w > threshold
+class_belonging = mask.sum(0)
+ax = plt.subplot(3, 1, 2)
+ax.scatter(
+    np.arange(0, class_belonging.shape[0]),
+    class_belonging,
+    s=2,
+    marker='.')
+
+
+mask = w < -threshold
+class_belonging = mask.sum(0)
+ax = plt.subplot(3, 1, 3)
+ax.scatter(
+    np.arange(0, class_belonging.shape[0]),
+    class_belonging,
+    s=2,
+    marker='.')
+
+plt.savefig("class_belonging.png")
 plt.close()

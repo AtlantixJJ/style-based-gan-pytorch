@@ -34,7 +34,7 @@ class SECore(object):
 
 class SEL1Reg(SECore):
     def __init__(self):
-        self.l1_reg = ["1e-7", "0.0"]
+        self.l1_reg = ["7e-5", "8e-5", "9e-5"]
         self.basecmd = "CUDA_VISIBLE_DEVICES=%s python train/extract_semantics.py --task celebahq --model-name stylegan --extractor linear --l1-reg %s --gpu %s --batch-size 1 --iter-num 10000 --last-only 1 --expr record/l1/"
 
     def args_gen(self, gpus):
@@ -93,7 +93,7 @@ def direct_run(gpus):
 uname = subprocess.run(["uname", "-a"], capture_output=True)
 uname = uname.stdout.decode("ascii")
 if "jericho" in uname:
-    gpus = ["0"]; assign_run(SESpherical().command, gpus)
+    gpus = ["0"]; assign_run(SEL1Reg().command, gpus)
     #gpus = ["0"]; assign_run(direct_run, gpus)
 elif "instance" in uname:
     gpus = ["0"]; assign_run(SESpherical().command, gpus)

@@ -665,7 +665,7 @@ if "weight" in args.task:
     sep_model = get_semantic_extractor(get_extractor_name(model_file))(
         n_class=n_class,
         dims=dims)
-    sep_model.load_state_dict(torch.load(model_file, map_location="cpu"))
+    sep_model.load_state_dict()
     
     # weight vector
     minimum = maximum = ws = 0
