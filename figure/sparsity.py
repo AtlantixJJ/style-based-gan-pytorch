@@ -34,6 +34,12 @@ def concat_weight(module):
     ws = torch.cat(ws, 1)
     return ws
 
+def get_name(fp):
+    ind = fp.find("l1")
+    fp = fp[ind+2:]
+    ind = fp.find("_")
+    return fp[:ind]
+
 def calc_subset(dic):
     indice = {}
     indice["face"] = [1, 2, 4, 5, 6, 7, 8, 9, 10, 14]
@@ -64,6 +70,6 @@ for model_file in model_files:
     dic = calc_subset(dic)
     mIoU_face = dic['mIoU_face']
     mIoU_other = dic['mIoU_other']
-    s.append("%f,%f,%f,%f" % (sparsity, mIoU, mIoU_face, mIoU_other))
+    s.append("%s,%f,%f,%f,%f" % (get_name(file_name),sparsity, mIoU, mIoU_face, mIoU_other))
 with open("sparsity.csv", "w") as f:
     f.write("\n".join(s))
