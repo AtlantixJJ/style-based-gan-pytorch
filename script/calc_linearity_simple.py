@@ -105,7 +105,6 @@ while args.recursive == 2:
     evaluator = evaluate.LinearityEvaluator(generator, external_model,
         last_only=args.last_only,
         train_iter=args.train_iter,
-        test_dl=test_dl,
         test_size=args.test_size,
         latent_dim=128)
     evaluator(generator, model_name)
