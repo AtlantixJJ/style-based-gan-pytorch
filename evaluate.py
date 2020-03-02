@@ -332,7 +332,7 @@ class MaskCelebAEval(object):
 
 class SeparabilityEvaluator(object):
     def __init__(self, model, sep_model, external_model,
-            latent_dim=512, test_size=256, n_class=16):
+            latent_dim=512, test_size=256, n_class=16, test_dl=None):
         self.device = "cuda"
         self.model = model
         self.sep_model = sep_model
@@ -341,6 +341,8 @@ class SeparabilityEvaluator(object):
         self.test_size = test_size
         self.n_class = n_class
         self.metric = DetectionMetric(n_class=n_class)
+        self.test_dl = test_dl
+        """
         self.fix_latents = torch.randn(test_size, self.latent_dim)
         op = getattr(self.model, "generate_noise", None)
         if callable(op):
@@ -348,6 +350,7 @@ class SeparabilityEvaluator(object):
             self.fix_noises = [op() for _ in range(test_size)]
         else:
             self.has_noise = False
+        """
         self.reset()
 
     def reset(self):
@@ -359,14 +362,17 @@ class SeparabilityEvaluator(object):
 
     def __call__(self):
         segms = []
-        for i in range(self.fix_latents.shape[0]):
-            latent = self.fix_latents[i:i+1].to(self.device)
-            if self.has_noise:
-                noise = [n.to(self.device) for n in self.fix_noises[i]]
-                self.model.set_noise(noise)
-            image, stage = self.model.get_stage(latent, detach=True)
-            seg = self.sep_model(stage)[-1]
-            segms.append(seg.argmax(1))
+        for i, sample in enumerate(tqdm(self.test_dl)):
+            if i > self.test_size:
+                break
+            latent, noise, image, label = sample
+            label = label[:, :, :, 0]
+            latent = latent[0].to(self.device)
+            noises = self.model.parse_noise(noise[0].to(self.device))
+            self.model.set_noise(noises)
+            image, stage = self.model.get_stage(latent)
+            est_label = self.sep_model.predict(stage) 
+            segms.append(est_label)
         segms = utils.torch2numpy(torch.cat(segms))
         if self.prev_segm is 0:
             self.prev_segm = segms
