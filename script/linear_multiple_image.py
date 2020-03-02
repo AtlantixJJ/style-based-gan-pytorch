@@ -25,7 +25,7 @@ parser.add_argument(
 parser.add_argument(
     "--test-dir", default="datasets/Synthesized_test")
 parser.add_argument(
-    "--test-size", default=999, type=int)
+    "--test-size", default=1000, type=int)
 parser.add_argument(
     "--total-class", default=16, type=int)
 parser.add_argument(

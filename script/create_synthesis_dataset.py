@@ -53,8 +53,8 @@ for ind in tqdm(range(args.number)):
     with torch.no_grad():
         image = generator(latent)
         noise = generator.get_noise()
-    label = external_model.segment_batch(image.clamp(-1, 1)).argmax(1)
+    label = external_model.segment_batch(image.clamp(-1, 1))
 
     utils.imwrite(label_path, utils.torch2numpy(label[0]))
-    np.save(latent_path, utils.torch2numpy(latent))
-    np.save(noise_path, utils.torch2numpy(noise))
+    np.save(latent_path, utils.torch2numpy(latent).astype("float32"))
+    np.save(noise_path, utils.torch2numpy(noise).astype("float32"))
