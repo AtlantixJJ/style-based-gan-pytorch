@@ -108,6 +108,7 @@ class NoiseLayer(nn.Module):
     def forward(self, x, noise=None):
         if noise is None and self.noise is None:
             noise = torch.randn(x.size(0), 1, x.size(2), x.size(3), device=x.device, dtype=x.dtype)
+            self.noise = noise
         elif noise is None:
             # here is a little trick: if you get all the noiselayers and set each
             # modules .noise attribute, you can have pre-defined noise.
