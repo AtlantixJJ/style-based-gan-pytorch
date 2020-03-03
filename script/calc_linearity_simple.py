@@ -20,7 +20,7 @@ parser.add_argument("--train-iter", default=1000, type=int)
 parser.add_argument("--test-size", default=256, type=int)
 parser.add_argument("--test-dir", default="datasets/Synthesized_test")
 args = parser.parse_args()
-#os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
+os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 device = "cuda"
 
 import torch, glob
@@ -58,10 +58,10 @@ faceparser.load_state_dict(state_dict)
 faceparser = faceparser.to(device)
 faceparser.eval()
 
-mapid = utils.CelebAIDMap().mapid
+mapid = utils.CelebAIDMap().diff_mapid
 
 def external_model(x):
-    return mapid(faceparser(x).argmax(1))
+    return mapid(faceparser(x))
 
 
 if args.recursive == 0:

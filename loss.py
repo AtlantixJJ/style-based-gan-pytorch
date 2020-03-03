@@ -14,7 +14,7 @@ def l1norm(module):
     return ((res - 1) ** 2).mean()
 
 
-def kldiv(segs, ext_logits):
+def kl_div(segs, ext_logits):
     seglosses = []
     for s in segs:
         layer_loss = 0
