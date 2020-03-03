@@ -33,9 +33,8 @@ disc = disc.to(cfg.device)
 disc.train()
 
 state_dict = torch.load(cfg.gen_load_path, map_location='cpu')
-sg = model.tfseg.StyledGenerator(semantic=cfg.semantic_config)
+sg = model.tf.StyledGenerator()
 sg.load_state_dict(state_dict, strict=False)
-sg = torch.nn.DataParallel(sg)
 sg = sg.to(cfg.device)
 sg.train()
 del state_dict

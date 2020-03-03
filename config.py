@@ -290,7 +290,8 @@ class BasicGANConfig(BaseConfig):
         strs.append(str(self.ds))
         return "\n".join(strs)
 
-"""
+
+
 class SDConfig(BaseConfig):
     def __init__(self):
         super(SDConfig, self).__init__()
@@ -357,7 +358,7 @@ class SDConfig(BaseConfig):
         strs.append(f"=> Generator path: {self.gen_load_path}")
         strs.append(str(self.ds))
         return "\n".join(strs)
-"""
+
 
 
 """ Deprecated
