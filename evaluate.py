@@ -332,7 +332,7 @@ class MaskCelebAEval(object):
 
 class SeparabilityEvaluator(object):
     def __init__(self, model, sep_model, external_model,
-            latent_dim=512, test_size=256, n_class=16):
+            latent_dim=512, test_size=256, n_class=16, test_dl=None):
         self.device = "cuda"
         self.model = model
         self.sep_model = sep_model
@@ -341,7 +341,10 @@ class SeparabilityEvaluator(object):
         self.test_size = test_size
         self.n_class = n_class
         self.metric = DetectionMetric(n_class=n_class)
-        self.fix_latents = torch.randn(test_size, self.latent_dim)
+        self.test_dl = test_dl
+        self.fix_latents = torch.from_numpy(
+            np.load("datasets/simple_latent.npy"))
+        self.fix_latents = self.fix_latents.float().to(self.device)
         op = getattr(self.model, "generate_noise", None)
         if callable(op):
             self.has_noise = True
@@ -393,7 +396,7 @@ class LinearityEvaluator(object):
     def __init__(self, model, external_model,
             last_only=1,
             train_iter=1000, batch_size=1, latent_dim=512,
-            test_size=256, n_class=16):
+            test_dl=None, test_size=256, n_class=16):
         self.model = model
         self.external_model = external_model
         self.last_only = last_only
@@ -409,7 +412,7 @@ class LinearityEvaluator(object):
             dims=self.dims).to(self.device)
         self.sep_eval = SeparabilityEvaluator(
             self.model, self.sep_model, self.external_model,
-            latent_dim, test_size, n_class)
+            latent_dim, test_size, n_class, test_dl)
 
 
     def __call__(self, model, name):

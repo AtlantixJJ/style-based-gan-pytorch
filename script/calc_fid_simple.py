@@ -17,11 +17,13 @@ model_name = args.model[ind + 1:]
 
 if args.recursive == 1:
     start = 0
+    """
     if os.path.exists(f"record/{model_name}/{model_name}_fid.txt"):
         with open(f"record/{model_name}/{model_name}_fid.txt", "r") as f:
             lines = f.readlines()
         fids = [float(l.strip()) for l in lines]
         start = len(fids)
+    """
     # This is root, run for all the expr directory
     model_files = glob.glob(args.model + "/*.model")
     model_files = [m for m in model_files if "disc" not in m]
@@ -49,7 +51,9 @@ print(missed)
 generator.cuda()
 
 evaluator = fid.FIDEvaluator(args.dataset)
-fid_value = evaluator(fid.GeneratorIterator(generator, batch_size=64, tot_num=30000, dim=128))
+number = len(glob.glob(args.dataset + "/*.png") + glob.glob(args.dataset + "/*.jpg"))
+print("=> Total number: %d" % number)
+fid_value = evaluator(fid.GeneratorIterator(generator, batch_size=16, tot_num=number, dim=128))
 with open(f"record/{model_name}_fid.txt", "a") as f:
     f.write(f"{fid_value}\n")
 print('FID: ', fid_value)

@@ -17,7 +17,11 @@ def plot_dic(dic, file=None):
     fig = plt.figure(figsize=(4 * 7, 3 * 2))
     for i, (k, v) in enumerate(dic.items()):
         ax = fig.add_subplot(2, 7, i + 1)
-        ax.plot(v)
+        if type(v[0]) is list or type(v[0]) is tuple:
+            arr = np.array(v)
+            ax.scatter(arr[:, 0], arr[:, 1])
+        else:
+            ax.plot(v)
         ax.set_title(k)
     plt.tight_layout()
     if file is not None:
@@ -32,6 +36,8 @@ categories = ["eye_g", "hat", "ear_r", ""]
 for category, task in zip(categories, tasks):
     files = glob.glob(f"{data_dir}/{task}/*global_dic.npy")
     files.sort()
+    if len(files) == 0:
+        continue
     dic = np.load(files[0], allow_pickle=True)[()]
     summary = {k:[] for k in dic.keys()}
     for f in files:
@@ -50,17 +56,16 @@ for category, task in zip(categories, tasks):
     files.sort()
     dic = np.load(files[0], allow_pickle=True)[()]
     summary = {k:[] for k in utils.CELEBA_REDUCED_CATEGORY}
-
-    for f in files:
+    for ind, f in enumerate(files):
         dic = np.load(f, allow_pickle=True)[()]
         arr = dic['IoU']
         for i, v in enumerate(dic['IoU']):
             v = np.array(v)
             v = v[len(v)//2:]
-            x = 1
             if len(v[v>0]) > 0:
                 x = v.std()
-            summary[utils.CELEBA_REDUCED_CATEGORY[i]].append(x)
+                summary[utils.CELEBA_REDUCED_CATEGORY[i]].append(
+                    (ind, x))
     del summary["background"]
     del summary["neck_l"]
     plot_dic(summary, f"{task}_fullclass.pdf")

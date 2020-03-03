@@ -32,12 +32,12 @@ files = glob.glob(f"{data_dir}/{task}*class_dic.npy")
 files.sort()
 dic = np.load(files[0], allow_pickle=True)[()]
 summary = {k:[] for k in utils.CELEBA_REDUCED_CATEGORY}
-
+print(files)
 for f in files:
     dic = np.load(f, allow_pickle=True)[()]
     arr = dic['IoU']
-    #dic1 = {k:arr[i] for i, k in enumerate(utils.CELEBA_REDUCED_CATEGORY)}
-    #utils.plot_dic(dic1, "class linearity", f.replace(".npy", ".png"))
+    dic1 = {k:arr[i] for i, k in enumerate(utils.CELEBA_REDUCED_CATEGORY)}
+    utils.plot_dic(dic1, "class linearity", f.replace(".npy", ".png"))
     for i, v in enumerate(dic['IoU']):
         v = np.array(v)[-500:]
 

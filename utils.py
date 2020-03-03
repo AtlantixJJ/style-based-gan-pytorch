@@ -730,7 +730,11 @@ def plot_dic(dic, title="", file=None):
     fig = plt.figure(figsize=(4 * edge, 3 * edge))
     for i, (k, v) in enumerate(dic.items()):
         ax = fig.add_subplot(edge, edge, i + 1)
-        ax.plot(v)
+        if type(v[0]) is list or type(v[0]) is tuple:
+            arr = np.array(v)
+            ax.scatter(v[:, 0], v[:, 1])
+        else:
+            ax.plot(v)
         ax.set_title(k)
     if len(title) > 0:
         plt.suptitle(title)
