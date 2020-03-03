@@ -547,7 +547,24 @@ def idmap(x, id2cid=None, n=None, map_from=None, map_to=None):
     return y
 
 
-def diff_idmap(x, cid2id=None, n=None, map_from=None, map_to=None):
+def diff_idmap_softmax(x, cid2id=None, n=None, map_from=None, map_to=None):
+    """
+    combine neural network output
+    (N, C2, H, W) -> (N, C1, H, W)
+    """
+    if cid2id is None:
+        cid2id = create_cid2id(n, map_from, map_to)
+    px = F.softmax(x, dim=1)
+    ts = []
+    for dst, src in cid2id.items():
+        composition = sum([px[:, index:index+1] for index in src])
+        ts.append(composition)
+    ps = torch.cat(ts, dim=1)
+    ps /= ps.sum(dim=1, keepdim=True)
+    return ps
+
+
+def diff_idmap_logit(x, cid2id=None, n=None, map_from=None, map_to=None):
     """
     combine neural network output
     (N, C2, H, W) -> (N, C1, H, W)
@@ -582,8 +599,10 @@ class CelebAIDMap(object):
         return idmap(x, self.id2cid)
     
     def diff_mapid(self, x):
-        return diff_idmap(x, self.cid2id)
+        return diff_idmap_logit(x, self.cid2id)
 
+    def diff_mapid_softmax(self, x):
+        return diff_idmap_softmax(x, self.cid2id)
 
 #########
 ## Logging related functions

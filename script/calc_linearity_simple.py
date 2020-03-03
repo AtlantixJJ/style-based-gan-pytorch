@@ -58,12 +58,10 @@ faceparser.load_state_dict(state_dict)
 faceparser = faceparser.to(device)
 faceparser.eval()
 
-mapid = utils.CelebAIDMap().diff_mapid
+mapid = utils.CelebAIDMap().diff_mapid_softmax
 
 def external_model(x):
-    res = faceparser(x)
-    res = mapid(res)
-    return res
+    return mapid(faceparser(x))
 
 
 if args.recursive == 0:
