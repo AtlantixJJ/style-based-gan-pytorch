@@ -61,7 +61,9 @@ faceparser.eval()
 mapid = utils.CelebAIDMap().diff_mapid
 
 def external_model(x):
-    return mapid(faceparser(x))
+    res = faceparser(x)
+    res = mapid(res)
+    return res
 
 
 if args.recursive == 0:

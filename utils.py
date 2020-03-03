@@ -557,11 +557,16 @@ def diff_idmap(x, cid2id=None, n=None, map_from=None, map_to=None):
     px = F.softmax(x, dim=1)
     ts = []
     for dst, src in cid2id.items():
-        composition = sum([px[:, index:index+1] for index in src])
-        ts.append(composition)
-    ps = torch.cat(ts, dim=1)
-    ps /= ps.sum(dim=1, keepdim=True)
-    return torch.log(ps)
+        if len(src) == 1:
+            i = src[0]
+            ts.append(x[:, i:i+1])
+        else:
+            pr = px[:, src]
+            pr = pr / pr.sum(1, keepdim=True)
+            ts.append((x[:, src] * pr).sum(1, keepdim=True))
+    res = torch.cat(ts, dim=1)
+    return res
+    
 
 
 # for celeba mask dataset
