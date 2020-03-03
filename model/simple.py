@@ -59,7 +59,7 @@ def get_bn(name, dim):
         return nn.InstanceNorm2d(dim)
 
 class Generator(nn.Module):
-    def __init__(self, out_dim=3, out_act="tanh", upsample=3, semantic=""):
+    def __init__(self, out_dim=3, out_act="tanh", upsample=3):
         """
         Start from 4x4, upsample=3 -> 32
         """
@@ -69,11 +69,6 @@ class Generator(nn.Module):
         self.out_act = out_act
         self.dims = dims
         self.upsample = upsample
-        if len(semantic) > 0:
-            self.segcfg, self.n_class, self.args = semantic.split("-")
-            self.n_class = int(self.n_class)
-        else:
-            self.segcfg = ""
         self.ksize = 1
         self.padsize = (self.ksize - 1) // 2
 
@@ -88,59 +83,6 @@ class Generator(nn.Module):
             self.deconvs.append(conv)
         self.visualize = nn.Conv2d(dims[-1], self.out_dim, 3, padding=1)
         self.tanh = nn.Tanh()
-
-        if "conv" in self.segcfg:
-            self.n_layer = int(self.args.split("_")[0])
-            self.build_extractor_conv()
-        elif "mul" in self.segcfg:
-            self.build_extractor_mul()
-    
-    def freeze(self, train=False):
-        for p in self.parameters():
-            p.requires_grad = train
-        for p in self.semantic_branch.parameters():
-            p.requires_grad = True
-
-    def build_extractor_mul(self):
-        self.semantic_branch = MultiResolutionConvolution(
-            in_dims=self.dims[1:],
-            out_dim=self.n_class,
-            kernel_size=self.ksize
-        )
-
-    def build_extractor_conv(self):
-        self.semantic_branch = nn.ModuleList([
-            ExtendedConv(dim, self.n_class, self.ksize,
-                bias=False, args=self.args)
-                for dim in self.dims
-            ])
-
-    def extract_segmentation_conv(self, stage):
-        count = 0
-        outputs = []
-        for i, seg_input in enumerate(stage):
-            outputs.append(self.semantic_extractor[count](seg_input))
-            count += 1
-        size = outputs[-1].shape[2]
-
-        # summation series
-        for i in range(1, len(stage)):
-            size = stage[i].shape[2]
-            layers = [F.interpolate(s, size=size, mode="bilinear")
-                for s in outputs[:i]]
-            sum_layers = sum(layers) + outputs[i]
-            outputs.append(sum_layers)
-
-        return outputs
-
-    def extract_segmentation_mul(self, stage):
-        return [self.semantic_branch(stage)]
-    
-    def extract_segmentation(self, stage):
-        if "conv" in self.segcfg:
-            return self.extract_segmentation_conv(stage)
-        elif "mul" in self.segcfg:
-            return self.extract_segmentation_mul(stage)  
 
     def get_stage(self, x, detach=False):
         x = self.relu(self.fc(x)).view(-1, self.dims[0], 4, 4)

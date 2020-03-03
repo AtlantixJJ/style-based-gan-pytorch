@@ -300,23 +300,11 @@ class SDConfig(BaseConfig):
         self.parser.add_argument(
             "--dataset", default="datasets/CelebAMask-HQ")
         self.parser.add_argument(
-            "--seg", default=-1, type=float, help="Use segmentation or not")
-        self.parser.add_argument(
-            "--seg-cfg", default="conv-16-1", help="Configure of segmantic segmentation extractor")
-        self.parser.add_argument(
             "--n-class", type=int, default=16, help="Class num")
-        self.parser.add_argument(
-            "--n-critic", type=int, default=2, help="Number of discriminator steps")
-        self.parser.add_argument(
-            "--dseg-cfg", default="lowcat-16", help="Configure of how discriminator use segmantic segmentation")
 
     def parse(self):
         super(SDConfig, self).parse()
-        self.seg = self.args.seg
         self.n_class = self.args.n_class
-        self.n_critic = self.args.n_critic
-        self.disc_semantic_config = self.args.dseg_cfg
-        self.semantic_config = self.args.seg_cfg
         self.disc_load_path = self.args.disc_net
         self.gen_load_path = self.args.load
         self.dataset = self.args.dataset
@@ -340,21 +328,20 @@ class SDConfig(BaseConfig):
             drop_last=True,
             num_workers=NUM_WORKER)
 
-        self.record = {'disc_loss': [], 'grad_penalty': [], 'gen_loss': []}
-        if "mix" in self.disc_semantic_config:
-            self.record["disc_low_loss"] = []
+        self.record = {
+            'disc_loss': [],
+            'grad_penalty': [],
+            'gen_loss': [],
+            'image_loss': [],
+            'label_loss': []}
 
-        self.name = f"{self.task}{self.imsize}_{self.seg}_{self.semantic_config}"
+        self.name = f"{self.task}_{self.imsize}"
         self.expr_dir = osj("expr", self.name)
 
     def __str__(self):
         prev_str = super(SDConfig, self).__str__()
         strs = [prev_str]
         strs.append(f"=> Discriminator path: {self.disc_load_path}")
-        strs.append(f"=> Segmentation: {self.seg}")
-        if self.seg > 0:
-            strs.append(f"=> Discriminator semantic config: {self.disc_semantic_config}")
-            strs.append(f"=> Generator semantic config: {self.semantic_config}")
         strs.append(f"=> Generator path: {self.gen_load_path}")
         strs.append(str(self.ds))
         return "\n".join(strs)
