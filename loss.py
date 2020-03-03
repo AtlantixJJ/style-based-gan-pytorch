@@ -14,6 +14,25 @@ def l1norm(module):
     return ((res - 1) ** 2).mean()
 
 
+def kldiv(segs, ext_logits):
+    seglosses = []
+    for s in segs:
+        layer_loss = 0
+        # label is large : downsample label
+        if s.size(2) < ext_logits.size(2): 
+            l_ = F.interpolate(
+                ext_logits.unsqueeze(1), s.size(2),
+                mode="nearest")
+            layer_loss = F.kl_div(s, l_)
+        # label is small : downsample seg
+        elif s.size(2) >= ext_logits.size(2): 
+            s_ = F.interpolate(s, ext_logits.size(2), mode="bilinear")
+            layer_loss = F.kl_div(s_, ext_logits)
+        seglosses.append(layer_loss)
+    segloss = sum(seglosses[:-1]) * 0.1 + seglosses[-1]
+    return segloss
+
+
 # segs : [(N, C, H, W)]
 # ext_label : (N, H, W)
 def segloss(segs, ext_label):

@@ -423,7 +423,7 @@ class LinearityEvaluator(object):
             image, stage = self.model.get_stage(latent)
             label = self.external_model(image.clamp(-1, 1))
             segs = self.sep_model(stage, last_only=self.last_only)
-            segloss = loss.segloss(segs, label)
+            segloss = loss.kl_div(segs, label)
             segloss.backward()
 
             self.sep_model.optim.step()
