@@ -29,8 +29,7 @@ class CelebAMaskHQSegmenter(object):
         self.model.load_state_dict(state_dict)
         self.model.to(device).eval()
         del state_dict
-        self.idmap = utils.CelebAIDMap()
-        self.labels = utils.CELEBA_REDUCED_CATEGORY[1:]
+        self.labels = utils.CELEBA_CATEGORY[1:]
         self.categories = ["face"] * len(self.labels)
 
     def get_label_and_category_names(self):
@@ -38,4 +37,7 @@ class CelebAMaskHQSegmenter(object):
 
     def segment_batch(self, batch, resize=True):
         seg = self.model(batch, resize)
-        return self.idmap.mapid(seg.argmax(1))
+        return seg.argmax(1)
+
+    def segment_batch_logits(self, batch, resize=True):
+        return self.model(batch, resize)

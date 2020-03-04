@@ -8,15 +8,15 @@ def get_parameters():
     parser = argparse.ArgumentParser()
 
     # Model hyper-parameters
-    parser.add_argument('--model', type=str, default='parsenet', choices=['parsenet'])
+    parser.add_argument('--model', type=str, default='parsenet')
     parser.add_argument('--imsize', type=int, default=512)
     parser.add_argument('--version', type=str, default='parsenet')
 
     # Training setting
-    parser.add_argument('--total_step', type=int, default=500000, help='how many times to update the generator')
+    parser.add_argument('--total_step', type=int, default=100000, help='how many times to update the generator')
     parser.add_argument('--batch_size', type=int, default=16)
     parser.add_argument('--num_workers', type=int, default=4)
-    parser.add_argument('--g_lr', type=float, default=0.001)
+    parser.add_argument('--g_lr', type=float, default=3e-4)
     parser.add_argument('--lr_decay', type=float, default=0.95)
     parser.add_argument('--beta1', type=float, default=0.9)
     parser.add_argument('--beta2', type=float, default=0.999)
@@ -34,8 +34,8 @@ def get_parameters():
     parser.add_argument('--use_tensorboard', type=str2bool, default=False)
 
     # Path
-    parser.add_argument('--img_path', type=str, default='/home/xujianjin/data/datasets/CelebAMask-HQ/CelebA-HQ-img')
-    parser.add_argument('--label_path', type=str, default='/home/xujianjin/data/datasets/CelebAMask-HQ/CelebAMask-HQ-mask') 
+    parser.add_argument('--img_path', type=str, default='/home/jianjin/data/datasets/CelebAMask-HQ/CelebA-HQ-img')
+    parser.add_argument('--label_path', type=str, default='/home/jianjin/data/datasets/CelebAMask-HQ/CelebAMask-HQ-mask-15') 
     parser.add_argument('--log_path', type=str, default='./logs')
     parser.add_argument('--model_save_path', type=str, default='./models')
     parser.add_argument('--sample_path', type=str, default='./samples')

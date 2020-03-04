@@ -71,7 +71,7 @@ class SimpleIoUMetric(object):
         global_result = {"pixelacc" : windowsum / divider}
         class_result = {}
         for i in range(self.n_class):
-            name = utils.CELEBA_REDUCED_CATEGORY[i]
+            name = utils.CELEBA_CATEGORY[i]
             mask = res[i] > -1
             class_result[name] = res[i].copy()
             class_result[name][~mask] = 0
@@ -225,11 +225,11 @@ class DetectionMetric(object):
 
 class MaskCelebAEval(object):
     def __init__(self):
-        self.face_indice = [1, 2, 4, 5, 6, 7, 8, 9, 10, 14]
-        self.other_indice = [3, 11, 12, 13, 15]
+        self.face_indice = [1, 2, 4, 5, 6, 7, 8, 9, 10, 13]
+        self.other_indice = [3, 11, 12, 14]
         
         self.dic = {}
-        self.dic["class"] = utils.CELEBA_REDUCED_CATEGORY # class information
+        self.dic["class"] = utils.CELEBA_CATEGORY # class information
         self.ignore_classes = [0, 13]
         self.dic["result"] = [] # result of each example
         self.n_class = len(self.dic["class"])

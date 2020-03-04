@@ -55,7 +55,7 @@ for category, task in zip(categories, tasks):
     files = glob.glob(f"{data_dir}/{task}/*class_dic.npy")
     files.sort()
     dic = np.load(files[0], allow_pickle=True)[()]
-    summary = {k:[] for k in utils.CELEBA_REDUCED_CATEGORY}
+    summary = {k:[] for k in utils.CELEBA_CATEGORY}
     for ind, f in enumerate(files):
         dic = np.load(f, allow_pickle=True)[()]
         arr = dic['IoU']
@@ -64,7 +64,7 @@ for category, task in zip(categories, tasks):
             v = v[len(v)//2:]
             if len(v[v>0]) > 0:
                 x = v.std()
-                summary[utils.CELEBA_REDUCED_CATEGORY[i]].append(
+                summary[utils.CELEBA_CATEGORY[i]].append(
                     (ind, x))
     del summary["background"]
     del summary["neck_l"]

@@ -418,7 +418,7 @@ def sample_cosine(data, pred, n_class=16):
     
     print("=> Class number:")
     for i in range(n_class):
-        print("=> %s: %s" % (utils.CELEBA_REDUCED_CATEGORY[i], str(class_length[i])))
+        print("=> %s: %s" % (utils.CELEBA_CATEGORY[i], str(class_length[i])))
 
     for i in range(1, n_class):
         if class_length[i] < 1:
@@ -678,7 +678,7 @@ if "weight" in args.task:
         ws = concat_weight(sep_model.semantic_extractor)
     norm = ws.norm(2, dim=1)
 
-    arr = [[name, val] for name, val in zip(utils.CELEBA_REDUCED_CATEGORY, norm)]
+    arr = [[name, val] for name, val in zip(utils.CELEBA_CATEGORY, norm)]
     arr.sort(key=lambda x: x[1])
     for i in range(ws.shape[0]):
         print("=> %s : %.4f" % (arr[i][0], arr[i][1]))

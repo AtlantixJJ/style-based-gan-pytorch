@@ -33,7 +33,7 @@ size_tables = np.nan_to_num(size_tables)
 mean_table = (mean_tables * size_tables).sum(0)
 std_table = (std_tables * size_tables).sum(0)
 
-cats = utils.CELEBA_REDUCED_CATEGORY
+cats = utils.CELEBA_CATEGORY
 # remove necklace because it is 0 everywhere
 del cats[13]
 del cats[0]

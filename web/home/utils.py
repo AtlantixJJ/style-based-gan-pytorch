@@ -741,7 +741,7 @@ def str_csv_table(strs):
 
 
 def format_agreement_result(dic):
-    label_list = CELEBA_REDUCED_CATEGORY
+    label_list = CELEBA_CATEGORY
     global_metrics = ["pixelacc", "mAP", "mAR", "mIoU"]
     class_metrics = ["AP", "AR", "IoU"]
 
@@ -778,7 +778,7 @@ def format_agreement_result(dic):
 
 
 def format_test_result(dic, global_metrics=["mAP", "mAR", "mIoU"], class_metrics=["AP", "AR", "IoU"]):
-    label_list = CELEBA_REDUCED_CATEGORY
+    label_list = CELEBA_CATEGORY
     class_metrics = ["AP", "AR", "IoU"]
 
     # table 1: global metrics

@@ -77,7 +77,7 @@ for ind in tqdm(range(cfg.n_iter)):
         cg = category_groups_label[i]
         l = label[:, i, :, :] - cg[0]
         l[l<0] = 0
-        segloss = segloss + loss.segloss(segs, l)
+        segloss = segloss + loss.kl_div(segs, l)
 
         # collect training statistic
         est_label = segs[-1].argmax(1)

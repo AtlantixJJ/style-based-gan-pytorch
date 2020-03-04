@@ -83,7 +83,7 @@ def tensor2label(label_tensor, n_label=0, imtype=np.uint8):
 def generate_label(inputs, imsize):
     pred_batch = []
     for input in inputs:
-        input = input.view(1, 19, imsize, imsize)
+        input = input.unsqueeze(0)
         pred = np.squeeze(input.data.max(1)[1].cpu().numpy(), axis=0)
         pred_batch.append(pred)
 

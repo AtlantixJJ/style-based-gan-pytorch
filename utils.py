@@ -15,13 +15,9 @@ except:
     print("!> No opencv2")
 
 
-CELEBA_COLORS = [(0, 0, 0),(128, 0, 0),(0, 128, 0),(128, 128, 0),(0, 0, 128),(128, 0, 128),(0, 128, 128),(128, 128, 128),(64, 0, 0),(192, 0, 0),(64, 128, 0),(192, 128, 0),(64, 0, 128),(192, 0, 128),(64, 128, 128),(192, 128, 128)]
+CELEBA_COLORS = [(0, 0, 0),(128, 0, 0),(0, 128, 0),(128, 128, 0),(0, 0, 128),(128, 0, 128),(0, 128, 128),(128, 128, 128),(64, 0, 0),(192, 0, 0),(64, 128, 0),(192, 128, 0),(64, 0, 128),(64, 128, 128),(192, 128, 128)]
 
-
-CELEBA_FULL_CATEGORY = ['background', 'skin', 'nose', 'eye_g', 'l_eye', 'r_eye', 'l_brow', 'r_brow', 'l_ear', 'r_ear', 'mouth', 'u_lip', 'l_lip', 'hair', 'hat', 'ear_r', 'neck_l', 'neck', 'cloth']
-
-CELEBA_REDUCED_CATEGORY = ['background', 'skin', 'nose', 'eye_g', 'eye', 'brow', 'ear', 'mouth', 'u_lip', 'l_lip', 'hair', 'hat', 'ear_r', 'neck_l', 'neck', 'cloth']
-
+CELEBA_CATEGORY = ['background', 'skin', 'nose', 'eye_g', 'eye', 'brow', 'ear', 'mouth', 'u_lip', 'l_lip', 'hair', 'hat', 'ear_r', 'neck', 'cloth']
 
 class MultiGPUTensor(object):
     def __init__(self, root, n_gpu):
@@ -677,7 +673,7 @@ def str_csv_table(strs):
 
 
 def format_agreement_result(dic):
-    label_list = CELEBA_REDUCED_CATEGORY
+    label_list = CELEBA_CATEGORY
     global_metrics = ["pixelacc", "mAP", "mAR", "mIoU"]
     class_metrics = ["AP", "AR", "IoU"]
 
@@ -716,7 +712,7 @@ def format_agreement_result(dic):
 def format_test_result(dic,
     global_metrics=["pixelacc", "mAP", "mAR", "mIoU"],
     class_metrics=["AP", "AR", "IoU"],
-    label_list=CELEBA_REDUCED_CATEGORY):
+    label_list=CELEBA_CATEGORY):
     class_metrics = ["AP", "AR", "IoU"]
 
     # table 1: global metrics
