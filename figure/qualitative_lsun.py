@@ -90,7 +90,7 @@ def get_output(generator, model_file, external_model, latent,
             gt, ct = metrics[i].aggregate()
             gts.append(copy.deepcopy(gt))
             cts.append(copy.deepcopy(ct))
-            metrics[i].reset()
+        metrics[i].reset()
 
     return res, gts, cts
 
