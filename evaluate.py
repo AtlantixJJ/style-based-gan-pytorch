@@ -421,16 +421,17 @@ class LinearityEvaluator(object):
         for ind in tqdm(range(self.train_iter)):
             latent.normal_()
             image, stage = self.model.get_stage(latent)
-            label = self.external_model(image.clamp(-1, 1))
+            prob = self.external_model(image.clamp(-1, 1))
             segs = self.sep_model(stage, last_only=self.last_only)
-            segloss = loss.kl_div(segs, label)
+            segloss = loss.kl_div(segs, prob)
             segloss.backward()
 
             self.sep_model.optim.step()
             self.sep_model.optim.zero_grad()
             self.sep_eval()
 
-        np.save(f"results/{name}_global_dic.npy", self.sep_eval.global_dic)
-        np.save(f"results/{name}_class_dic.npy", self.sep_eval.class_dic)
-        v = np.array(self.sep_eval.global_dic["mIoU"])
+            if ind % 100 == 0 or ind + 1 == self.train_iter:
+                np.save(f"results/{name}_global_dic.npy", self.sep_eval.global_dic)
+                np.save(f"results/{name}_class_dic.npy", self.sep_eval.class_dic)
+                v = np.array(self.sep_eval.global_dic["mIoU"])
         return np.abs(v[1:] - v[:-1]).mean()
