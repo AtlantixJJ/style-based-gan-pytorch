@@ -53,7 +53,7 @@ if args.recursive == "1":
 savepath = args.model.replace("expr/", "results/")
 
 device = 'cuda' if int(args.gpu) > -1 else 'cpu'
-idmap = utils.CelebAIDMap()
+#idmap = utils.CelebAIDMap()
 cfg = 0
 batch_size = 0
 model_path = ""
@@ -347,7 +347,7 @@ if "layer-conv" in args.task:
     image = generator(latent, seg=False)
     image = image.clamp(-1, 1)
     unet_seg = faceparser(F.interpolate(image, size=512, mode="bilinear"))
-    unet_label = utils.idmap(unet_seg.argmax(1))
+    unet_label = unet_seg.argmax(1)
     unet_label_viz = colorizer(unet_label).float() / 255.
     image = (1 + image[0]) / 2
     segs = generator.extract_segmentation(generator.stage)

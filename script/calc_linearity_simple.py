@@ -58,11 +58,7 @@ faceparser.load_state_dict(state_dict)
 faceparser = faceparser.to(device)
 faceparser.eval()
 
-mapid = utils.CelebAIDMap().diff_mapid_softmax
-
-def external_model(x):
-    return mapid(faceparser(x))
-
+#mapid = utils.CelebAIDMap().diff_mapid_softmax
 
 if args.recursive == 0:
     model_name = args.model.replace("expr/", "").replace("/", "_")
@@ -76,7 +72,7 @@ if args.recursive == 0:
 
     print(model_name)
 
-    evaluator = evaluate.LinearityEvaluator(generator, external_model,
+    evaluator = evaluate.LinearityEvaluator(generator, faceparser,
     train_iter=args.train_iter,
     test_size=args.test_size,
     latent_dim=128)

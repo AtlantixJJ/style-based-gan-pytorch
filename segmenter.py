@@ -36,8 +36,5 @@ class CelebAMaskHQSegmenter(object):
         return list(zip(self.labels, self.categories)), self.categories
 
     def segment_batch(self, batch, resize=True):
-        seg = self.model(batch, resize)
-        return seg.argmax(1)
-
-    def segment_batch_logits(self, batch, resize=True):
-        return self.model(batch, resize)
+        self.seg = self.model(batch, resize)
+        return self.seg.argmax(1)

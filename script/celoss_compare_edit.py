@@ -72,7 +72,7 @@ ds = dataset.CollectedDataset(args.data_dir)
 print(str(ds))
 dl = DataLoader(ds, batch_size=1, pin_memory=True)
 colorizer = utils.Colorize(16)
-idmap = utils.CelebAIDMap()
+#idmap = utils.CelebAIDMap()
 
 for ind, dic in enumerate(dl):
     for k in dic.keys():
@@ -90,7 +90,7 @@ for ind, dic in enumerate(dl):
         generalized_latent_ = extended_latent_[:, 0:1, :].detach()
         orig_image, stage = generator.get_stage(extended_latent_)
         orig_seg = sep_model(stage)[0]
-        ext_seg = idmap.diff_mapid(external_model(orig_image.clamp(-1, 1)))
+        ext_seg = external_model(orig_image.clamp(-1, 1))
     orig_image = (1 + orig_image.clamp(-1, 1)) / 2
     ext_label = ext_seg.argmax(1)
     ext_label_viz = colorizer(ext_label[0]).unsqueeze(0) / 255.

@@ -235,7 +235,7 @@ class MaskCelebAEval(object):
         self.n_class = len(self.dic["class"])
         self.dic["class_result"] = [[] for i in range(self.n_class)]
         self.metric = DetectionMetric([0], self.n_class)
-        self.mapid = utils.CelebAIDMap()
+        #self.mapid = utils.CelebAIDMap()
 
     def calc_single(self, seg, label):
         pixelacc, metrics = self.metric(seg, label)

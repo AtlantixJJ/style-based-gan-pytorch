@@ -77,8 +77,12 @@ for ind in tqdm(range(cfg.n_iter)):
         cg = category_groups_label[i]
         l = label[:, i, :, :] - cg[0]
         l[l<0] = 0
-        segloss = segloss + loss.kl_div(segs, l)
-
+        if "KL" == cfg.loss_type:
+            logits = external_model.seg
+            l = F.softmax(logits, dim=1)
+            segloss = segloss + loss.kl_div(segs, l)
+        else:
+            segloss = segloss + loss.segloss(segs, l)
         # collect training statistic
         est_label = segs[-1].argmax(1)
         for j in range(est_label.shape[0]):

@@ -32,7 +32,7 @@ if "real" in args.mode:
         root=args.data_dir,
         image_dir="CelebA-HQ-img",
         label_dir="CelebAMask-HQ-mask",
-        idmap=utils.CelebAIDMap(),
+        #idmap=utils.CelebAIDMap(),
         random_flip=False)
     pds = dataset.ImageSegmentationPartDataset(ds)
     dl = DataLoader(pds, batch_size=1, num_workers=2, shuffle=False)

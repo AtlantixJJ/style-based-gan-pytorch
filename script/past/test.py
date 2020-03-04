@@ -20,7 +20,8 @@ ds = dataset.LatentSegmentationDataset(
     noise_dir=rootdir+"noise_test",
     image_dir=rootdir+"CelebA-HQ-img",
     seg_dir=rootdir+"CelebAMask-HQ-mask",
-    idmap=utils.CelebAIDMap().mapid)
+    #idmap=utils.CelebAIDMap().mapid
+    )
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--model", default="")

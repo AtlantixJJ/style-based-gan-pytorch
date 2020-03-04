@@ -51,8 +51,7 @@ def get_image_seg_celeba(model, el, sep_model, method):
     elif "external" in method:
         image = model(el)
         # [NOTICE]: This is hardcode for CelebA
-        seg = utils.CelebAIDMap().diff_mapid(
-                sep_model(image.clamp(-1, 1)))
+        seg = sep_model(image.clamp(-1, 1))
         return image, seg
 
 

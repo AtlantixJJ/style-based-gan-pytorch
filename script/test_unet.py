@@ -20,7 +20,7 @@ ds = dataset.ImageSegmentationDataset(
         size=512,
         image_dir="CelebA-HQ-img",
         label_dir="CelebAMask-HQ-mask",
-        idmap=utils.CelebAIDMap(),
+        #idmap=utils.CelebAIDMap(),
         file_list=f"{rootdir}/test.list")
 dl = torch.utils.data.DataLoader(ds, batch_size=4)
 
@@ -30,7 +30,7 @@ faceparser.load_state_dict(state_dict)
 faceparser = faceparser.cuda()
 faceparser.eval()
 del state_dict
-idmap = utils.CelebAIDMap().mapid
+#idmap = utils.CelebAIDMap().mapid
 evaluator = evaluate.MaskCelebAEval()
 for i, (x, y) in tqdm(enumerate(dl)):
     x = x.cuda()
@@ -38,7 +38,7 @@ for i, (x, y) in tqdm(enumerate(dl)):
     with torch.no_grad():
         tar_seg = faceparser(x)
     tar_seg = tar_seg.argmax(1).detach().cpu().numpy()
-    tar_seg = idmap(tar_seg)
+    #tar_seg = idmap(tar_seg)
     for i in range(tar_seg.shape[0]):
         evaluator.calc_single(tar_seg[i], y[i])
 evaluator.aggregate()
