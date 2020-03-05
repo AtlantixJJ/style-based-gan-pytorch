@@ -13,7 +13,7 @@ from torchvision import utils as vutils
 # setup and constants
 high_contrast = utils.CELEBA_COLORS
 data_dir = "record/celebahq1"
-device = "cuda"
+device = "cpu"
 external_model = segmenter.get_segmenter(
     "celebahq", "checkpoint/faceparse_unet_512.pth", device=device)
 label_list, cats = external_model.get_label_and_category_names()
@@ -99,7 +99,7 @@ def get_text(gt, ct):
 def process(res):
     res = torch.cat(res)
     res = F.interpolate(res, 256, mode="bilinear")
-    return res
+    return utils.torch2numpy(res * 255).transpose(0, 2, 3, 1)
 
 
 # get result from all models
@@ -107,14 +107,14 @@ paper_res = []
 paper_text = []
 count = 0
 for ind, model_file in enumerate(model_files):
-    for i in range(2):
+    for i in range(4):
         latent = latents[i:i+1]
         res, gt, ct = get_output(
             generator, model_file, external_model, latent)
         paper_res.extend(res)
         paper_text.append(get_text(gt, ct))
         count += 1
-
+paper_res = process(paper_res)
 
 N_imgs = len(paper_res)
 N_col = 6
@@ -145,5 +145,5 @@ fig = plt.figure(figsize=(30, 15))
 plt.imshow(canvas)
 plt.axis("off")
 plt.tight_layout()
-plt.savefig(f"qualitative_lsun_paper.pdf", box_inches="tight")
+plt.savefig(f"qualitative_celeba_paper.pdf", box_inches="tight")
 plt.close()

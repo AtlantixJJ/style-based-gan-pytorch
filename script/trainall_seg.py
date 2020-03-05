@@ -12,6 +12,7 @@ class SECore(object):
             "linear",
             "nonlinear",
             "generative",
+            "spherical"
         ]
         self.basecmd = "python train/extract_semantics.py --task celebahq --model-name stylegan --extractor %s --gpu %s --batch-size 1 --iter-num 10000 --last-only %d --expr record/celebahq%d"
 
@@ -93,8 +94,9 @@ def direct_run(gpus):
 uname = subprocess.run(["uname", "-a"], capture_output=True)
 uname = uname.stdout.decode("ascii")
 if "jericho" in uname:
-    gpus = ["0"]; assign_run(SEL1Reg().command, gpus)
+    #gpus = ["0"]; assign_run(SEL1Reg().command, gpus)
     #gpus = ["0"]; assign_run(direct_run, gpus)
+    gpus = ["0"]; assign_run(SECore().command, gpus)
 elif "instance" in uname:
     gpus = ["0"]; assign_run(SESpherical().command, gpus)
 else:

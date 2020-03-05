@@ -24,7 +24,9 @@ class CelebAMaskHQSegmenter(object):
         self.path = path
         self.device = device
         self.resolution = 128 if "128" in path else 512
-        self.model = unet(train_size=self.resolution)
+        self.model = unet(
+            n_classes=len(utils.CELEBA_CATEGORY),
+            train_size=self.resolution)
         state_dict = torch.load(path, map_location='cpu')
         self.model.load_state_dict(state_dict)
         self.model.to(device).eval()

@@ -7,9 +7,9 @@ import numpy as np
 import utils
 import pprint 
 #list2	 
-# 4->3, 6->5, 8->7
-label_list = ['skin', 'nose', 'eye_g', 'l_eye', 'r_eye', 'l_brow', 'r_brow', 'l_ear', 'r_ear', 'mouth', 'u_lip', 'l_lip', 'hair', 'hat', 'ear_r', 'neck_l', 'neck', 'cloth']
-id2cid = utils.create_id2cid(19, map_from=[4, 6, 8, 16], map_to=[3, 5, 7, 17])
+# 5->4, 7->6, 9->8
+label_list = ['background', 'skin', 'nose', 'eye_g', 'l_eye', 'r_eye', 'l_brow', 'r_brow', 'l_ear', 'r_ear', 'mouth', 'u_lip', 'l_lip', 'hair', 'hat', 'ear_r', 'neck_l', 'neck', 'cloth']
+id2cid = utils.create_id2cid(19, map_from=[5, 7, 9, 16], map_to=[4, 6, 8, 17])
 pprint.pprint(id2cid)
 basedir = sys.argv[1]
 folder_base = basedir + '/CelebAMask-HQ-mask'

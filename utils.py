@@ -581,25 +581,6 @@ def diff_idmap_logit(x, cid2id=None, n=None, map_from=None, map_to=None):
     return res
     
 
-
-# for celeba mask dataset
-class CelebAIDMap(object):
-    def __init__(self):
-        self.n_class = 19
-        self.map_from = [5, 7, 9]
-        self.map_to = [4, 6, 8]
-        self.id2cid = create_id2cid(self.n_class, self.map_from, self.map_to)
-        self.cid2id = create_cid2id(self.n_class, self.map_from, self.map_to)
-
-    def mapid(self, x):
-        return idmap(x, self.id2cid)
-    
-    def diff_mapid(self, x):
-        return diff_idmap_logit(x, self.cid2id)
-
-    def diff_mapid_softmax(self, x):
-        return diff_idmap_softmax(x, self.cid2id)
-
 #########
 ## Logging related functions
 #########
@@ -903,4 +884,23 @@ def visualize_masks(masks):
             masks_.extend(m[1])
     masks_ = torch.cat([F.interpolate(m, 128) for m in masks_], 0)
     return masks_
+
+
+# for celeba mask dataset
+class CelebAIDMap(object):
+    def __init__(self):
+        self.n_class = 19
+        self.map_from = [5, 7, 9]
+        self.map_to = [4, 6, 8]
+        self.id2cid = create_id2cid(self.n_class, self.map_from, self.map_to)
+        self.cid2id = create_cid2id(self.n_class, self.map_from, self.map_to)
+
+    def mapid(self, x):
+        return idmap(x, self.id2cid)
+    
+    def diff_mapid(self, x):
+        return diff_idmap_logit(x, self.cid2id)
+
+    def diff_mapid_softmax(self, x):
+        return diff_idmap_softmax(x, self.cid2id)
 """

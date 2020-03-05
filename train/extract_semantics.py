@@ -83,10 +83,6 @@ for ind in tqdm(range(cfg.n_iter)):
             segloss = segloss + loss.kl_div(segs, l)
         else:
             segloss = segloss + loss.segloss(segs, l)
-        # collect training statistic
-        est_label = segs[-1].argmax(1)
-        for j in range(est_label.shape[0]):
-            metrics[i](utils.torch2numpy(est_label[j]), utils.torch2numpy(l[j]))
 
     regloss = 0
     if cfg.l1_reg > 0:
@@ -98,6 +94,12 @@ for ind in tqdm(range(cfg.n_iter)):
     sep_model.optim.step()
     sep_model.optim.zero_grad()
 
+    # collect training statistic
+    for i, segs in enumerate(multi_segs):
+        est_label = segs[-1].argmax(1)
+        for j in range(est_label.shape[0]):
+            metrics[i](utils.torch2numpy(est_label[j]), utils.torch2numpy(l[j]))
+    record['loss'].append(utils.torch2numpy(total_loss))
     record['segloss'].append(utils.torch2numpy(segloss))
     record['regloss'].append(utils.torch2numpy(regloss))
 

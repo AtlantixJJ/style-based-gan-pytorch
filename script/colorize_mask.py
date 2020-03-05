@@ -21,7 +21,7 @@ for k in range(img_num):
     filename = os.path.join(folder_base, str(k) + '.png')		
     if os.path.exists(filename):
         im = np.array(Image.open(filename))
-        viz = colorizer(im)
+        viz = colorizer(im[:, :, 0])
     filename_save = os.path.join(folder_save, str(k) + '.png')
     result = Image.fromarray(viz.astype(np.uint8))
     print (filename_save)

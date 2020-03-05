@@ -175,6 +175,7 @@ class SemanticExtractorConfig(BaseConfig):
     def __str__(self):
         prev_str = super().__str__()
         strs = [prev_str]
+        strs.append("=> Loss type: %s" % self.loss_type)
         strs.append("=> Segmentation network: %s" % self.seg_net_path)
         strs.append("=> Segmentation configure: %s" % self.semantic_extractor)
         strs.append("=> Orthogonal regularization: %f" % self.ortho_reg)
