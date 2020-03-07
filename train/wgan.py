@@ -1,12 +1,7 @@
 """
-Semantic enhanced discriminator training.
-python script/wgan.py --imsize 64
-# hat128
-python train/wgan.py --imsize 128 --load expr/celeba_wgan128/gen_iter_050000.model --disc-net expr/celeba_wgan128/disc_iter_050000.model --batch-size 64 --gpu 0 --save-iter 1 --disp-iter 1 --iter-num 100 --dataset ../datasets/CelebAMask-HQ/hat/image --task celeba_hat_wgan --lr 0.0002 --warmup 100
-# eyeg128
-python train/wgan.py --imsize 128 --load expr/celeba_wgan128/gen_iter_050000.model --disc-net expr/celeba_wgan128/disc_iter_050000.model --batch-size 64 --gpu 1 --save-iter 1 --disp-iter 10 --iter-num 100 --dataset ../datasets/CelebAMask-HQ/eye_g/image --task celeba_eyeg_wgan --lr 0.0002 --warmup 100
-# earr128
-python train/wgan.py --imsize 128 --load expr/celeba_wgan128/gen_iter_050000.model --disc-net expr/celeba_wgan128/disc_iter_050000.model --batch-size 64 --gpu 1 --save-iter 1 --disp-iter 10 --iter-num 100 --dataset ../datasets/CelebAMask-HQ/ear_r/image --task celeba_earr_wgan --lr 0.0002 --warmup 100
+python train/wgan.py --imsize 64 --arch stylegan2 --task stylegan2 --disp-iter 1000 --dataset ../datasets/CelebAMask-HQ/CelebA-HQ-img-256 --load "" --batch-size 16 --iter-num 100000 --lr 0.0002
+python train/wgan.py --imsize 128 --arch stylegan2 --task celeba_stylegan2 --disp-iter 1000 --dataset ../datasets/CelebAMask-HQ/CelebA-HQ-img-256 --load "" --batch-size 16 --iter-num 100000 --lr 0.0002
+python train/wgan.py --imsize 64 --arch simple --disp-iter 1000  --task wgan --dataset ../datasets/CelebAMask-HQ/CelebA-HQ-img-256 --load "" --batch-size 16 --iter-num 100000 --lr 0.0002
 """
 import sys
 sys.path.insert(0, ".")
@@ -29,10 +24,8 @@ cfg.setup()
 print(s)
 with open(cfg.expr_dir + "/config.txt", "w") as f:
 	f.write(s)
-upsample = int(np.log2(cfg.imsize // 4))
 
-# A little weird because this is not paired with generator
-disc = model.simple.Discriminator(upsample=upsample)
+disc = getattr(model, cfg.arch).Discriminator(size=cfg.imsize, channel_multiplier=1)
 if len(cfg.disc_load_path) > 0:
     state_dict = torch.load(cfg.disc_load_path, map_location='cpu')
     disc.load_state_dict(state_dict)
@@ -41,7 +34,7 @@ disc = torch.nn.DataParallel(disc)
 disc = disc.to(cfg.device)
 disc.train()
 
-sg = model.simple.Generator(upsample=upsample)
+sg = getattr(model, cfg.arch).Generator(size=cfg.imsize, channel_multiplier=1)
 if len(cfg.gen_load_path) > 0:
     state_dict = torch.load(cfg.gen_load_path, map_location='cpu')
     sg.load_state_dict(state_dict)
@@ -61,7 +54,10 @@ d_sched = torch.optim.lr_scheduler.LambdaLR(
     d_optim,
     lambda step: min((float(step) + 1) / (cfg.warmup + 1), 1))
 
-latent = torch.randn(cfg.batch_size, 128).cuda()
+latent_size = 512
+if "simple" in cfg.arch:
+    latent_size = 128
+latent = torch.randn(cfg.batch_size, latent_size).cuda()
 eps = torch.rand(cfg.batch_size, 1, 1, 1).cuda()
 
 
@@ -113,8 +109,6 @@ for ind, real_image in enumerate(pbar):
     disc_loss, grad_penalty = wgan_gp(disc, real_image, fake_image)
     d_optim.step()
 
-    flag = (disc_loss + grad_penalty > 500)
-
     # Train gen
     sg.zero_grad()
     utils.requires_grad(disc, False)
@@ -126,8 +120,9 @@ for ind, real_image in enumerate(pbar):
     utils.requires_grad(disc, True)
 
     # schedule lr for warm start
-    g_sched.step()
-    d_sched.step()
+    if cfg.warmup > 0:
+        g_sched.step()
+        d_sched.step()
 
     # display
     record['disc_loss'].append(utils.torch2numpy(disc_loss))
@@ -148,19 +143,12 @@ for ind, real_image in enumerate(pbar):
 
     if ind % cfg.save_iter == 0 or ind == cfg.n_iter:
         print(f"=> Snapshot model {ind}")
-        #torch.save(g_optim.state_dict(), cfg.expr_dir + "/gen_iter_%06d.state" % ind)
-        #torch.save(d_optim.state_dict(), cfg.expr_dir + "/disc_iter_%06d.state" % ind)
+        torch.save(g_optim.state_dict(), cfg.expr_dir + "/gen_iter_%06d.state" % ind)
+        torch.save(d_optim.state_dict(), cfg.expr_dir + "/disc_iter_%06d.state" % ind)
         torch.save(sg.module.state_dict(), cfg.expr_dir + "/gen_iter_%06d.model" % ind)
         torch.save(disc.module.state_dict(), cfg.expr_dir + "/disc_iter_%06d.model" % ind)
 
-    if flag:
-        print(f"!> Abnormal loss at {ind}")
-        vutils.save_image(gen[:16], cfg.expr_dir + '/gen_%06d.png' % ind,
-                            nrow=4, normalize=True, range=(-1, 1))
-        vutils.save_image(real_image[:16], cfg.expr_dir + '/real_%06d.png' % ind,
-                            nrow=4, normalize=True, range=(-1, 1))
-
-    if flag or ind % cfg.disp_iter == 0 or ind == cfg.n_iter or cfg.debug:
+    if ind % cfg.disp_iter == 0 or ind == cfg.n_iter or cfg.debug:
         vutils.save_image(gen[:4], cfg.expr_dir + '/gen_%06d.png' % ind,
                             nrow=2, normalize=True, range=(-1, 1))
         vutils.save_image(real_image[:4], cfg.expr_dir + '/real_%06d.png' % ind,

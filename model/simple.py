@@ -2,6 +2,8 @@ import math, torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.transforms as transforms
+import numpy as np
+
 
 class MultiResolutionConvolution(nn.Module):
     def __init__(self, in_dims=[512, 512, 256, 64, 32, 16], out_dim=16, kernel_size=1):
@@ -59,16 +61,16 @@ def get_bn(name, dim):
         return nn.InstanceNorm2d(dim)
 
 class Generator(nn.Module):
-    def __init__(self, out_dim=3, out_act="tanh", upsample=3):
+    def __init__(self, out_dim=3, out_act="tanh", size=64, **kwargs):
         """
         Start from 4x4, upsample=3 -> 32
         """
         super(Generator, self).__init__()
-        dims = [64 * (2**i) for i in range(upsample+1)][::-1]
+        self.upsample = int(np.log2(size)) - 2
+        dims = [64 * (2**i) for i in range(self.upsample+1)][::-1]
         self.out_dim = out_dim
         self.out_act = out_act
         self.dims = dims
-        self.upsample = upsample
         self.ksize = 1
         self.padsize = (self.ksize - 1) // 2
 
@@ -115,18 +117,15 @@ class Generator(nn.Module):
         x = self.visualize(x)
         if self.out_act == "tanh":
             x = self.tanh(x)
-
-        if seg and self.segcfg != "":
-            seg = self.extract_segmentation(stage)[-1]
-            return x, seg
+            
         return x
 
 
 class Discriminator(nn.Module):
-    def __init__(self, upsample=3, in_dim=3):
+    def __init__(self, size=64, in_dim=3, **kwargs):
         super(Discriminator, self).__init__()
-
-        dims = [64 * (2**i) for i in range(upsample+1)]
+        self.upsample = int(np.log2(size)) - 2
+        dims = [64 * (2**i) for i in range(self.upsample+1)]
         self.dims = dims
 
         self.conv = nn.Conv2d(in_dim, dims[0], 3, padding=1)

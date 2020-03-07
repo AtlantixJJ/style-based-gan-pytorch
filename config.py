@@ -206,22 +206,25 @@ class BasicGANConfig(BaseConfig):
         self.dataset = self.args.dataset
         self.imsize = self.args.imsize
 
-        self.transform_train = transforms.Compose([
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-        self.ds = dataset.SimpleDataset(
-            root=self.dataset,
-            size=self.imsize,
-            transform=self.transform_train)
+        if "CelebA" in self.dataset:
+            self.ds = dataset.CelebAZipDataset(self.dataset, self.imsize)
+        else:
+            self.transform_train = transforms.Compose([
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+            self.ds = dataset.SimpleDataset(
+                root=self.dataset,
+                size=self.imsize,
+                transform=self.transform_train)
         self.dl = DataLoader(self.ds,
             batch_size=self.batch_size,
             shuffle=True,
             drop_last=True,
-            num_workers=NUM_WORKER)
+            num_workers=0)
 
         self.record = {'disc_loss': [], 'grad_penalty': [], 'gen_loss': []}
-        self.name = f"{self.task}{self.imsize}"
+        self.name = f"{self.task}_{self.imsize}"
         self.expr_dir = osj("expr", self.name)
 
     def __str__(self):

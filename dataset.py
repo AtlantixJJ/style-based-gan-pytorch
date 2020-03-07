@@ -1,5 +1,6 @@
 import torch
-import os
+import os, zipfile
+from io import BytesIO
 from os.path import join as osj
 from PIL import Image
 from torchvision import transforms
@@ -21,6 +22,66 @@ class IterableDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         return self.iterable[idx]
         
+
+class CelebAZipDataset(torch.utils.data.Dataset):
+    """
+    celeba-dataset.zip
+    partition: 0 for training, 1 for validation, 2 for testing
+    """
+    def __init__(self, root, size, partition=0, transform=None):
+        if type(size) is int:
+            self.size = (size, size)
+        elif type(size) is tuple or type(size) is list:
+            self.size = size
+        self.root = root
+        self.partition = partition
+        self.transform = transform
+        if self.transform is None and self.partition == 0:
+            self.transform = transforms.Compose([
+                transforms.Resize(self.size),
+                transforms.ColorJitter(0.05, 0.1, 0.1, 0.1),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+            ])
+        self.zipfile = zipfile.ZipFile(f"{root}/celeba-dataset.zip")
+
+        self.files = [f for f in self.zipfile.namelist() if ".jpg" in f]
+        self.files.sort()
+
+        self.attr_names, self.attrs = self.read_csv_from_zip(
+            "list_attr_celeba.csv")
+        _, self.bboxes = self.read_csv_from_zip(
+            "list_bbox_celeba.csv")
+        _, self.partitions = self.read_csv_from_zip(
+            "list_eval_partition.csv")
+        _, self.landmarks = self.read_csv_from_zip(
+            "list_landmarks_align_celeba.csv")
+        self.bboxes = [[int(i) for i in b] for b in self.bboxes]
+    
+    def __len__(self):
+        return len(self.partitions)
+
+    def read_csv_from_zip(self, f):
+        lines = self.zipfile.read(f).decode("ascii").split("\r\n")
+        head = lines[0]
+        content = [l.split(",")[1:] for l in lines[1:]]
+        return head[1:], content
+
+    def read_image_from_zip(self, f):
+        return Image.open(BytesIO(self.zipfile.read(f)))
+
+    def reset(self):
+        pass
+
+    def __getitem__(self, idx):
+        image = self.read_image_from_zip(self.files[idx])
+        #p = self.bboxes[idx]
+        image = image.crop((0, 20, 178, 20 + 178))
+        if self.transform:
+            image = self.transform(image)
+        return image
+
 
 class SimpleDataset(torch.utils.data.Dataset):
     """
@@ -298,3 +359,12 @@ class LatentSegmentationDataset(torch.utils.data.Dataset):
         strs =  "=> Latent segmentation dataset\n"
         strs += f"=> Number of samples: {len(self)}\n"
         return strs
+
+
+if __name__ == "__main__":
+    ds = CelebAZipDataset("../datasets/CelebA", 128)
+    for idx, img in enumerate(ds):
+        print(img.shape)
+        vutils.save_image(img, f"{idx}.png", normalize=True)
+        if idx > 10:
+            break
