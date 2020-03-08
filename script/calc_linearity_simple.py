@@ -53,7 +53,7 @@ state_dict = torch.load(args.external_model, map_location='cpu')
 train_size = 512
 if "128" in args.external_model:
     train_size = 128
-faceparser = unet(train_size=train_size)
+faceparser = unet(n_classes=15, train_size=train_size)
 faceparser.load_state_dict(state_dict)
 faceparser = faceparser.to(device)
 faceparser.eval()
