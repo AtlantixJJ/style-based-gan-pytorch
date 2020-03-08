@@ -396,7 +396,7 @@ class LinearityEvaluator(object):
     def __init__(self, model, external_model,
             last_only=1,
             train_iter=1000, batch_size=1, latent_dim=512,
-            test_dl=None, test_size=256, n_class=16):
+            test_dl=None, test_size=256, n_class=15):
         self.model = model
         self.external_model = external_model
         self.last_only = last_only

@@ -38,7 +38,9 @@ for f in files:
     arr = dic['IoU']
     dic1 = {k:arr[i] for i, k in enumerate(utils.CELEBA_CATEGORY)}
     utils.plot_dic(dic1, "class linearity", f.replace(".npy", ".png"))
+    print(len(dic["IoU"]))
     for i, v in enumerate(dic['IoU']):
+        print(v[-10:])
         v = np.array(v)[-500:]
 
         """
