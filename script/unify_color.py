@@ -4,6 +4,7 @@ import numpy as np
 import utils
 import copy
 
+idx = 3
 
 def find(l, key):
     for i, c in enumerate(l):
@@ -20,7 +21,7 @@ colors = []
 prev_region = 0
 for k in range(2, 16):
     print(f"=> {k}")
-    img = utils.imread(f"{data_dir}/skm_1_{k}.png")
+    img = utils.imread(f"{data_dir}/skm_{idx}_{k}.png")
     mask.fill(True)
     region = []
     # update color
@@ -40,7 +41,7 @@ for k in range(2, 16):
     
     if prev_region is 0:
         prev_region = copy.deepcopy(region)
-        utils.imwrite(f"{data_dir}/new_skm_1_{k}.png", img)
+        utils.imwrite(f"{data_dir}/new_skm_{idx}_{k}.png", img)
         continue
 
     # reassign color
@@ -75,5 +76,5 @@ for k in range(2, 16):
         region[i][0] = colors[-count]
 
     prev_region = copy.deepcopy(region)
-    utils.imwrite(f"{data_dir}/new_skm_1_{k}.png", newimg)
+    utils.imwrite(f"{data_dir}/new_skm_{idx}_{k}.png", newimg)
     
