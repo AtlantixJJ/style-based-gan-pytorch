@@ -19,7 +19,7 @@ def plot_dic(dic, file=None):
         ax = fig.add_subplot(2, 7, i + 1)
         if type(v[0]) is list or type(v[0]) is tuple:
             arr = np.array(v)
-            ax.plot(arr[:, 0], arr[:, 1])
+            ax.scatter(arr[:, 0], arr[:, 1])
         else:
             ax.plot(v)
         ax.set_title(k)
@@ -46,7 +46,7 @@ for category, task in zip(categories, tasks):
             v = np.array(v)
             v = v[len(v)//2:]
             x = 1
-            if len(v[v>0]) > 0:
+            if len(v[v>0]) > len(v) // 10:
                 x = v.std()
             summary[k].append(x)
     utils.plot_dic(summary, "", f"{task}_global.pdf")
@@ -59,17 +59,16 @@ for category, task in zip(categories, tasks):
     for ind, f in enumerate(files):
         dic = np.load(f, allow_pickle=True)[()]
         arr = dic['IoU']
-        for i, v in enumerate(dic['IoU']):
+        for i, v in enumerate(dic['IoU'][:15]):
             v = np.array(v)
             v = v[len(v)//2:]
-            if len(v[v>0]) > 0:
+            x = 1
+            if len(v[v>0]) > len(v)//10:
                 x = v.std()
-                summary[utils.CELEBA_CATEGORY[i]].append(
-                    (ind, x))
+            summary[utils.CELEBA_CATEGORY[i]].append(x)
+
     del summary["background"]
     plot_dic(summary, f"{task}_fullclass.pdf")
     summary = {k:v for k, v in summary.items() if k == category}
-    if category == "hat":
-        summary["hat"] = summary["hat"][1:]
     if len(summary) > 0:
-        utils.plot_dic(summary, "", f"{task}_class.pdf")
+        plot_dic(summary, f"{task}_class.pdf")

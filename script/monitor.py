@@ -857,11 +857,11 @@ if "celeba-agreement" in args.task:
 
 
 if "gan" in args.task:
+    latent = torch.randn(18, latent_size, device=device)
     for idx,model_file in enumerate(model_files):
         print("=> model file %s" % model_file)
         missed = generator.load_state_dict(torch.load(model_file))
         print(missed)
-        latent = torch.randn(8, latent_size, device=device)
         gen = generator(latent).clamp(-1, 1)
         label = external_model.segment_batch(gen)
         res = []
@@ -869,7 +869,7 @@ if "gan" in args.task:
         for i in range(latent.shape[0]):
             label_viz = colorizer(label[i]).unsqueeze(0).float() / 255.
             res.extend([gen[i:i+1], label_viz])
-        vutils.save_image(torch.cat(res), f"{savepath}_{idx}_gan.png", nrow=4)
+        vutils.save_image(torch.cat(res), f"{savepath}_{idx}_gan.png", nrow=6)
 
 
 if "seg" in args.task:
