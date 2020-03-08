@@ -733,7 +733,7 @@ def plot_dic(dic, title="", file=None):
         ax = fig.add_subplot(edge, edge, i + 1)
         if type(v[0]) is list or type(v[0]) is tuple:
             arr = np.array(v)
-            ax.scatter(v[:, 0], v[:, 1])
+            ax.plot(v[:, 0], v[:, 1])
         else:
             ax.plot(v)
         ax.set_title(k)

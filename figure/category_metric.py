@@ -19,7 +19,7 @@ def plot_dic(dic, file=None):
         ax = fig.add_subplot(2, 7, i + 1)
         if type(v[0]) is list or type(v[0]) is tuple:
             arr = np.array(v)
-            ax.scatter(arr[:, 0], arr[:, 1])
+            ax.plot(arr[:, 0], arr[:, 1])
         else:
             ax.plot(v)
         ax.set_title(k)
@@ -30,8 +30,8 @@ def plot_dic(dic, file=None):
 
 
 data_dir = "record"
-tasks = ["celeba_eyeg_wgan128", "celeba_hat_wgan128", "celeba_earr_wgan128", "wgan128"]
-categories = ["eye_g", "hat", "ear_r", ""]
+tasks = ["celeba_eyeg_wgan128", "celeba_hat_wgan128", "celeba_earr_wgan128", "wgan128"][3:]
+categories = ["eye_g", "hat", "ear_r", ""][3:]
 # analyze global data
 for category, task in zip(categories, tasks):
     files = glob.glob(f"{data_dir}/{task}/*global_dic.npy")
@@ -67,7 +67,6 @@ for category, task in zip(categories, tasks):
                 summary[utils.CELEBA_CATEGORY[i]].append(
                     (ind, x))
     del summary["background"]
-    del summary["neck_l"]
     plot_dic(summary, f"{task}_fullclass.pdf")
     summary = {k:v for k, v in summary.items() if k == category}
     if category == "hat":
