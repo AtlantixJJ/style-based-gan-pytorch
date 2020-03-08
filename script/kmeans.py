@@ -37,7 +37,7 @@ for f in files:
         st = resume_k
 
     for K in range(st, 16):
-        skm = SphericalKMeans(n_clusters=K, copy_x=True, n_jobs=4, verbose=True, max_iter=1000)
+        skm = SphericalKMeans(n_clusters=K, copy_x=True, n_jobs=32, verbose=True, max_iter=1000)
         skm.fit(X)
         pickle.dump(skm, open(f"{args.dataset}/skm_{ind}_{K}.pkl", 'wb'))
 
