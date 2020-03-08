@@ -58,14 +58,10 @@ faceparser.load_state_dict(state_dict)
 faceparser = faceparser.to(device)
 faceparser.eval()
 
-#mapid = utils.CelebAIDMap().diff_mapid_softmax
-
 if args.recursive == 0:
     model_name = args.model.replace("expr/", "").replace("/", "_")
 
-    #generator = model.tfseg.StyledGenerator(semantic="mul-16-none_sl0")
-    upsample = int(np.log2(args.imsize // 4))
-    generator = model.simple.Generator(upsample=upsample)
+    generator = model.simple.Generator(size=args.imsize)
     missed = generator.load_state_dict(torch.load(args.model), strict=False)
     print(missed)
     generator.to(device)
@@ -91,14 +87,12 @@ while args.recursive == 2:
     model_file = model_files[st]
     model_name = model_file.replace("expr/", "").replace("/", "_")
     print(model_name)
-    #generator = model.tfseg.StyledGenerator(semantic="mul-16-none_sl0")
-    upsample = int(np.log2(args.imsize // 4))
-    generator = model.simple.Generator(upsample=upsample)
+    generator = model.simple.Generator(size=args.imsize)
     missed = generator.load_state_dict(torch.load(model_file), strict=False)
     print(missed)
     generator.to(device)
 
-    evaluator = evaluate.LinearityEvaluator(generator, external_model,
+    evaluator = evaluate.LinearityEvaluator(generator, faceparser,
         last_only=args.last_only,
         train_iter=args.train_iter,
         test_size=args.test_size,
