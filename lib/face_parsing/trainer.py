@@ -136,7 +136,7 @@ class Trainer(object):
                             os.path.join(self.model_save_path, '{}_G.pth'.format(step + 1)))
     
     def build_model(self):
-        self.G = unet(n_classes=15).cuda()
+        self.G = unet(n_classes=15, train_size=self.imsize).cuda()
         if self.parallel:
             self.G = nn.DataParallel(self.G)
 

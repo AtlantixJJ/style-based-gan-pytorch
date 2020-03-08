@@ -18,7 +18,7 @@ external_model = segmenter.get_segmenter(
     "celebahq", "checkpoint/faceparse_unet_512.pth", device=device)
 label_list, cats = external_model.get_label_and_category_names()
 label_list = np.array([l[0] for l in label_list])
-n_class = 16
+n_class = 15
 metric = evaluate.DetectionMetric(ignore_classes=[0, 13], n_class=n_class)
 colorizer = utils.Colorize(n_class)
 model_files = glob.glob(f"{data_dir}/*")
