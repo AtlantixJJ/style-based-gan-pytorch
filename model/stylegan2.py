@@ -16,8 +16,7 @@ def from_pth_file(fpath):
         resolution = 256
     model = Generator(resolution, 512, 8)
     state_dict = torch.load(fpath, map_location="cpu")
-    missed = model.load_state_dict(state_dict)
-    print(missed)
+    model.load_state_dict(state_dict)
     return model
 
 class PixelNorm(nn.Module):

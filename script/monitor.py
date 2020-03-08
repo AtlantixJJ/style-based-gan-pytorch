@@ -67,10 +67,17 @@ if "simpleseg" in args.model:
     latent_size = 128
 elif "wgan64" in args.model:
     from model.simple import Generator
-    generator = Generator(imsize=64).to(device)
+    generator = Generator(size=64).to(device)
     model_path = "checkpoint/faceparse_unet_128.pth"
     task = "celebahq"
     batch_size = 64
+    latent_size = 128
+elif "wgan128" in args.model:
+    from model.simple import Generator
+    generator = Generator(size=128).to(device)
+    model_path = "checkpoint/faceparse_unet_128.pth"
+    task = "celebahq"
+    batch_size = 16
     latent_size = 128
 elif "stylegan2" in args.model:
     if "bedroom" in args.model:
@@ -156,36 +163,10 @@ if "log" in args.task:
     utils.plot_dic(dic, args.model, savepath + "_loss.png")
 
 
-def random_projection(data):
-    x = np.random.normal(size=data.shape[2]).astype("float32")
-    x = x / np.linalg.norm(x, 2)
-    y = np.random.normal(size=data.shape[2]).astype("float32")
-    y = y / np.linalg.norm(y, 2)
+def get_projection(data, vx, vy):
+    return data.matmul(vx), data.matmul(vy)
 
-    return data.dot(x), data.dot(y)
-
-def random_projection_torch(data):
-    x = torch.randn(data.shape[1])
-    x /= x.norm(2)
-    y = torch.randn(data.shape[1])
-    y -= x * x.dot(y)
-    y /= y.norm(2)
-
-    return data.matmul(x), data.matmul(y)
-
-def weight_projection_torch(data, w, vx, vy):
-    wn = w / w.norm(2)
-    x = torch.randn(data.shape[1])
-    x -= wn * wn.dot(x) # ortho to w
-    x /= x.norm(2)
-    y = torch.randn(data.shape[1])
-    y -= wn * wn.dot(y) # ortho to w
-    y -= x * x.dot(y) # ortho to x
-    y /= y.norm(2)
-
-    return data.matmul(x), data.matmul(y)
-
-def project_direction(ws):
+def weight_project_direction(ws):
     xs = []
     ys = []
     for w in ws:
@@ -200,6 +181,20 @@ def project_direction(ws):
         xs.append(x)
         ys.append(y)
     return xs, ys
+
+def projection_direction(size):
+    x = torch.randn(size)
+    x /= x.norm(2)
+    y = torch.randn(size)
+    y -= x * x.dot(y)
+    y /= y.norm(2)
+    return x, y
+
+def get_random_projection(data):
+    vx, vy = projection_direction(data.shape[1])
+
+    return get_projection(data, vx, vy)
+
 
 
 if "projective" in args.task:
@@ -231,93 +226,6 @@ if "projective" in args.task:
             plt.close()
 
             vutils.save_image(utils.catlist([image, pred_viz]), "image.png")
-
-
-if "visualize" in args.task:
-    H, W = image.shape[2:]
-    size = H // 2
-    model_file = model_files[-1]
-    sep_model = get_semantic_extractor(get_extractor_name(model_file))(
-        n_class=n_class,
-        dims=dims).to(device)
-    sep_model.eval()
-    state_dict = torch.load(model_file, map_location='cpu')
-    missed = sep_model.load_state_dict(state_dict)
-    sep_model.to(device).eval()
-    w = 0
-    if "spherical" in model_file:
-        w = sep_model.weight[:, :, 0, 0]
-    else:
-        w = concat_weight(sep_model.semantic_extractor)
-    xs, ys = project_direction(w)
-
-
-    for ind in range(4):
-        with torch.no_grad():
-            print("=> Preparing feature")
-            latent.normal_()
-            image, stage = generator.get_stage(latent)
-            seg = sep_model(stage, True)[0]
-            seg = F.interpolate(seg, size=size, mode="bilinear")
-            pred = seg.argmax(1)
-            pred_viz = colorizer(pred).float() / 255.
-            data = torch.cat([F.interpolate(s, size=size, mode="bilinear")[0].cpu() for s in stage]).permute(1, 2, 0)
-            c = (np.array(utils.CELEBA_COLORS)/255.)[pred.view(-1).tolist()]
-            data = data.view(-1, data.shape[2])
-
-            print("=> Random single class projection")
-            fig = plt.figure(figsize=(40, 36))
-            for i in range(16):
-                x, y = random_projection_torch(data[pred.view(-1) == i])
-                cs = (np.array(utils.CELEBA_COLORS)/255.)[i]
-                ax = plt.subplot(4, 4, 1 + i)
-                ax.scatter(x, y, s=1, c=cs.reshape(1, 3))
-            plt.savefig(f"random_single_projection_{ind}.png")
-            plt.close()
-
-            print("=> Weight single class projection")
-            fig = plt.figure(figsize=(40, 36))
-            for i in range(16):
-                x, y = weight_projection_torch(
-                    data[pred.view(-1) == i],
-                    w[i], xs[i], ys[i])
-                cs = (np.array(utils.CELEBA_COLORS)/255.)[i]
-                ax = plt.subplot(4, 4, 1 + i)
-                ax.scatter(x, y, s=1, c=cs.reshape(1, 3))
-            plt.savefig(f"weight_single_projection_{ind}.png")
-            plt.close()
-
-            print("=> Weight projection")
-            fig = plt.figure(figsize=(40, 36))
-            for i in range(16):
-                x, y = weight_projection_torch(data, w[i], xs[i], ys[i])
-                ax = plt.subplot(4, 4, 1 + i)
-                ax.scatter(x, y, c=c, s=1)
-            plt.savefig(f"weight_projection_{ind}.png")
-            plt.close()
-
-            print("=> Random projection")
-            fig = plt.figure(figsize=(40, 36))
-            for i in range(4):
-                x, y = random_projection_torch(data)
-                ax = plt.subplot(2, 2, 1 + i)
-                ax.scatter(x, y, s=1, c=c)
-            plt.savefig(f"random_projection_{ind}.png")
-            plt.close()
-
-    """
-    latent.uniform_(); latent.normal_()
-    datafiles = glob.glob("../datasets/StyleGANFeats/*.npy")
-    datafiles.sort()
-    for f in datafiles:
-        data = np.load(f, allow_pickle=True)[()].astype("float32")
-        x, y = random_projection(data)
-        x = x.reshape(-1)
-        y = y.reshape(-1)
-        plt.scatter(x, y, s=1)
-        plt.savefig("test.png")
-        plt.close()
-    """
 
 
 if "celeba-evaluator" in args.task:
@@ -517,7 +425,7 @@ if "score-second" in args.task:
 if "score-first" in args.task:
     model_file = model_files[-1]
     sep_model = get_semantic_extractor(get_extractor_name(model_file))(
-        n_class=n_class,
+        n_class=16,
         dims=dims).to(device)
     orig_weight = torch.load(model_file, map_location=device)
     sep_model.load_state_dict(orig_weight)
@@ -530,9 +438,9 @@ if "score-first" in args.task:
             max_value = torch.gather(seg1, 1, max_pred.unsqueeze(1))
 
             # filtering
-            std = max_value.std() * 2
-            mean = max_value.mean()
-            max_value[max_value > mean + std] = mean + std
+            #std = max_value.std() * 2
+            #mean = max_value.mean()
+            #max_value[max_value > mean + std] = mean + std
 
             mini, maxi = max_value.min(), max_value.max()
             max_value = (max_value - mini) / (maxi - mini)
@@ -744,6 +652,95 @@ if "weight" in args.task:
     """
 
 
+if "visualize" in args.task:
+    H, W = image.shape[2:]
+    size = H // 2
+    model_file = model_files[-1]
+    sep_model = get_semantic_extractor(get_extractor_name(model_file))(
+        n_class=n_class,
+        dims=dims).to(device)
+    sep_model.eval()
+    state_dict = torch.load(model_file, map_location='cpu')
+    missed = sep_model.load_state_dict(state_dict)
+    sep_model.to(device).eval()
+    w = 0
+    if "spherical" in model_file:
+        w = sep_model.weight[:, :, 0, 0]
+    else:
+        w = concat_weight(sep_model.semantic_extractor)
+    xs, ys = weight_project_direction(w)
+
+
+    for ind in range(4):
+        with torch.no_grad():
+            print("=> Preparing feature")
+            latent.normal_()
+            image, stage = generator.get_stage(latent)
+            seg = sep_model(stage, True)[0]
+            seg = F.interpolate(seg, size=size, mode="bilinear")
+            pred = seg.argmax(1)
+            pred_viz = colorizer(pred).float() / 255.
+            data = torch.cat([F.interpolate(s, size=size, mode="bilinear")[0].cpu() for s in stage]).permute(1, 2, 0)
+            c = (np.array(utils.CELEBA_COLORS)/255.)[pred.view(-1).tolist()]
+            data = data.view(-1, data.shape[2])
+
+            print("=> Random single class projection")
+            fig = plt.figure(figsize=(40, 36))
+            vx, vy = projection_direction(data.shape[1])
+            for i in range(n_class):
+                x, y = get_projection(
+                    data[pred.view(-1) == i],
+                    vx, vy)
+                cs = (np.array(utils.CELEBA_COLORS)/255.)[i]
+                ax = plt.subplot(4, 4, 1 + i)
+                ax.scatter(x, y, s=1, c=cs.reshape(1, 3))
+            plt.savefig(f"random_single_projection_{ind}.png", box_inches="tight")
+            plt.close()
+
+            print("=> Random projection")
+            fig = plt.figure(figsize=(40, 36))
+            x, y = get_projection(data, vx, vy)
+            plt.scatter(x, y, s=1, c=c)
+            plt.savefig(f"random_projection_{ind}.png", box_inches="tight")
+            plt.close()
+
+            print("=> Weight single class projection")
+            fig = plt.figure(figsize=(40, 36))
+            for i in range(n_class):
+                x, y = get_projection(
+                    data[pred.view(-1) == i],
+                    xs[i], ys[i])
+                cs = (np.array(utils.CELEBA_COLORS)/255.)[i]
+                ax = plt.subplot(4, 4, 1 + i)
+                ax.scatter(x, y, s=1, c=cs.reshape(1, 3))
+            plt.savefig(f"weight_single_projection_{ind}.png", box_inches="tight")
+            plt.close()
+
+            print("=> Weight projection")
+            fig = plt.figure(figsize=(40, 36))
+            for i in range(n_class):
+                x, y = get_projection(data, xs[i], ys[i])
+                ax = plt.subplot(4, 4, 1 + i)
+                ax.scatter(x, y, c=c, s=1)
+            plt.savefig(f"weight_projection_{ind}.png", box_inches="tight")
+            plt.close()
+
+
+    """
+    latent.uniform_(); latent.normal_()
+    datafiles = glob.glob("../datasets/StyleGANFeats/*.npy")
+    datafiles.sort()
+    for f in datafiles:
+        data = np.load(f, allow_pickle=True)[()].astype("float32")
+        x, y = random_projection(data)
+        x = x.reshape(-1)
+        y = y.reshape(-1)
+        plt.scatter(x, y, s=1)
+        plt.savefig("test.png")
+        plt.close()
+    """
+
+
 if "contribution" in args.task:
     latent = torch.randn(1, latent_size, device=device)
     for i, model_file in enumerate(model_files):
@@ -860,19 +857,19 @@ if "celeba-agreement" in args.task:
 
 
 if "gan" in args.task:
-    model_file = model_files[20]
-    print("=> model file %s" % model_file)
-    missed = generator.load_state_dict(torch.load(model_file))
-    print(missed)
-    latent = torch.randn(8, latent_size, device=device)
-    gen = generator(latent).clamp(-1, 1)
-    label = external_model.segment_batch(gen)
-    res = []
-    gen = (gen.detach().cpu() + 1) / 2
-    for i in range(latent.shape[0]):
-        label_viz = colorizer(label[i]).unsqueeze(0).float() / 255.
-        res.extend([gen[i:i+1], label_viz])
-    vutils.save_image(torch.cat(res), f"{savepath}_gan.png", nrow=4)
+    for idx,model_file in enumerate(model_files):
+        print("=> model file %s" % model_file)
+        missed = generator.load_state_dict(torch.load(model_file))
+        print(missed)
+        latent = torch.randn(8, latent_size, device=device)
+        gen = generator(latent).clamp(-1, 1)
+        label = external_model.segment_batch(gen)
+        res = []
+        gen = (gen.detach().cpu() + 1) / 2
+        for i in range(latent.shape[0]):
+            label_viz = colorizer(label[i]).unsqueeze(0).float() / 255.
+            res.extend([gen[i:i+1], label_viz])
+        vutils.save_image(torch.cat(res), f"{savepath}_{idx}_gan.png", nrow=4)
 
 
 if "seg" in args.task:
