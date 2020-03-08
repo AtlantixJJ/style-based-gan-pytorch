@@ -74,7 +74,7 @@ class Data_Loader():
         if centercrop:
             options.append(transforms.CenterCrop(160))
         if resize:
-            options.append(transforms.Resize((self.imsize,self.imsize)))
+            options.append(transforms.Resize((self.imsize,self.imsize), Image.NEAREST))
         if totensor:
             options.append(transforms.ToTensor())
         if normalize:

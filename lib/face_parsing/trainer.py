@@ -116,10 +116,19 @@ class Trainer(object):
 
             # Sample images
             if (step + 1) % self.sample_step == 0:
-                labels_sample = self.G(imgs)
-                labels_sample = generate_label(labels_sample, self.imsize)
-                save_image(denorm(labels_sample),
-                            os.path.join(self.sample_path, '{}_predict.png'.format(step + 1)))
+                labels_sample = self.G(imgs[:9])
+                labels_sample = generate_label(
+                    labels_sample, self.imsize)
+                res = []
+                for i in range(labels_sample.shape[0]):
+                    gt_sample = tensor2label(labels_real_plain[i:i+1], 15)
+                    gt_sample = torch.from_numpy(gt_sample).unsqueeze(0).float()
+                    res.extend([
+                        denorm(imgs[i:i+1]).detach().cpu(),
+                        labels_sample[i:i+1].detach().cpu(),
+                        gt_sample.detach().cpu()])
+                save_image(torch.cat(res),
+                            os.path.join(self.sample_path, '{}_predict.png'.format(step + 1)), nrow=9)
 
             if (step+1) % model_save_step == 0:
                 print("=> Save model %d" % (step + 1))

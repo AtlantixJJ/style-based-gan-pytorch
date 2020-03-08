@@ -77,5 +77,5 @@ class unet(nn.Module):
 
         if resize and input_size != self.train_size:
             final = F.interpolate(final, input_size, mode="bilinear")
-
+        #print(final.shape)
         return final

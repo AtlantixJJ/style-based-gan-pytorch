@@ -65,10 +65,11 @@ if "simpleseg" in args.model:
     model_path = "checkpoint/faceparse_unet_128.pth"
     batch_size = 64
     latent_size = 128
-elif "simple" in args.model:
+elif "wgan64" in args.model:
     from model.simple import Generator
-    generator = Generator(upsample=4).to(device)
+    generator = Generator(imsize=64).to(device)
     model_path = "checkpoint/faceparse_unet_128.pth"
+    task = "celebahq"
     batch_size = 64
     latent_size = 128
 elif "stylegan2" in args.model:
@@ -856,6 +857,22 @@ if "celeba-agreement" in args.task:
     evaluator.aggregate()
     clean_dic = evaluator.summarize()
     np.save(savepath + "_agreement", clean_dic)
+
+
+if "gan" in args.task:
+    model_file = model_files[20]
+    print("=> model file %s" % model_file)
+    missed = generator.load_state_dict(torch.load(model_file))
+    print(missed)
+    latent = torch.randn(8, latent_size, device=device)
+    gen = generator(latent).clamp(-1, 1)
+    label = external_model.segment_batch(gen)
+    res = []
+    gen = (gen.detach().cpu() + 1) / 2
+    for i in range(latent.shape[0]):
+        label_viz = colorizer(label[i]).unsqueeze(0).float() / 255.
+        res.extend([gen[i:i+1], label_viz])
+    vutils.save_image(torch.cat(res), f"{savepath}_gan.png", nrow=4)
 
 
 if "seg" in args.task:

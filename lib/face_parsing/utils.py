@@ -93,10 +93,10 @@ def generate_label(inputs, imsize):
     label_batch = []
     for p in pred_batch:
         p = p.view(1, imsize, imsize)
-        label_batch.append(tensor2label(p, 19))
+        label_batch.append(tensor2label(p, 15))
                 
     label_batch = np.array(label_batch)
-    label_batch = torch.from_numpy(label_batch)	
+    label_batch = torch.from_numpy(label_batch).float()
 
     return label_batch
 
