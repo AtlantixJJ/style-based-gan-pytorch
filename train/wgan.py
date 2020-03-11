@@ -1,7 +1,8 @@
 """
 python train/wgan.py --imsize 64 --arch stylegan2 --task stylegan2 --disp-iter 1000 --dataset ../datasets/CelebAMask-HQ/CelebA-HQ-img-256 --load "" --batch-size 16 --iter-num 100000 --lr 0.0002
 python train/wgan.py --imsize 128 --arch stylegan2 --task celeba_stylegan2 --disp-iter 1000 --dataset ../datasets/CelebAMask-HQ/CelebA-HQ-img-256 --load "" --batch-size 16 --iter-num 100000 --lr 0.0002
-python train/wgan.py --imsize 64 --arch simple --disp-iter 1000  --task wgan --dataset ../datasets/CelebAMask-HQ/CelebA-HQ-img-256 --load "" --batch-size 16 --iter-num 100000 --lr 0.0002
+python train/wgan.py --imsize 64 --arch simple --disp-iter 1000  --task wgan --dataset ../datasets/CelebA --load "" --batch-size 256 --iter-num 50000 --lr 0.0002
+python train/wgan.py --imsize 128 --arch simple --disp-iter 1000  --task wgan --dataset ../datasets/CelebA --load "" --batch-size 128 --iter-num 100000 --lr 0.0002
 """
 import sys
 sys.path.insert(0, ".")

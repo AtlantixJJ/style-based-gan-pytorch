@@ -77,7 +77,7 @@ class CelebAZipDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         image = self.read_image_from_zip(self.files[idx])
         #p = self.bboxes[idx]
-        image = image.crop((0, 20, 178, 20 + 178))
+        image = image.crop((15, 40, 15 + 148, 40 + 148))
         if self.transform:
             image = self.transform(image)
         return image
