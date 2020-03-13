@@ -38,6 +38,7 @@ generator = model.load_model_from_pth_file(cfg.model_name, cfg.load_path)
 generator.to(cfg.device).eval()
 
 image, stage = generator.get_stage(latent, True)
+stage = [s for i, s in enumerate(stage) if i in cfg.layers]
 dims = [s.shape[1] for s in stage]
 sep_model = get_semantic_extractor(cfg.semantic_extractor)(
     n_class=n_class,
@@ -59,6 +60,7 @@ for ind in tqdm(range(cfg.n_iter)):
 
     with torch.no_grad(): # fix main network
         gen, stage = generator.get_stage(latent, detach=True)
+        stage = [s for i, s in enumerate(stage) if i in cfg.layers]
         gen = gen.clamp(-1, 1)
         label = 0
         if not is_resize:

@@ -139,6 +139,8 @@ class SemanticExtractorConfig(BaseConfig):
         self.parser.add_argument(
             "--extractor", default="linear", help="Configure of segmantic segmentation extractor")
         self.parser.add_argument(
+            "--layers", default="0,1,2,3,4,5,6,7,8", help="The layers from which the semantics are extracted.")
+        self.parser.add_argument(
             "--upsample", default="bilinear", help="Upsample method of feature map. bilinear, nearest.")
         self.parser.add_argument(
             "--loss", default="CE", help="CE | KL")
@@ -146,6 +148,7 @@ class SemanticExtractorConfig(BaseConfig):
             "--n-class", type=int, default=16, help="Class num")
         self.parser.add_argument(
             "--last-only", type=int, default=1, help="If to train the last layer only")
+        #  reg
         self.parser.add_argument(
             "--ortho-reg", type=float, default=-1, help="The coef of using ortho reg. < 0 means not to use.")
         self.parser.add_argument(
@@ -158,6 +161,8 @@ class SemanticExtractorConfig(BaseConfig):
 
     def parse(self):
         super().parse()
+        self.layers = [int(l)
+            for l in self.args.layers.split(",")]
         self.last_only = self.args.last_only
         self.ortho_reg = self.args.ortho_reg
         self.positive_reg = self.args.positive_reg
@@ -169,12 +174,13 @@ class SemanticExtractorConfig(BaseConfig):
         self.seg_net_path = self.args.seg_net
         self.semantic_extractor = self.args.extractor
         self.record = {'loss': [], 'segloss': [], 'regloss': []}
-        self.name = f"{self.task}_{self.model_name}_{self.semantic_extractor}_l1{self.l1_reg}"
+        self.name = f"{self.task}_{self.model_name}_{self.semantic_extractor}_layer{self.args.layers}"
         self.expr_dir = osj(self.args.expr, self.name)
 
     def __str__(self):
         prev_str = super().__str__()
         strs = [prev_str]
+        strs.append("=> Extracting from layers: %s" % self.args.layers)
         strs.append("=> Loss type: %s" % self.loss_type)
         strs.append("=> Segmentation network: %s" % self.seg_net_path)
         strs.append("=> Segmentation configure: %s" % self.semantic_extractor)

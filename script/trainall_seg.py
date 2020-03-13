@@ -49,6 +49,23 @@ class SEL1Reg(SECore):
         return l
 
 
+class SELayers(SECore):
+    def __init__(self):
+        self.all_layers = "0,1,2,3,4,5,6,7,8"
+        self.layer_num = 9
+        self.basecmd = "CUDA_VISIBLE_DEVICES=%s python train/extract_semantics.py --task celebahq --model-name stylegan --extractor linear --layers %s --gpu %s --batch-size 1 --iter-num 10000 --disp-iter 5000 --last-only 1 --expr record/layers/"
+
+    def args_gen(self, gpus):
+        l = []
+        count = 0
+        for i in range(len(self.layer_num)):
+            layers = self.all_layers[2*i:]
+            gpu = gpus[count]
+            l.append((count, (gpu, layers, gpu)))
+            count = (count + 1) % len(gpus)
+        return l
+
+
 class SESpherical(SECore):
     def __init__(self):
         self.basecmd = "python train/extract_semantics.py --task celebahq --model-name stylegan --extractor spherical --gpu %s --batch-size 1 --iter-num 10000 --last-only 1 --expr record/celebahq1"
@@ -96,7 +113,7 @@ uname = uname.stdout.decode("ascii")
 if "jericho" in uname:
     #gpus = ["0"]; assign_run(SEL1Reg().command, gpus)
     #gpus = ["0"]; assign_run(direct_run, gpus)
-    gpus = ["0"]; assign_run(SECore().command, gpus)
+    gpus = ["0"]; assign_run(SELayers().command, gpus)
 elif "instance" in uname:
     gpus = ["0"]; assign_run(SESpherical().command, gpus)
 else:
