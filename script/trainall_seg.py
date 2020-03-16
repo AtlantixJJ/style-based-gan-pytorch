@@ -58,7 +58,7 @@ class SELayers(SECore):
     def args_gen(self, gpus):
         l = []
         count = 0
-        for i in range(len(self.layer_num)):
+        for i in range(6,self.layer_num):
             layers = self.all_layers[2*i:]
             gpu = gpus[count]
             l.append((count, (gpu, layers, gpu)))
