@@ -42,15 +42,20 @@ class MyLinear(nn.Module):
             bias = bias * self.b_mul
         return F.linear(x, self.weight * self.w_mul, bias)
 
+
 class MyConv2d(nn.Module):
     """Conv layer with equalized learning rate and custom learning rate multiplier."""
-    def __init__(self, input_channels, output_channels, kernel_size, gain=2**(0.5), use_wscale=False, lrmul=1, bias=True,
-                intermediate=None, upscale=False):
+    def __init__(self, input_channels, output_channels, kernel_size, stride=1, gain=2**(0.5), use_wscale=False, lrmul=1, bias=True,
+                intermediate=None, upscale=False, downscale=False):
         super().__init__()
         if upscale:
             self.upscale = Upscale2d()
         else:
             self.upscale = None
+        if downscale:
+            self.downscale = Downscale2d()
+        else:
+            self.downscale = None
         he_std = gain * (input_channels * kernel_size ** 2) ** (-0.5) # He init
         self.kernel_size = kernel_size
         if use_wscale:
@@ -85,14 +90,29 @@ class MyConv2d(nn.Module):
             have_convolution = True
         elif self.upscale is not None:
             x = self.upscale(x)
-    
-        if not have_convolution and self.intermediate is None:
+        
+        downscale = self.downscale
+        intermediate = self.intermediate
+        if downscale is not None and min(x.shape[2:]) >= 128:
+            w = self.weight * self.w_mul
+            w = F.pad(w, (1,1,1,1))
+            # in contrast to upscale, this is a mean...
+            w = (w[:, :, 1:, 1:]+ w[:, :, :-1, 1:] + w[:, :, 1:, :-1] + w[:, :, :-1, :-1])*0.25 # avg_pool?
+            x = F.conv2d(x, w, stride=2, padding=(w.size(-1)-1)//2)
+            have_convolution = True
+            downscale = None
+        elif downscale is not None:
+            assert intermediate is None
+            intermediate = downscale
+            
+        if not have_convolution and intermediate is None:
             return F.conv2d(x, self.weight * self.w_mul, bias, padding=self.kernel_size//2)
         elif not have_convolution:
             x = F.conv2d(x, self.weight * self.w_mul, None, padding=self.kernel_size//2)
-        
-        if self.intermediate is not None:
-            x = self.intermediate(x)
+
+        if intermediate is not None:
+            x = intermediate(x)
+
         if bias is not None:
             x = x + bias.view(1, -1, 1, 1)
         return x
@@ -166,6 +186,7 @@ class BlurLayer(nn.Module):
             groups=x.size(1)
         )
         return x
+
 
 def upscale2d(x, factor=2, gain=1):
     assert x.dim() == 4
@@ -452,15 +473,157 @@ class StyledGenerator(nn.Module):
         return noise
         
 
+    def __init__(self, group_size=4, num_new_features=1):
+        super().__init__()
+        self.group_size = 4
+        self.num_new_features = 1
+    def forward(self, x):
+        b, c, h, w = x.shape
+        group_size = min(self.group_size, b)
+        y = x.reshape([group_size, -1, self.num_new_features,
+                        c // self.num_new_features, h, w])
+        y = y - y.mean(0, keepdim=True)
+        y = (y**2).mean(0, keepdim=True)
+        y = (y + 1e-8)**0.5
+        y = y.mean([3, 4, 5], keepdim=True).squeeze(3) # don't keep the meaned-out channels
+        y = y.expand(group_size, -1, -1, h, w).clone().reshape(b, self.num_new_features, h, w)
+        z = torch.cat([x, y], dim=1)
+        return z
+
+
+class StddevLayer(nn.Module):
+    def __init__(self, group_size=4, num_new_features=1):
+        super().__init__()
+        self.group_size = 4
+        self.num_new_features = 1
+    def forward(self, x):
+        b, c, h, w = x.shape
+        group_size = min(self.group_size, b)
+        y = x.reshape([group_size, -1, self.num_new_features,
+                        c // self.num_new_features, h, w])
+        y = y - y.mean(0, keepdim=True)
+        y = (y**2).mean(0, keepdim=True)
+        y = (y + 1e-8)**0.5
+        y = y.mean([3, 4, 5], keepdim=True).squeeze(3) # don't keep the meaned-out channels
+        y = y.expand(group_size, -1, -1, h, w).clone().reshape(b, self.num_new_features, h, w)
+        z = torch.cat([x, y], dim=1)
+        return z
+
+
+class Downscale2d(nn.Module):
+    def __init__(self, factor=2, gain=1):
+        super().__init__()
+        assert isinstance(factor, int) and factor >= 1
+        self.factor = factor
+        self.gain = gain
+        if factor == 2:
+            f = [np.sqrt(gain) / factor] * factor
+            self.blur = BlurLayer(kernel=f, normalize=False, stride=factor)
+        else:
+            self.blur = None
+
+    def forward(self, x):
+        assert x.dim()==4
+        # 2x2, float32 => downscale using _blur2d().
+        if self.blur is not None and x.dtype == torch.float32:
+            return self.blur(x)
+
+        # Apply gain.
+        if self.gain != 1:
+            x = x * self.gain
+
+        # No-op => early exit.
+        if factor == 1:
+            return x
+
+        # Large factor => downscale using tf.nn.avg_pool().
+        # NOTE: Requires tf_config['graph_options.place_pruned_graph']=True to work.
+        return F.avg_pool2d(x, self.factor)
+
+
+class DiscriminatorBlock(nn.Sequential):
+    def __init__(self, in_channels, out_channels, gain, use_wscale, activation_layer):
+        super().__init__(OrderedDict([
+            ('conv0', MyConv2d(in_channels, in_channels, 3, gain=gain, use_wscale=use_wscale)), # out channels nf(res-1)
+            ('act0', activation_layer),
+            ('blur', BlurLayer()),
+            ('conv1_down', MyConv2d(in_channels, out_channels, 3, gain=gain, use_wscale=use_wscale, downscale=True)),
+            ('act1', activation_layer)]))
+
+
+class View(nn.Module):
+    def __init__(self, *shape):
+        super().__init__()
+        self.shape = shape
+    def forward(self, x):
+        return x.view(x.size(0), *self.shape)
+
+
+class DiscriminatorTop(nn.Sequential):
+    def __init__(self, mbstd_group_size, mbstd_num_features, in_channels, intermediate_channels, gain, use_wscale, activation_layer, resolution=4, in_channels2=None, output_features=1, last_gain=1):
+        layers = []
+        if mbstd_group_size > 1:
+            layers.append(('stddev_layer', StddevLayer(mbstd_group_size, mbstd_num_features)))
+        if in_channels2 is None:
+            in_channels2 = in_channels
+        layers.append(('conv', MyConv2d(in_channels + mbstd_num_features, in_channels2, 3, gain=gain, use_wscale=use_wscale)))
+        layers.append(('act0', activation_layer))
+        layers.append(('view', View(-1)))
+        layers.append(('dense0', MyLinear(in_channels2*resolution*resolution, intermediate_channels, gain=gain, use_wscale=use_wscale)))
+        layers.append(('act1', activation_layer))
+        layers.append(('dense1', MyLinear(intermediate_channels, output_features, gain=last_gain, use_wscale=use_wscale)))
+        super().__init__(OrderedDict(layers))
+
+
+class Discriminator(nn.Sequential):
+    def __init__(self,
+        #images_in,                          # First input: Images [minibatch, channel, height, width].
+        #labels_in,                          # Second input: Labels [minibatch, label_size].
+        num_channels        = 3,            # Number of input color channels. Overridden based on dataset.
+        resolution          = 1024,           # Input resolution. Overridden based on dataset.
+        fmap_base           = 8192,         # Overall multiplier for the number of feature maps.
+        fmap_decay          = 1.0,          # log2 feature map reduction when doubling the resolution.
+        fmap_max            = 512,          # Maximum number of feature maps in any layer.
+        nonlinearity        = 'lrelu',      # Activation function: 'relu', 'lrelu',
+        use_wscale          = True,         # Enable equalized learning rate?
+        mbstd_group_size    = 4,            # Group size for the minibatch standard deviation layer, 0 = disable.
+        mbstd_num_features  = 1,            # Number of features for the minibatch standard deviation layer.
+        #blur_filter         = [1,2,1],      # Low-pass filter to apply when resampling activations. None = no filtering.
+                ):
+        self.mbstd_group_size = 4
+        self.mbstd_num_features = 1
+        resolution_log2 = int(np.log2(resolution))
+        assert resolution == 2**resolution_log2 and resolution >= 4
+        def nf(stage):
+            return min(int(fmap_base / (2.0 ** (stage * fmap_decay))), fmap_max)
+
+        act, gain = {'relu': (torch.relu, np.sqrt(2)),
+                     'lrelu': (nn.LeakyReLU(negative_slope=0.2), np.sqrt(2))}[nonlinearity]
+        self.gain = gain
+        self.use_wscale = use_wscale
+        super().__init__(OrderedDict([
+            ('fromrgb', MyConv2d(num_channels, nf(resolution_log2-1), 1, gain=gain, use_wscale=use_wscale)),
+            ('act', act)]
+            +[('{s}x{s}'.format(s=2**res), DiscriminatorBlock(nf(res-1), nf(res-2), gain=gain, use_wscale=use_wscale, activation_layer=act)) for res in range(resolution_log2, 2, -1)]
+            +[('4x4', DiscriminatorTop(mbstd_group_size, mbstd_num_features, nf(2), nf(2), gain=gain, use_wscale=use_wscale, activation_layer=act))]))
+
+
 if 0:
     # Need to run this on StyleGAN repo
     import dnnlib, dnnlib.tflib, pickle, torch, collections
     dnnlib.tflib.init_tf()
-    weights = pickle.load(open('../srgan/checkpoint/karras2019stylegan-bedrooms-256x256.pkl','rb'))
+    weights = pickle.load(open('../data/srgan/checkpoint/karras2019stylegan-bedrooms-256x256.pkl','rb'))
     weights_pt = [collections.OrderedDict([(k, torch.from_numpy(v.value().eval())) for k,v in w.trainables.items()]) for w in weights]
     torch.save(weights_pt, '../srgan/checkpoint/karras2019stylegan-bedrooms-256x256.pt')
 
-def build(raw_pt='checkpoint/karras2019stylegan-celebahq-1024x1024.pt', resolution=1024):
+    import dnnlib, dnnlib.tflib, pickle, torch, collections
+    dnnlib.tflib.init_tf()
+    weights = pickle.load(open('../data/srgan/checkpoint/karras2019stylegan-celebahq-1024x1024.pkl','rb'))
+    weights_pt = [collections.OrderedDict([(k, torch.from_numpy(v.value().eval())) for k,v in w.trainables.items()]) for w in weights]
+    torch.save(weights_pt, '../data/srgan/checkpoint/karras2019stylegan-celebahq-1024x1024.pt')
+
+def build(raw_pt='checkpoint/karras2019stylegan-celebahq-1024x1024.pt'):
+    resolution = 1024 if "1024" in raw_pt else 256
     g_all = torch.nn.Sequential(OrderedDict([
         ('g_mapping', G_mapping()),
         #('truncation', Truncation(avg_latent)),
@@ -500,26 +663,53 @@ def build(raw_pt='checkpoint/karras2019stylegan-celebahq-1024x1024.pt', resoluti
         return w
 
     # we delete the useless torgb filters
-    param_dict = {key_translate(k) : weight_translate(k, v) for k,v in state_Gs.items() if 'torgb_lod' not in key_translate(k)}
-    if 1:
-        sd_shapes = {k : v.shape for k,v in g_all.state_dict().items()}
-        param_shapes = {k : v.shape for k,v in param_dict.items() }
+    param_dict = {key_translate(k) : weight_translate(k, v)
+        for k,v in state_Gs.items()
+        if 'torgb_lod' not in key_translate(k)}
 
-        for k in list(sd_shapes)+list(param_shapes):
-            pds = param_shapes.get(k)
-            sds = sd_shapes.get(k)
-            if pds is None:
-                print ("sd only", k, sds)
-            elif sds is None:
-                print ("pd only", k, pds)
-            elif sds != pds:
-                print ("mismatch!", k, pds, sds)
+    sd_shapes = {k : v.shape for k,v in g_all.state_dict().items()}
+    param_shapes = {k : v.shape for k,v in param_dict.items() }
 
-    g_all.load_state_dict(param_dict, strict=False) # needed for the blur kernels
+    for k in list(sd_shapes)+list(param_shapes):
+        pds = param_shapes.get(k)
+        sds = sd_shapes.get(k)
+        if pds is None:
+            print ("sd only", k, sds)
+        elif sds is None:
+            print ("pd only", k, pds)
+        elif sds != pds:
+            print ("mismatch!", k, pds, sds)
+
+    g_all.load_state_dict(param_dict, strict=False)
+    # needed for the blur kernels
     torch.save(g_all.state_dict(), raw_pt.replace(".pt", ".for_g_all.pt"))
+
+    # Discriminator
+    param_dict = {key_translate(k) : weight_translate(k, v)
+        for k,v in state_D.items()
+        if key_translate(k) is not None}
+    d_basic = Discriminator(resolution=resolution)
+    sd_shapes = {k : v.shape for k,v in d_basic.state_dict().items()}
+    param_shapes = {k : v.shape for k,v in param_dict.items() }
+
+    for k in list(sd_shapes) + list(param_shapes):
+        pds = param_shapes.get(k)
+        sds = sd_shapes.get(k)
+        if pds is None:
+            print ("sd only", k, sds)
+        elif sds is None:
+            print ("pd only", k, pds)
+        elif sds != pds:
+            print ("mismatch!", k, pds, sds)
+
+    d_basic.load_state_dict(param_dict, strict=False)
+    # needed for the blur kernels
+    torch.save(
+        d_basic.state_dict(),
+        raw_pt.replace(".pt", ".for_d_basic.pt"))
 
 if __name__ == "__main__":
     # celeba 1024
-    # build("checkpoint/karras2019stylegan-celebahq-1024x1024.pt")
+    build("checkpoint/karras2019stylegan-celebahq-1024x1024.pt")
     # bedroom 256
-    build("checkpoint/karras2019stylegan-bedrooms-256x256.pt", 256)
+    build("checkpoint/karras2019stylegan-bedrooms-256x256.pt")
