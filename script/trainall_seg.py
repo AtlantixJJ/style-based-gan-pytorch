@@ -55,11 +55,18 @@ class SELayers(SECore):
         self.layer_num = 9
         self.basecmd = "CUDA_VISIBLE_DEVICES=%s python train/extract_semantics.py --task celebahq --model-name stylegan --extractor linear --layers %s --gpu %s --batch-size 1 --iter-num 10000 --disp-iter 5000 --last-only 1 --expr record/layers/"
 
+    # python script/monitor.py --task fast-celeba-agreement --model record/layers --recursive 1
+
     def args_gen(self, gpus):
         l = []
         count = 0
-        for i in range(6,self.layer_num):
+        rev = True
+        for i in range(self.layer_num):
             layers = self.all_layers[2*i:]
+            if rev:
+                if i == 0:
+                    continue
+                layers = self.all_layers[:2*i-1]
             gpu = gpus[count]
             l.append((count, (gpu, layers, gpu)))
             count = (count + 1) % len(gpus)

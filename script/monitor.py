@@ -143,6 +143,12 @@ if callable(op):
 with torch.no_grad():
     image, stage = generator.get_stage(latent)
 dims = [s.shape[1] for s in stage]
+layers = list(range(9))
+if "layer" in args.model:
+    ind = args.model.rfind("layer") + len("layer")
+    layers = [int(i) for i in args.model[ind:].split(",")]
+    dims = np.array(dims)[layers].tolist()
+print(dims)
 
 model_files = glob.glob(args.model + "/*.model")
 model_files = [m for m in model_files if "disc" not in m]
@@ -841,10 +847,14 @@ if "celeba-agreement" in args.task:
     for i in tqdm.tqdm(range(30 * LEN)):
         with torch.no_grad():
             gen, stage = generator.get_stage(latent)
+            stage = [s for i, s in enumerate(stage) if i in layers]
             gen = gen.clamp(-1, 1)
             est_label = sep_model.predict(stage)
             label = external_model.segment_batch(gen,
                 resize=is_resize)
+        label = F.interpolate(label.unsqueeze(1).float(),
+            size=est_label.size(2),
+            mode="nearest").long()[:, 0, :, :]
         label = utils.torch2numpy(label)
 
         for j in range(batch_size):
@@ -884,6 +894,7 @@ if "seg" in args.task:
         sep_model.to(device).eval()
 
         gen, stage = generator.get_stage(latent, detach=True)
+        stage = [s for i, s in enumerate(stage) if i in layers]
         gen = gen.clamp(-1, 1)
         segs = sep_model(stage)
         segs = [s[0].argmax(0) for s in segs]
