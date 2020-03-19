@@ -60,16 +60,40 @@ class SELayers(SECore):
     def args_gen(self, gpus):
         l = []
         count = 0
-        rev = True
-        for i in range(self.layer_num):
-            layers = self.all_layers[2*i:]
-            if rev:
-                if i == 0:
-                    continue
-                layers = self.all_layers[:2*i-1]
-            gpu = gpus[count]
-            l.append((count, (gpu, layers, gpu)))
-            count = (count + 1) % len(gpus)
+        for rev in [True]:
+            for i in range(self.layer_num):
+                layers = self.all_layers[2*i:]
+                if rev:
+                    if i < 5:
+                        continue
+                    layers = self.all_layers[:2*i-1]
+                gpu = gpus[count]
+                l.append((count, (gpu, layers, gpu)))
+                count = (count + 1) % len(gpus)
+        return l
+
+
+class SEDiscLayers(SECore):
+    def __init__(self):
+        self.all_layers = "0,1,2,3,4,5,6,7"
+        self.layer_num = 8
+        self.basecmd = "CUDA_VISIBLE_DEVICES=%s python train/extract_semantics_disc.py --task celebahq --model-name stylegandisc --extractor linear --layers %s --gpu %s --batch-size 1 --iter-num 10000 --disp-iter 5000 --last-only 1 --expr record/disc_layers/ --imsize 1024 --load checkpoint/karras2019stylegan-celebahq-1024x1024.for_d_basic.pt"
+
+    # python script/monitor.py --task fast-celeba-agreement --model record/disc_layers --recursive 1
+
+    def args_gen(self, gpus):
+        l = []
+        count = 0
+        for rev in [True, False]:
+            for i in range(self.layer_num):
+                layers = self.all_layers[2*i:]
+                if rev:
+                    if i == 0:
+                        continue
+                    layers = self.all_layers[:2*i-1]
+                gpu = gpus[count]
+                l.append((count, (gpu, layers, gpu)))
+                count = (count + 1) % len(gpus)
         return l
 
 
@@ -120,7 +144,7 @@ uname = uname.stdout.decode("ascii")
 if "jericho" in uname:
     #gpus = ["0"]; assign_run(SEL1Reg().command, gpus)
     #gpus = ["0"]; assign_run(direct_run, gpus)
-    gpus = ["0"]; assign_run(SELayers().command, gpus)
+    gpus = ["0"]; assign_run(SEDiscLayers().command, gpus)
 elif "instance" in uname:
     gpus = ["0"]; assign_run(SESpherical().command, gpus)
 else:

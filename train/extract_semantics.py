@@ -50,7 +50,7 @@ is_resize = cfg.semantic_extractor != "spherical"
 record = cfg.record
 metrics = [evaluate.DetectionMetric(n_class=cg[1]-cg[0]) for i, cg in enumerate(category_groups)]
 
-colorizer = utils.Colorize(16)
+colorizer = utils.Colorize(n_class)
 if cfg.task != "celebahq" and cfg.task != "ffhq":
     colorizer = lambda x: segment_visualization_single(x, 256)
 
@@ -72,10 +72,7 @@ for ind in tqdm(range(cfg.n_iter)):
     if len(category_groups_label) == 1:
         multi_segs = [multi_segs]
         label = label.unsqueeze(1)
-    if multi_segs[0][-1].size(3) < label.shape[2]:
-        label = F.interpolate(label.float(),
-            size=multi_segs[0][-1].size(3),
-            mode="nearest").long()
+
 
     segloss = 0
     for i, segs in enumerate(multi_segs):
@@ -84,6 +81,9 @@ for ind in tqdm(range(cfg.n_iter)):
         cg = category_groups_label[i]
         l = label[:, i, :, :] - cg[0]
         l[l<0] = 0
+        if segs[-1].size(3) < l.shape[2]:
+            segs[-1] = F.interpolate(
+                segs[-1], size=l.shape[2], mode="bilinear")
         if "KL" == cfg.loss_type:
             logits = external_model.seg
             l = F.softmax(logits, dim=1)

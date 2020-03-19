@@ -588,6 +588,17 @@ class Discriminator(nn.Sequential):
             +[('{s}x{s}'.format(s=2**res), DiscriminatorBlock(nf(res-1), nf(res-2), gain=gain, use_wscale=use_wscale, activation_layer=act)) for res in range(resolution_log2, 2, -1)]
             +[('4x4', DiscriminatorTop(mbstd_group_size, mbstd_num_features, nf(2), nf(2), gain=gain, use_wscale=use_wscale, activation_layer=act))]))
 
+    def get_stage(self, x, detach=False):
+        stage = []
+        for i, m in enumerate(self):
+            x = m(x)
+            if m.__class__ is DiscriminatorBlock or i == 1:
+                if detach:
+                    stage.append(x.detach())
+                else:
+                    stage.append(x)
+        return x, stage
+
 
 if 0:
     # Need to run this on StyleGAN repo

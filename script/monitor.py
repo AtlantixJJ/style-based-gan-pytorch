@@ -853,7 +853,7 @@ if "celeba-agreement" in args.task:
             label = external_model.segment_batch(gen,
                 resize=is_resize)
         label = F.interpolate(label.unsqueeze(1).float(),
-            size=est_label.size(2),
+            size=est_label.shape[2],
             mode="nearest").long()[:, 0, :, :]
         label = utils.torch2numpy(label)
 

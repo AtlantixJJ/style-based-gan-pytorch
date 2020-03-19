@@ -137,7 +137,7 @@ class LinearSemanticExtractor(BaseSemanticExtractor):
             for cat_id, (bg, ed) in enumerate(self.category_groups):
                 outputs[cat_id].append(x[:, bg:ed])
 
-        size = outputs[0][-1].shape[2]
+        size = max([o.shape[2] for o in outputs[0]])
 
         if last_only:
             res = []
@@ -162,11 +162,11 @@ class LinearSemanticExtractor(BaseSemanticExtractor):
         outputs = []
         for i, seg_input in enumerate(stage):
             outputs.append(self.semantic_extractor[i](seg_input))
-        size = outputs[-1].shape[2]
+        size = max([o.shape[2] for o in outputs])
 
         if last_only:
-            size = stage[-1].shape[2]
-            layers = [F.interpolate(s, size=size, mode="bilinear") for s in outputs]
+            layers = [F.interpolate(s, size=size, mode="bilinear")
+                for s in outputs]
             return [sum(layers)]
 
         # summation series
