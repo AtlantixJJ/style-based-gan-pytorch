@@ -65,8 +65,8 @@ def process_dir(dir):
         global_latex, class_latex = res[:2]
         global_tabular.append(get_best_model(global_latex, 1, name, " & "))
         class_tabular.append(get_best_model(class_latex, 3, name, " & "))
-    global_csv_head = global_csv.split("\n")[0]
-    class_csv_head = class_csv.split("\n")[0]
+    global_csv_head = ["model"] + global_csv.split("\n")[0]
+    class_csv_head = ["model"] + class_csv.split("\n")[0]
     global_latex_head = global_latex.split("\n")[:2]
     class_latex_head = class_latex.split("\n")[:2]
     l = [global_csv_head, global_table, class_csv_head, class_table]

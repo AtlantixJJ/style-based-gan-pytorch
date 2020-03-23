@@ -161,18 +161,20 @@ class ImageSegmentationDataset(torch.utils.data.Dataset):
 
     def transform(self, image, label):
         image_t = self.normal_transform(image)
-        label = np.asarray(label.resize(self.size, Image.NEAREST)).copy()
+        label = np.asarray(label.resize(self.size, Image.NEAREST))
         if self.idmap is not None:
             label = self.idmap.mapid(label)
         label_t = torch.from_numpy(label).long().unsqueeze(0)
-        if self.flip and torch.rand(1).numpy()[0] > 0.5:
+        if self.flip and self.rng.random() > 0.5:
             image_t = torch.flip(image_t, (2,))
             label_t = torch.flip(label_t, (2,))
         return image_t, label_t
 
     def __getitem__(self, idx):
-        image = utils.pil_read(self.image_dir + "/" + self.imagefiles[idx])
-        label = utils.pil_read(self.label_dir + "/" + self.labelfiles[idx])
+        image = utils.pil_read(
+            self.image_dir + "/" + self.imagefiles[idx])
+        label = utils.pil_read(
+            self.label_dir + "/" + self.labelfiles[idx])
         image_t, label_t = self.transform(image, label)
         
         return image_t, label_t

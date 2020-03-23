@@ -84,13 +84,16 @@ class SEDiscLayers(SECore):
     def args_gen(self, gpus):
         l = []
         count = 0
-        for rev in [True, False]:
+        for rev in [False]:
             for i in range(self.layer_num):
                 layers = self.all_layers[2*i:]
                 if rev:
                     if i == 0:
                         continue
                     layers = self.all_layers[:2*i-1]
+                else:
+                    if i < 5:
+                        continue
                 gpu = gpus[count]
                 l.append((count, (gpu, layers, gpu)))
                 count = (count + 1) % len(gpus)

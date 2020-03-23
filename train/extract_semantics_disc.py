@@ -45,11 +45,14 @@ colorizer = utils.Colorize(n_class)
 if cfg.task != "celebahq" and cfg.task != "ffhq":
     colorizer = lambda x: segment_visualization_single(x, 256)
 
-for ind, sample in enumerate(tqdm(cfg.dl)):
+#import objgraph
+#t1 = t2 = 0
+
+for ind, sample in enumerate(tqdm(cfg.dl)): #for ind in range(cfg.n_iter):
     ind += 1
     if ind > cfg.n_iter:
         break
-    image, label = sample
+    image, label = sample #torch.rand(1, 3, 1024, 1024), torch.ones(1, 1, 1024, 1024, 1).long() #
     image = image.to(cfg.device)
     label = label[:, 0, :, :, 0].to(cfg.device)
 
@@ -108,6 +111,31 @@ for ind, sample in enumerate(tqdm(cfg.dl)):
         # show metric
         metric.aggregate(ind + 1 - cfg.disp_iter)
         print(metric)
+    
+    """
+    if ind == 1:
+        objgraph.show_growth()
+    if ind == 20:
+        objgraph.show_growth()
+
+    if ind == 1:
+        t1 = objgraph.by_type('dict')
+    if ind == 20:
+        t2 = objgraph.by_type('dict')
+        count = 0
+        for t in t2:
+            flag = False
+            for x in t1:
+                if x is t:
+                    flag = True
+                    break
+            if flag:
+                continue
+            objgraph.show_backrefs(t,
+                max_depth=5, filename=f'obj{count}.dot')
+            count += 1
+        break
+    """
 
 torch.save(sep_model.state_dict(), f"{cfg.expr_dir}/{cfg.model_name}_{cfg.semantic_extractor}_extractor.model")
 np.save(f"{cfg.expr_dir}/training_evaluation.npy", [metric.result])

@@ -589,7 +589,6 @@ def diff_idmap_logit(x, cid2id=None, n=None, map_from=None, map_to=None):
 """
 ORIGINAL_STDOUT = 0
 
-
 def stdout_redirect(filename):
     global ORIGINAL_STDOUT
     ORIGINAL_STDOUT = sys.stdout
@@ -651,43 +650,6 @@ def str_csv_table(strs):
     for i in range(len(strs)):
         s.append(",".join(strs[i]))
     return "\n".join(s)
-
-
-def format_agreement_result(dic):
-    label_list = CELEBA_CATEGORY
-    global_metrics = ["pixelacc", "mAP", "mAR", "mIoU"]
-    class_metrics = ["AP", "AR", "IoU"]
-
-    n_model = len(dic["mIoU"])
-    iters = [i * 1000 for i in range(1, 1 + n_model)]
-
-    # table 1: model iterations and global accuracy
-    numbers = [iters, dic["pixelacc"], dic["mAP"], dic["mAR"], dic["mIoU"]]
-    numbers = np.array(numbers).transpose() # (10, 5)
-    strs = [["step"] + global_metrics]
-    for i in range(n_model):
-        strs.append([str_num(n) for n in numbers[i]])
-
-    model_global_latex = str_latex_table(strs)
-    model_global_csv = str_csv_table(strs)
-
-    # table 2: classwise accuracy
-    best_ind = np.argmax(dic["mIoU"])
-    strs = [["metric"] + label_list]
-    numbers = []
-    for metric in class_metrics:
-        data = dic[metric][best_ind][1:] # ignore background
-        numbers.append(data)
-    numbers = np.array(numbers) # (3, 16)
-    for i in range(len(class_metrics)):
-        strs.append(["%.3f" % n if n > -1 else "-" for n in numbers[i]])
-    for i in range(1, len(strs)):
-        strs[i] = [class_metrics[i - 1]] + strs[i]
-    # print latex table
-    class_latex = str_latex_table(strs)
-    class_csv = str_csv_table(strs)
-
-    return model_global_latex, class_latex, model_global_csv, class_csv, best_ind
 
 
 def format_test_result(dic,

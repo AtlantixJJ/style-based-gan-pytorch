@@ -246,7 +246,7 @@ class DDSEConfig(BaseConfig):
             batch_size=self.batch_size,
             shuffle=True,
             drop_last=True,
-            num_workers=NUM_WORKER)
+            num_workers=0) # >0 will result in memory leak
         
 
     def __str__(self):
