@@ -241,7 +241,8 @@ class DDSEConfig(BaseConfig):
             root=self.dataset,
             size=self.imsize,
             image_dir=f"CelebA-HQ-img",
-            label_dir=f"CelebAMask-HQ-mask-15")
+            label_dir=f"CelebAMask-HQ-mask-15",
+            file_list=f"{self.dataset}/train.list")
         self.dl = DataLoader(self.ds,
             batch_size=self.batch_size,
             shuffle=True,

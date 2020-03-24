@@ -186,6 +186,3 @@ test_images = [F.interpolate(img.detach().cpu(), size=256, mode="nearest")
     for img in test_images]
 fpath = f"results/linear_test_{ind}_b{args.train_size}_idmap-{name}.png"
 vutils.save_image(torch.cat(test_images), fpath, nrow=3)
-
-labels = []
-latents = []
