@@ -122,7 +122,7 @@ elif "proggan" in args.model:
     latent_size = 512 
 
 def get_extractor_name(model_path):
-    keywords = ["nonlinear", "linear", "spherical", "generative", "cascade", "projective"]
+    keywords = ["nonlinear", "linear", "spherical", "generative", "cascade", "projective", "unit"]
     for k in keywords:
         if k in model_path:
             return k
@@ -558,7 +558,7 @@ def plot_weight_layerwise(module, minimum=-1, maximum=1, subfix=""):
 
 def plot_weight_concat(w, minimum=-1, maximum=1, subfix=""):
     fig = plt.figure(figsize=(16, 12))
-    for j in range(16):
+    for j in range(w.shape[0]):
         ax = plt.subplot(4, 4, j + 1)
         ax.scatter(list(range(len(w[j]))), w[j], marker='.', s=20)
         ax.axes.get_xaxis().set_visible(False)
@@ -580,52 +580,34 @@ if "weight" in args.task:
     sep_model = get_semantic_extractor(get_extractor_name(model_file))(
         n_class=n_class,
         dims=dims)
-    sep_model.load_state_dict()
+    sep_model.load_state_dict(torch.load(model_file))
     
     # weight vector
     minimum = maximum = ws = 0
     if "spherical" in model_file:
         ws = sep_model.weight[:, :, 0, 0]
         minimum, maximum = ws.min().detach(), ws.max().detach()
+    elif "unit" in model_file:
+        ws = sep_model.weight[:, :, 0, 0]
+        ws = F.normalize(ws, 2, 1)
+        minimum, maximum = ws.min().detach(), ws.max().detach()
     else:
         minimum, maximum = find_min_max_weight(
             sep_model.semantic_extractor)
         ws = concat_weight(sep_model.semantic_extractor)
-    norm = ws.norm(2, dim=1)
-
-    arr = [[name, val] for name, val in zip(utils.CELEBA_CATEGORY, norm)]
-    arr.sort(key=lambda x: x[1])
-    for i in range(ws.shape[0]):
-        print("=> %s : %.4f" % (arr[i][0], arr[i][1]))
-    
-    norms = 0
-    if "spherical" in model_file:
-        cumdim = np.cumsum(dims)
-        norms = [ws[:, prev:cur].norm(2, 1)
-            for prev, cur in zip(cumdim[:-1], cumdim[1:])]
-        norms = torch.stack(norms, 0).detach()
-    else:
-        norms = get_norm_layerwise(sep_model.semantic_extractor)
-
+    ws = ws.detach()
 
     fig = plt.figure(figsize=(16, 12))
-    for j in range(16):
+    for j in range(ws.shape[0]):
         ax = plt.subplot(4, 4, j + 1)
-        ax.scatter(list(range(len(norms[:, j]))), norms[:, j])
+        x = list(range(len(ws[j])))
+        ax.scatter(x, ws[j])
         ax.axes.get_xaxis().set_visible(False)
     plt.tight_layout()
-    fig.savefig(f"{savepath}_normclass.png", bbox_inches='tight')
+    fig.savefig(f"{savepath}_class.png", bbox_inches='tight')
     plt.close()
     
-    fig = plt.figure(figsize=(16, 12))
-    for j in range(norms.shape[0]):
-        ax = plt.subplot(4, 4, j + 1)
-        ax.scatter(list(range(len(norms[j]))), norms[j])
-        ax.axes.get_xaxis().set_visible(False)
-    plt.tight_layout()
-    fig.savefig(f"{savepath}_normlayer.png", bbox_inches='tight')
-    plt.close()
-    if "spherical" in model_file:
+    if "spherical" in model_file or "unit" in model_file:
         plot_weight_concat(
             ws.detach().numpy(),
             maximum, minimum)

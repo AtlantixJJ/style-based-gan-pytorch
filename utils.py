@@ -669,7 +669,7 @@ def format_test_result(dic,
     global_csv = str_csv_table(strs)
 
     # table 2: classwise accuracy
-    strs = [["metric"] + label_list]
+    strs = [["model", "metric"] + label_list]
     numbers = []
     for metric in class_metrics:
         data = dic[metric]

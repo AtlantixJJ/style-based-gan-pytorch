@@ -9,6 +9,8 @@ def get_semantic_extractor(config):
         return LinearSemanticExtractor
     elif config == "spherical":
         return LinearSphericalSemanticExtractor
+    elif config == "unit":
+        return UnitSphericalSemanticExtractor
     elif config == "projective":
         return ProjectiveLinearSemanticExtractor
     elif config == "nonlinear":
@@ -268,6 +270,7 @@ class ProjectiveLinearSemanticExtractor(LinearSemanticExtractor):
         return outputs
         """
 
+
 class LinearSphericalSemanticExtractor(BaseSemanticExtractor):
     """
     Extract the semantic segmentation from internal representation using 1x1 conv.
@@ -312,6 +315,33 @@ class LinearSphericalSemanticExtractor(BaseSemanticExtractor):
                 outputs.append(x)
         
         return outputs
+
+
+class UnitSphericalSemanticExtractor(BaseSemanticExtractor):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.build()
+    
+    def build(self):
+        self.weight = nn.Parameter(torch.zeros(self.n_class, sum(self.dims), 1, 1))
+        torch.nn.init.kaiming_normal_(self.weight)
+
+        self.optim = torch.optim.Adam(self.parameters(), lr=1e-3)
+       
+    def forward(self, stage, last_only=True):
+        w = F.normalize(self.weight[:, :, 0, 0], 2, 1)
+        w = w.view(-1, w.shape[1], 1, 1)
+        outputs = []
+        if last_only:
+            for i in range(len(self.segments) - 1):
+                prev = self.segments[i]
+                cur = self.segments[i+1]
+                outputs.append(F.conv2d(stage[i], w[:, prev:cur]))
+            maxsize = max([o.shape[2] for o in outputs])
+            layers = [F.interpolate(o, size=maxsize, mode="bilinear")
+                for o in outputs]
+            return [sum(layers)]
+
 
     """
     def copy_weight_from(self, coef):

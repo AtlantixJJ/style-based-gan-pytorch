@@ -101,7 +101,10 @@ def surgery(state_dict, margin):
 
 s = []
 for model_file in model_files:
-    sep_model = func(n_class=16, dims=dims)
+    state_dict = torch.load(model_file)
+    sep_model = func(
+        n_class=state_dict.values()[0].shape[0],
+        dims=dims)
     threshold = model_file.replace(
         "/stylegan_linear_extractor.model",
         "threshold.txt")
@@ -109,7 +112,7 @@ for model_file in model_files:
         threshold = float(open(threshold, "r").read().strip())
     except:
         continue
-    state_dict = torch.load(model_file)
+
     sep_model.load_state_dict(state_dict)
     w = concat_weight(sep_model.semantic_extractor)
     l1_sparsity = w.abs().sum() / w.shape[0]

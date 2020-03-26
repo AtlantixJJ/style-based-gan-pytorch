@@ -15,7 +15,6 @@ from lib.netdissect.segviz import segment_visualization_single
 from model.semantic_extractor import get_semantic_extractor
 
 
-data_dir = "record/l1"
 device = "cuda"
 batch_size = 1
 latent_size = 512
@@ -23,6 +22,8 @@ latent = torch.randn(batch_size, latent_size, device=device)
 
 
 parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--data-dir", default="record/l1")
 parser.add_argument(
     "--gpu", default="0")
 parser.add_argument(
@@ -36,6 +37,7 @@ os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 print(os.environ['CUDA_VISIBLE_DEVICES'])
 
+data_dir = args.data_dir
 
 # test data
 test_ds = dataset.LatentSegmentationDataset(
@@ -49,8 +51,9 @@ test_dl = torch.utils.data.DataLoader(test_ds, batch_size=1, shuffle=False)
 # find all models
 model_files = glob.glob(f"{data_dir}/*")
 model_files = [f for f in model_files if os.path.isdir(f)]
-model_files = [glob.glob(f"{f}/*.model")[0] for f in model_files]
-model_files = [f for f in model_files if "_linear" in f]
+model_files = [glob.glob(f"{f}/*.model") for f in model_files]
+model_files = [f[0] for f in model_files if len(f) > 0]
+model_files = [f for f in model_files if "_linear" in f or "_unit" in f]
 model_files.sort()
 with open("tmp", "w") as f:
     f.write("\n".join(model_files))
@@ -68,10 +71,14 @@ label_list, cats = external_model.get_label_and_category_names()
 label_list = [l[0] for l in label_list]
 n_class = len(label_list) + 1
 metric = evaluate.DetectionMetric(n_class)
-sep_model = get_semantic_extractor("linear")(
-    n_class=n_class,
-    dims=dims)
-sep_model.to(device).eval()
+sep_model = 0
+
+
+def get_extractor_name(model_path):
+    keywords = ["nonlinear", "linear", "spherical", "generative", "cascade", "projective", "unit"]
+    for k in keywords:
+        if k in model_path:
+            return k
 
 
 def evaluation(generator, sep_model, test_dl):
@@ -114,6 +121,7 @@ def func(margin):
         (margin, mIoU, original_mIoU, val))
     return val
 
+
 # func is increasing function
 def bin_search(TOLERANCE=1e-4):
     left = 0.0
@@ -129,12 +137,21 @@ def bin_search(TOLERANCE=1e-4):
 
 
 for ind, model_file in enumerate(model_files):
-    sep_model = get_semantic_extractor("linear")(
+    model_name = get_extractor_name(model_file)
+    origin_state_dict = torch.load(model_file)
+    keys = list(origin_state_dict.keys())
+    n_class = origin_state_dict[keys[0]].shape[0]
+    sep_model = get_semantic_extractor(model_name)(
         n_class=n_class,
         dims=dims).to(device)
-    origin_state_dict = torch.load(model_file)
     sep_model.load_state_dict(origin_state_dict)
     original_mIoU = evaluation(generator, sep_model, test_dl)
     threshold = bin_search()
-    with open(model_file.replace("/stylegan_linear_extractor.model", "threshold.txt"), "w") as f:
+    model_file = model_file.replace(
+        "/stylegan_linear_extractor.model",
+        "threshold.txt")
+    model_file = model_file.replace(
+        "/stylegan_unit_extractor.model",
+        "threshold.txt")
+    with open(model_file, "w") as f:
         f.write(str(threshold))

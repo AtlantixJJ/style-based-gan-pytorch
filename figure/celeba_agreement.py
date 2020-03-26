@@ -11,8 +11,8 @@ args = parser.parse_args()
 
 
 def get_extractor_name(model_path):
-    keywords = ["nonlinear", "linear", "spherical", "generative", "unet"]
-    names = ["SNSE", "LSE", "SLSE", "CNSE", "UNet-512"]
+    keywords = ["unit", "nonlinear", "linear", "spherical", "generative", "unet"]
+    names = ["ULSE", "NSE-1", "LSE", "NLSE", "NSE-2", "UNet-512"]
     for i, k in enumerate(keywords):
         if k in model_path:
             return names[i]
@@ -65,8 +65,8 @@ def process_dir(dir):
         global_latex, class_latex = res[:2]
         global_tabular.append(get_best_model(global_latex, 1, name, " & "))
         class_tabular.append(get_best_model(class_latex, 3, name, " & "))
-    global_csv_head = ["model"] + global_csv.split("\n")[0]
-    class_csv_head = ["model"] + class_csv.split("\n")[0]
+    global_csv_head = global_csv.split("\n")[0]
+    class_csv_head = class_csv.split("\n")[0]
     global_latex_head = global_latex.split("\n")[:2]
     class_latex_head = class_latex.split("\n")[:2]
     l = [global_csv_head, global_table, class_csv_head, class_table]
