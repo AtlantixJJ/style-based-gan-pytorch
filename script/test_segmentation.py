@@ -43,12 +43,12 @@ if args.recursive == "1":
 
 model_path = args.model
 model = imsize = model_name = layers = 0
-if "faceparser" in model_path:
-    model = unet.unet()
+if "faceparse" in model_path:
+    model = unet.unet(n_classes=15)
     model.load_state_dict(torch.load("checkpoint/faceparse_unet_512.pth"))
     model.cuda().eval()
     imsize = 512
-    model_name = "faceparser"
+    model_name = "faceparse"
     predict = lambda x: model(x)
 elif "stylegandisc" in model_path:
     disc = Discriminator(resolution=1024)

@@ -8,7 +8,9 @@ def get_semantic_extractor(config):
     if config == "linear":
         return LinearSemanticExtractor
     elif config == "spherical":
-        return LinearSphericalSemanticExtractor
+        return NormalizedLinearSemanticExtractor
+    elif config == "unitnorm":
+        return UnitNormalizedSemanticExtractor
     elif config == "unit":
         return UnitSphericalSemanticExtractor
     elif config == "projective":
@@ -271,7 +273,7 @@ class ProjectiveLinearSemanticExtractor(LinearSemanticExtractor):
         """
 
 
-class LinearSphericalSemanticExtractor(BaseSemanticExtractor):
+class NormalizedLinearSemanticExtractor(BaseSemanticExtractor):
     """
     Extract the semantic segmentation from internal representation using 1x1 conv.
     """
@@ -315,6 +317,25 @@ class LinearSphericalSemanticExtractor(BaseSemanticExtractor):
                 outputs.append(x)
         
         return outputs
+
+
+class UnitNormalizedSemanticExtractor(NormalizedLinearSemanticExtractor):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.build()
+        
+    def forward(self, stage, last_only=True):
+        maxsize = stage[-1].shape[2] // 2
+        w = F.normalize(self.weight[:, :, 0, 0], 2, 1)
+        w = w.view(-1, w.shape[1], 1, 1)
+        with torch.no_grad():
+            feat = torch.cat([F.interpolate(s, size=maxsize, mode="bilinear")
+                for s in stage], 1)
+            feat = F.normalize(feat, 2, 1)
+
+        if last_only:
+            return [F.conv2d(feat, w)]
+
 
 
 class UnitSphericalSemanticExtractor(BaseSemanticExtractor):

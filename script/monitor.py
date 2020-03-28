@@ -160,7 +160,7 @@ if len(model_files) == 0:
 if "fast" in args.task:
     LEN = 100
 else:
-    LEN = 1000
+    LEN = 400
 
 
 if "log" in args.task:
@@ -200,6 +200,27 @@ def get_random_projection(data):
     vx, vy = projection_direction(data.shape[1])
 
     return get_projection(data, vx, vy)
+
+def weight_surgery(state_dict, func):
+    for k,v in state_dict.items():
+        state_dict[k] = func(v)
+
+def early_layer_surgery(state_dict, st=[0]):
+    for i in st:
+        k = list(state_dict.keys())[i]
+        state_dict[k] = state_dict[k].fill_(0)
+
+def small_negative(x, margin=0.1):
+    x[(x<0)&(x>-margin)]=0
+    return x
+
+def negative(x):
+    x[x<0]=0
+    return x
+
+def small_absolute(x, margin=0.05):
+    x[(x<margin)&(x>-margin)]=0
+    return x
 
 
 
@@ -463,27 +484,6 @@ if "score-first" in args.task:
 
 
 if "surgery" in args.task:
-    def weight_surgery(state_dict, func):
-        for k,v in state_dict.items():
-            state_dict[k] = func(v)
-
-    def early_layer_surgery(state_dict, st=[0]):
-        for i in st:
-            k = list(state_dict.keys())[i]
-            state_dict[k] = state_dict[k].fill_(0)
-
-    def small_negative(x, margin=0.1):
-        x[(x<0)&(x>-margin)]=0
-        return x
-
-    def negative(x):
-        x[x<0]=0
-        return x
-
-    def small_absolute(x, margin=0.05):
-        x[(x<margin)&(x>-margin)]=0
-        return x
-
     model_file = model_files[-1]
     sep_model = get_semantic_extractor(get_extractor_name(model_file))(
         n_class=n_class,
@@ -615,6 +615,13 @@ if "weight" in args.task:
         plot_weight_layerwise(
             sep_model.semantic_extractor,
             maximum, minimum)
+
+    threshold = model_file.replace(
+        "/stylegan_unit_extractor.model",
+        "threshold.txt")
+    if os.path.exist(threshold):
+        threshold = open(threshold, "r").read()
+        threshold
 
     """
     # orthogonal status

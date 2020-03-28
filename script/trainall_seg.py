@@ -125,7 +125,10 @@ def assign_run(command_generator, gpus, false_exec=False):
 
 def direct_run(gpus):
     commands = [
-        "python train/extract_semantics.py --task celebahq --model-name stylegan --extractor unit --gpu %s --batch-size 1 --iter-num 10000 --last-only 1",
+        ## unit
+        #"python train/extract_semantics.py --task celebahq --model-name stylegan --extractor unit --gpu %s --batch-size 1 --iter-num 10000 --last-only 1",
+        ## unit normalized
+        "python train/extract_semantics.py --task celebahq --model-name stylegan --extractor unitnorm --gpu %s --batch-size 1 --iter-num 10000 --last-only 1",
         ## church stylegan2
         #"python train/extract_semantics.py --load checkpoint/church_lsun_256x256_stylegan2.pth --model-name stylegan2 --batch-size 1 --iter-num 30000 --last-only 0 --task church --gpu %s",
         ## church prog

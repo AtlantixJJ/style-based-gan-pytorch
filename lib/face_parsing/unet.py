@@ -10,7 +10,7 @@ class unet(nn.Module):
     def __init__(
         self,
         feature_scale=4,
-        n_classes=19,
+        n_classes=15,
         is_deconv=True,
         in_channels=3,
         is_batchnorm=True,
