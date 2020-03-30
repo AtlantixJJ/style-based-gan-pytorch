@@ -35,16 +35,25 @@ generator = model.load_stylegan(model_path).to(device)
 
 #torch.manual_seed(int(args.seed))
 latent_size = 512
-latent = torch.randn(1, latent_size).to(device)
+maxsize = 512
+N = 16
+latent = torch.randn(N, latent_size).to(device)
+bundle = []
+images = []
 
-with torch.no_grad():
-    image, stage = generator.get_stage(latent)
-stage = [s for s in stage if s.shape[3] >= 16]
-size = max([s.shape[2] for s in stage])
-data = torch.cat([
-    F.interpolate(s.cpu(), size=512, mode="bilinear")[0]
-        for s in stage])
-data = data.permute(1, 2, 0)
-np.save(args.name, utils.torch2numpy(data))
+for i in range(N):
+    with torch.no_grad():
+        image, stage = generator.get_stage(latent[i:i+1])
+        images.append(image)
+        size = max([s.shape[2] for s in stage])
+        data = torch.cat([
+            F.interpolate(s.cpu(), size=maxsize, mode="bilinear")[0]
+                for s in stage]) # (C, H, W)
+        ind = torch.randperm(data.shape[1] * data.shape[2])
+        ind = ind[:len(ind) // N]
+        data = data.view(data.shape[0], -1)[:, ind] # (C, N)
+        bundle.append(utils.torch2numpy(data.permute(1, 0))) # (N, C)
+
+np.save(args.name, np.concatenate(bundle))
 image = (image.clamp(-1, 1) + 1) / 2
-vutils.save_image(image, args.name + "_image.png")
+vutils.save_image(torch.cat(images), args.name + "_image.png")

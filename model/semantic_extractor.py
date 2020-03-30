@@ -325,7 +325,7 @@ class UnitNormalizedLinearSemanticExtractor(NormalizedLinearSemanticExtractor):
         self.build()
         
     def forward(self, stage, last_only=True):
-        maxsize = stage[-1].shape[2] // 2
+        maxsize = min(max([s.shape[2] for s in stage]), 512)
         w = F.normalize(self.weight[:, :, 0, 0], 2, 1)
         w = w.view(-1, w.shape[1], 1, 1)
 
@@ -334,7 +334,10 @@ class UnitNormalizedLinearSemanticExtractor(NormalizedLinearSemanticExtractor):
             feat = F.normalize(feat, 2, 1)
 
         if last_only:
-            return [F.conv2d(feat, w)]
+            res = F.conv2d(feat, w)
+            mini, maxi = res.min(), res.max()
+            res = 2 * ((res - mini) / (maxi - mini) - 0.5)
+            return [5 * res]
 
 
 class UnitLinearSemanticExtractor(BaseSemanticExtractor):
