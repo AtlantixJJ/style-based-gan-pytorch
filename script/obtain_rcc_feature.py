@@ -26,10 +26,10 @@ colors = list(matplotlib.colors.cnames.keys())
 parser = argparse.ArgumentParser()
 parser.add_argument("--model", default="")
 #parser.add_argument("--seed", default="")
-parser.add_argument("--name", default="feats")
+parser.add_argument("--name", default="kmeans_feats")
 args = parser.parse_args()
 
-device = "cpu"
+device = "cuda"
 model_path = "checkpoint/face_celebahq_1024x1024_stylegan.pth"
 generator = model.load_stylegan(model_path).to(device)
 
@@ -44,7 +44,7 @@ images = []
 for i in range(N):
     with torch.no_grad():
         image, stage = generator.get_stage(latent[i:i+1])
-        images.append(image)
+        images.append((image.clamp(-1, 1) + 1) / 2)
         size = max([s.shape[2] for s in stage])
         data = torch.cat([
             F.interpolate(s.cpu(), size=maxsize, mode="bilinear")[0]

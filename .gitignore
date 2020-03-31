@@ -1,4 +1,5 @@
 # data files
+*.so
 lib/face_parsing/models/
 *.csv
 *.npy

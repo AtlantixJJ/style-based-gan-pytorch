@@ -29,18 +29,19 @@ for f in files:
     ind = int(f[ind+6:ind+7])
     print(f, ind)
 
-    H, W, C = feats.shape
-    X = feats.reshape(H * W, C)#.reshape(C, H * W).transpose(1, 0)
+    N, C = feats.shape
+    X = feats#.reshape(H * W, C)#.reshape(C, H * W).transpose(1, 0)
 
     st = 2
     if resume_k > 0:
         st = resume_k
 
-    for K in range(st, 16):
-        skm = SphericalKMeans(n_clusters=K, copy_x=True, n_jobs=32, verbose=True, max_iter=1000, normalize=False)
-        skm.fit(X)
-        pickle.dump(skm, open(f"{args.dataset}/skm_{ind}_{K}.pkl", 'wb'))
+    for norm in [False, True]:
+        for K in range(st, 16):
+            skm = SphericalKMeans(n_clusters=K, copy_x=True, n_jobs=32, verbose=True, max_iter=1000, normalize=norm)
+            skm.fit(X)
+            pickle.dump(skm, open(f"{args.dataset}/skm_norm{norm}_{ind}_{K}.pkl", 'wb'))
 
-        labels = skm.labels_.reshape(H, W)
-        label_viz = utils.numpy2label(labels, labels.max() + 1)
-        utils.imwrite(f"{args.dataset}/skm_{ind}_{K}.png", label_viz)
+            #labels = skm.labels_.reshape(H, W)
+            #label_viz = utils.numpy2label(labels, labels.max() + 1)
+            #utils.imwrite(f"{args.dataset}/skm_norm{norm}_{ind}_{K}.png", label_viz)
