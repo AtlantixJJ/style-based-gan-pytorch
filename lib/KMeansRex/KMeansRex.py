@@ -31,7 +31,7 @@ if platform.architecture()[0] == '32bit':
         os.path.join(reporootdir,'lib/libkmeansrex32.so'))
 else:
     lib = ctypes.cdll.LoadLibrary(
-        os.path.join(curdir,'libkmeansrex64.so'))
+        os.path.join(curdir,'lib/libkmeansrex64.so'))
 
 lib.SampleRowsPlusPlus.restype = None
 lib.SampleRowsPlusPlus.argtypes = \
