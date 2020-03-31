@@ -50,6 +50,7 @@ lib.RunKMeans.argtypes = [
     ctypes.c_int,
     ctypes.c_int,
     ctypes.c_int,
+    ctypes.c_int,
     ctypes.c_char_p,
     ndpointer(ctypes.c_double),
     ndpointer(ctypes.c_double)]
@@ -65,7 +66,11 @@ def SampleRowsPlusPlus( X, K, seed=42 ):
     lib.SampleRowsPlusPlus(X, N, D, K, seed, Mu)
     return Mu
 
-def RunKMeans( X, K, Niter=100, initname='plusplus', seed=42 ):
+"""
+@param
+    flag : 1 for euclidean, 2 for dot
+"""
+def RunKMeans( X, K, Niter=100, initname='plusplus', seed=42 , flag=1):
     X = np.asarray(X, order='F')
     N,D = X.shape
     Kfeasible = np.minimum(K, N)
@@ -74,7 +79,7 @@ def RunKMeans( X, K, Niter=100, initname='plusplus', seed=42 ):
     K = Kfeasible
     Mu = np.zeros((K,D), order='F', dtype="float64")
     Z  = np.zeros((N,1), order='F')
-    lib.RunKMeans(X, N, D, K, Niter, seed, initname.encode(), Mu, Z)
+    lib.RunKMeans(X, flag, //N, D, K, Niter, seed, initname.encode(), Mu, Z)
     return Mu, Z
 
 def showKTooLargeWarning(K, Kfeasible):

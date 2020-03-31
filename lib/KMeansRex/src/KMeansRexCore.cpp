@@ -145,7 +145,7 @@ void init_Mu( ExtMat &X, ExtMat &Mu, const char* initname ) {
 }
 
 // ======================================================= Update Assignments Z
-void pairwise_distance( ExtMat &X, ExtMat &Mu, Mat &Dist ) {
+void pairwise_distance_euclidean( ExtMat &X, ExtMat &Mu, Mat &Dist ) {
     int N = X.rows();
     int D = X.cols();
     int K = Mu.rows();
@@ -162,11 +162,22 @@ void pairwise_distance( ExtMat &X, ExtMat &Mu, Mat &Dist ) {
     }
 }
 
-double assignClosest( ExtMat &X, ExtMat &Mu, ExtMat &Z, Mat &Dist) {
+void pairwise_distance_dot( ExtMat &X, ExtMat &Mu, Mat &Dist ) {
+    int N = X.rows();
+    int D = X.cols();
+    int K = Mu.rows();
+
+    Dist = X.matrix() * Mu.transpose().matrix();
+}
+
+double assignClosest( ExtMat &X, ExtMat &Mu, ExtMat &Z, Mat &Dist, int flag) {
     double totalDist = 0;
     int minRowID;
 
-    pairwise_distance( X, Mu, Dist );
+    if (flag == 1)
+        pairwise_distance_euclidean( X, Mu, Dist );
+    else if (flag == 2)
+        pairwise_distance_dot( X, Mu, Dist );
 
     for (int nn=0; nn<X.rows(); nn++) {
         totalDist += Dist.row(nn).minCoeff( &minRowID );
@@ -191,12 +202,12 @@ void calc_Mu( ExtMat &X, ExtMat &Mu, ExtMat &Z) {
 }
 
 // ======================================================= Overall Lloyd Alg.
-void run_lloyd( ExtMat &X, ExtMat &Mu, ExtMat &Z, int Niter )  {
+void run_lloyd( ExtMat &X, ExtMat &Mu, ExtMat &Z, int Niter, int flag )  {
     double prevDist,totalDist = 0;
     Mat Dist = Mat::Zero( X.rows(), Mu.rows() );  
 
     for (int iter=0; iter<Niter; iter++) {
-        totalDist = assignClosest( X, Mu, Z, Dist );
+        totalDist = assignClosest( X, Mu, Z, Dist, flag );
         calc_Mu( X, Mu, Z );
         if (prevDist == totalDist) {
             break;
@@ -211,8 +222,8 @@ void run_lloyd( ExtMat &X, ExtMat &Mu, ExtMat &Z, int Niter )  {
 // ===========================================================================
 // ===========================================================================
 
-void RunKMeans(double *X_IN,  int N,  int D, int K, int Niter, \
-               int seed, char* initname, double *Mu_OUT, double *Z_OUT) {
+void RunKMeans(double *X_IN,  int flag,  int N,  int D, int K, \
+    int Niter, int seed, char* initname, double *Mu_OUT, double *Z_OUT) {
   set_seed(seed);
 
   ExtMat X (X_IN, N, D);
@@ -220,7 +231,7 @@ void RunKMeans(double *X_IN,  int N,  int D, int K, int Niter, \
   ExtMat Z (Z_OUT, N, 1);
 
   init_Mu(X, Mu, initname);
-  run_lloyd(X, Mu, Z, Niter );
+  run_lloyd(X, Mu, Z, Niter, flag );
 }
 
 
