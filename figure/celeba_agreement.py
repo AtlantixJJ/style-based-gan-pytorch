@@ -11,8 +11,8 @@ args = parser.parse_args()
 
 
 def get_extractor_name(model_path):
-    keywords = ["unit", "nonlinear", "linear", "spherical", "generative", "faceparse"]
-    names = ["ULSE", "NSE-1", "LSE", "NLSE", "NSE-2", "UNet-512"]
+    keywords = ["unitnorm", "unit", "nonlinear", "linear", "spherical", "generative", "faceparse"]
+    names = ["UNLSE", "ULSE", "NSE-1", "LSE", "NLSE", "NSE-2", "UNet-512"]
     for i, k in enumerate(keywords):
         if k in model_path:
             return names[i]

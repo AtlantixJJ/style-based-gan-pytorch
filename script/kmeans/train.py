@@ -10,7 +10,7 @@ import glob
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset", default="/home/jianjinxu/large/multiple_kmeans")
+parser.add_argument("--dataset", default="/home/jianjin/large/multiple_kmeans")
 parser.add_argument("--seed", default=1314159, type=int)
 args = parser.parse_args()
 
@@ -33,7 +33,6 @@ for f in files:
             verbosity=1, seed=args.seed, average_distance=True)
         pickle.dump([centroids, avg_distance], open(f"{args.dataset}/skm_euc_{ind}_{K}.pkl", 'wb'))
         
-
     # arccos similarity (need to normalize)
     X /= np.linalg.norm(X, 2, 1, keepdims=True)
     for K in range(2, 16): # K [2, 15]

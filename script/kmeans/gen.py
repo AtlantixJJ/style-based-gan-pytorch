@@ -37,8 +37,8 @@ generator = model.load_stylegan(model_path).to(device)
 torch.manual_seed(args.seed)
 latent_size = 512
 maxsize = 512
-N = 32
-S = 4
+N = 16
+S = 2
 latent = torch.randn(N, latent_size).to(device)
 bundle = []
 images = []
