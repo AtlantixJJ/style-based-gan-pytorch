@@ -71,15 +71,15 @@ def SampleRowsPlusPlus( X, K, seed=42 ):
     flag : 1 for euclidean, 2 for dot
 """
 def RunKMeans( X, K, Niter=100, initname='plusplus', seed=42 , flag=1):
-    X = np.asarray(X, order='F')
+    X = np.asarray(X, order='F', dtype="float64")
     N,D = X.shape
     Kfeasible = np.minimum(K, N)
     if Kfeasible < K:
         showKTooLargeWarning(K, Kfeasible)
     K = Kfeasible
-    Mu = np.zeros((K,D), order='F', dtype="float64")
+    Mu = np.zeros((K,D), order='F')
     Z  = np.zeros((N,1), order='F')
-    lib.RunKMeans(X, flag, //N, D, K, Niter, seed, initname.encode(), Mu, Z)
+    lib.RunKMeans(X, flag, N, D, K, Niter, seed, initname.encode(), Mu, Z)
     return Mu, Z
 
 def showKTooLargeWarning(K, Kfeasible):

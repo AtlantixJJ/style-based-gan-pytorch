@@ -18,7 +18,7 @@ CXX_FLAGS := -fPIC -shared -O3 -DNDEBUG $(CXX_EIGEN_FLAGS)
 CWD = $(shell pwd)
 LIBFILE := $(CWD)/lib/libkmeansrex$(ARCH).so
 
-all: matlab python
+all: python
 
 lib: src/KMeansRexCore.cpp
 	# Create lib/ directory, or be silent if already exists
