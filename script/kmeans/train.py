@@ -27,11 +27,13 @@ for f in files:
     X = feats#.reshape(H * W, C)#.reshape(C, H * W).transpose(1, 0)
 
     # normal euclidean
+    """
     for K in range(2, 16): # K [2, 15]
         centroids, assignments, avg_distance = kmeans_cuda(
             X, K, tolerance=1e-3,
             verbosity=1, seed=args.seed, average_distance=True)
         pickle.dump([centroids, avg_distance], open(f"{args.dataset}/skm_euc_{ind}_{K}.pkl", 'wb'))
+    """
         
     # arccos similarity (need to normalize)
     X /= np.linalg.norm(X, 2, 1, keepdims=True)
@@ -40,3 +42,20 @@ for f in files:
             X, K, tolerance=1e-3,
             metric="cos", verbosity=1, seed=args.seed, average_distance=True)
         pickle.dump([centroids, avg_distance], open(f"{args.dataset}/skm_cos_{ind}_{K}.pkl", 'wb'))
+
+    # dot similarity
+    """
+    for K in range(2, 16): # K [2, 15]
+        centroids, assignments, avg_distance = kmeans_cuda(
+            X, K, tolerance=1e-3,
+            metric="dot", verbosity=1, seed=args.seed, average_distance=True)
+        pickle.dump([centroids, avg_distance], open(f"{args.dataset}/skm_dot_{ind}_{K}.pkl", 'wb'))
+
+    # normdot product similarity (cosine similarity)
+    X /= np.linalg.norm(X, 2, 1, keepdims=True)
+    for K in range(2, 16): # K [2, 15]
+        centroids, assignments, avg_distance = kmeans_cuda(
+            X, K, tolerance=1e-3,
+            metric="normdot", verbosity=1, seed=args.seed, average_distance=True)
+        pickle.dump([centroids, avg_distance], open(f"{args.dataset}/skm_normdot_{ind}_{K}.pkl", 'wb'))
+    """
