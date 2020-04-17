@@ -94,7 +94,7 @@ for ind in tqdm(range(cfg.n_iter)):
         else:
             segloss = segloss + loss.segloss(segs, l)
 
-    coef = max(0, float(ind) / (cfg.n_iter // 2))
+    coef = max(0, float(cfg.n_iter // 2 - ind) / (cfg.n_iter // 2))
     regloss = 0.01 * coef * loss.l1(sep_model)
     total_loss = segloss + regloss
     total_loss.backward()

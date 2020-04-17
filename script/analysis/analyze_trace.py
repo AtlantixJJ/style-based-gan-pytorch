@@ -7,10 +7,10 @@ segments = np.cumsum([512, 512, 512, 512, 256, 128, 64, 32, 16])
 WINDOW_SIZE = 100
 name = sys.argv[1] # fixseg_1.0_mul-16
 name = name.replace("expr/", "")
-trace_path = f"expr/{name}/trace_weight.npy"
+trace_path = f"expr/{name}/trace.npy"
 
 # data
-trace = np.load(trace_path) # (N, 16, D)
+trace = np.load(trace_path) # (N, 15, D)
 weight = trace[-1]
 
 # initialization
@@ -21,7 +21,7 @@ step_delta = np.zeros_like(trace)
 weight_var = trace.std(0)
 fig = plt.figure(figsize=(12, 12))
 maximum, minimum = weight_var.max(), weight_var.min()
-for j in range(16):
+for j in range(15):
     ax = plt.subplot(4, 4, j + 1)
     ax.plot(weight_var[j])
     for x in segments:
@@ -36,7 +36,7 @@ plt.close()
 # weight vector
 fig = plt.figure(figsize=(12, 12))
 maximum, minimum = weight.max(), weight.min()
-for j in range(16):
+for j in range(15):
     ax = plt.subplot(4, 4, j + 1)
     ax.plot(weight[j])
     for x in segments:
