@@ -98,8 +98,10 @@ for ind in tqdm(range(cfg.n_iter)):
         regloss = regloss + cfg.norm_reg * loss.l1norm(sep_model.semantic_extractor)
     total_loss = segloss + regloss
     total_loss.backward()
-    sep_model.optim.step()
-    sep_model.optim.zero_grad()
+
+    if ind % cfg.vbs == 0:
+        sep_model.optim.step()
+        sep_model.optim.zero_grad()
 
     # collect training statistic
     for i, segs in enumerate(multi_segs):

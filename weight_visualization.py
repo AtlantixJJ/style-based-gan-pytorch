@@ -24,7 +24,7 @@ def plot_weight_layerwise(module, minimum=-1, maximum=1, savepath="", subfix="")
         w = utils.torch2numpy(conv[0].weight)[:, :, 0, 0]
 
         fig = plt.figure(figsize=(16, 12))
-        for j in range(16):
+        for j in range(w.shape[0]):
             ax = plt.subplot(4, 4, j + 1)
             ax.scatter(list(range(len(w[j]))), w[j], marker='.', s=20)
             ax.axes.get_xaxis().set_visible(False)

@@ -148,6 +148,8 @@ class SemanticExtractorConfig(BaseConfig):
             "--n-class", type=int, default=15, help="Class num")
         self.parser.add_argument(
             "--last-only", type=int, default=1, help="If to train the last layer only")
+        self.parser.add_argument(
+            "--vbs", type=int, default=1, help="Virtual batch size")
         #  reg
         self.parser.add_argument(
             "--ortho-reg", type=float, default=-1, help="The coef of using ortho reg. < 0 means not to use.")
@@ -163,6 +165,7 @@ class SemanticExtractorConfig(BaseConfig):
         self.layers = [int(l)
             for l in self.args.layers.split(",")]
         self.last_only = self.args.last_only
+        self.vbs = self.args.vbs
         self.ortho_reg = self.args.ortho_reg
         self.positive_reg = self.args.positive_reg
         self.l1_reg = self.args.l1_reg
@@ -173,7 +176,7 @@ class SemanticExtractorConfig(BaseConfig):
         self.seg_net_path = self.args.seg_net
         self.semantic_extractor = self.args.extractor
         self.record = {'loss': [], 'segloss': [], 'regloss': []}
-        self.name = f"{self.task}_{self.model_name}_{self.semantic_extractor}_layer{self.args.layers}"
+        self.name = f"{self.task}_{self.model_name}_{self.semantic_extractor}_layer{self.args.layers}_vbs{self.vbs}"
         self.expr_dir = osj(self.args.expr, self.name)
 
     def __str__(self):

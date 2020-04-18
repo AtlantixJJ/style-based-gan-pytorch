@@ -54,8 +54,10 @@ colorizer = utils.Colorize(n_class)
 if cfg.task != "celebahq" and cfg.task != "ffhq":
     colorizer = lambda x: segment_visualization_single(x, 256)
 
+vbs = 32 # 1000 iter * 32 = 
+
 M, L = sep_model.weight.shape[:2]
-trace = np.zeros((cfg.n_iter, M, L), "float32")
+trace = np.zeros((cfg.n_iter // vbs, M, L), "float32")
 
 for ind in tqdm(range(cfg.n_iter)):
     ind += 1
@@ -75,7 +77,6 @@ for ind in tqdm(range(cfg.n_iter)):
     if len(category_groups_label) == 1:
         multi_segs = [multi_segs]
         label = label.unsqueeze(1)
-
 
     segloss = 0
     for i, segs in enumerate(multi_segs):
@@ -98,8 +99,11 @@ for ind in tqdm(range(cfg.n_iter)):
     regloss = 0.01 * coef * loss.l1(sep_model)
     total_loss = segloss + regloss
     total_loss.backward()
-    sep_model.optim.step()
-    sep_model.optim.zero_grad()
+
+    if ind % vbs == 0:
+        sep_model.optim.step()
+        sep_model.optim.zero_grad()
+        trace[ind // vbs] = utils.torch2numpy(sep_model.weight[:, :, 0, 0])
 
     # collect training statistic
     for i, segs in enumerate(multi_segs):
@@ -109,8 +113,6 @@ for ind in tqdm(range(cfg.n_iter)):
     record['loss'].append(utils.torch2numpy(total_loss))
     record['segloss'].append(utils.torch2numpy(segloss))
     record['regloss'].append(utils.torch2numpy(regloss))
-
-    trace[ind - 1] = utils.torch2numpy(sep_model.weight[:, :, 0, 0])
 
     if (ind + 1) % cfg.disp_iter == 0 or ind == cfg.n_iter or cfg.debug:
         # visualize training

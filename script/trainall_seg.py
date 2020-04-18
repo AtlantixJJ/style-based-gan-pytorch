@@ -33,6 +33,33 @@ class SECore(object):
             yield count, cmd
 
 
+class SEVBS(object):
+    def __init__(self):
+        self.vbs = [4, 16, 32, 64]
+        self.extractors = [
+            "linear",
+            "unit"
+        ]
+        self.basecmd = "python train/extract_semantics.py --task celebahq --model-name stylegan --extractor %s --gpu %s --batch-size 1 --iter-num %d --vbs %d --last-only 1 --expr record/vbs"
+
+    def args_gen(self, gpus):
+        l = []
+        count = 0
+        for j in self.vbs:
+            for i in range(len(self.extractors)):
+                extractor = self.extractors[i]
+                gpu = gpus[count]
+                l.append((count, (extractor, gpu, j * 1000, j)))
+                count = (count + 1) % len(gpus)
+        return l
+    
+    def command(self, gpus):
+        for count, arg in self.args_gen(gpus):
+            cmd = self.basecmd % arg
+            yield count, cmd
+
+
+
 class SEL1Reg(SECore):
     def __init__(self):
         self.l1_reg = ["7e-5", "8e-5", "9e-5"]
@@ -130,7 +157,7 @@ def direct_run(gpus):
         ## unit normalized
         #"python train/extract_semantics.py --task celebahq --model-name stylegan --extractor unitnorm --gpu %s --batch-size 1 --iter-num 10000 --last-only 1",
         ## continuous,
-        "python train/extract_semantics_continuous.py --task celebahq --model-name stylegan --extractor unit --gpu %s --batch-size 1 --iter-num 10000 --last-only 1",
+        "python train/extract_semantics_continuous.py --task celebahq --model-name stylegan --extractor unit --gpu %s --batch-size 1 --iter-num 32000 --last-only 1",
         ## church stylegan2
         #"python train/extract_semantics.py --load checkpoint/church_lsun_256x256_stylegan2.pth --model-name stylegan2 --batch-size 1 --iter-num 30000 --last-only 0 --task church --gpu %s",
         ## church prog
@@ -152,8 +179,9 @@ uname = uname.stdout.decode("ascii")
 if "jericho" in uname:
     #gpus = ["0"]; assign_run(SECore().command, gpus)
     #gpus = ["0"]; assign_run(SEL1Reg().command, gpus)
-    gpus = ["0"]; assign_run(direct_run, gpus)
+    #gpus = ["0"]; assign_run(direct_run, gpus)
     #gpus = ["0"]; assign_run(SEDiscLayers().command, gpus)
+    gpus = ["0"]; assign_run(SEVBS().command, gpus)
 elif "instance" in uname:
     gpus = ["0"]; assign_run(SESpherical().command, gpus)
 else:
