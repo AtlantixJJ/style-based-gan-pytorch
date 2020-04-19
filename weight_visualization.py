@@ -14,7 +14,7 @@ def concat_weight(module):
     vals = []
     ws = []
     for i, conv in enumerate(module):
-        w = conv[0].weight[:, :, 0, 0]
+        w = conv[0].weight[:, :, 0, 0].detach().cpu()
         ws.append(w)
     ws = torch.cat(ws, 1)
     return ws

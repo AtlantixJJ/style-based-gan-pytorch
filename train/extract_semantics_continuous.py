@@ -14,6 +14,7 @@ from model.semantic_extractor import get_semantic_extractor
 from lib.netdissect.segviz import segment_visualization, segment_visualization_single
 from lib.netdissect import proggan
 from lib.netdissect.zdataset import standard_z_sample, z_dataset_for_model
+from weight_visualization import concat_weight
 
 cfg = config.SemanticExtractorConfig()
 cfg.parse()
@@ -56,7 +57,11 @@ if cfg.task != "celebahq" and cfg.task != "ffhq":
 
 vbs = 32 # 1000 iter * 32 = 
 
-M, L = sep_model.weight.shape[:2]
+M = L = 0
+if hasattr(sep_model, "weight"):
+    M, L = sep_model.weight.shape[:2]
+else:
+    M, L = concat_weight(sep_model.semantic_extractor).shape[:2]
 trace = np.zeros((cfg.n_iter // vbs, M, L), "float32")
 
 for ind in tqdm(range(cfg.n_iter)):
@@ -103,7 +108,10 @@ for ind in tqdm(range(cfg.n_iter)):
     if ind % vbs == 0:
         sep_model.optim.step()
         sep_model.optim.zero_grad()
-        trace[ind // vbs] = utils.torch2numpy(sep_model.weight[:, :, 0, 0])
+        if hasattr(sep_model, "weight"):
+            trace[ind // vbs - 1] = utils.torch2numpy(sep_model.weight[:, :, 0, 0])
+        else:
+            trace[ind // vbs - 1] = concat_weight(sep_model.semantic_extractor)
 
     # collect training statistic
     for i, segs in enumerate(multi_segs):

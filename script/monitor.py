@@ -148,7 +148,8 @@ dims = [s.shape[1] for s in stage]
 layers = list(range(9))
 if "layer" in args.model:
     ind = args.model.rfind("layer") + len("layer")
-    layers = [int(i) for i in args.model[ind:].split(",")]
+    s = args.model[ind:].split("_")[0]
+    layers = [int(i) for i in s.split(",")]
     dims = np.array(dims)[layers].tolist()
 print(dims)
 
@@ -203,7 +204,7 @@ if "projective" in args.task:
 
 if "celeba-evaluator" in args.task:
     recordfile = args.model + "/training_evaluation.npy"
-    metric = evaluate.SimpleIoUMetric(ignore_classes=[0, 13])
+    metric = evaluate.SimpleIoUMetric(ignore_classes=[0])
     metric.result = np.load(recordfile, allow_pickle=True)[0]
     metric.aggregate(start=len(metric.result) // 2)
     global_dic = metric.global_result
@@ -497,7 +498,7 @@ if "weight" in args.task:
     for j in range(ws.shape[0]):
         ax = plt.subplot(4, 4, j + 1)
         x = list(range(len(ws[j])))
-        ax.scatter(x, ws[j])
+        ax.scatter(x, ws[j], s=2)
         ax.axes.get_xaxis().set_visible(False)
     plt.tight_layout()
     fig.savefig(f"{savepath}_class.png", bbox_inches='tight')
@@ -511,11 +512,9 @@ if "weight" in args.task:
         plot_weight_layerwise(
             sep_model.semantic_extractor,
             maximum, minimum)
-
-    threshold = model_file.replace(
-        "/stylegan_unit_extractor.model",
-        "threshold.txt")
-    if os.path.exist(threshold):
+    s = model_file[model_file.rfind("/")+1:]
+    threshold = s + "/threshold.txt"
+    if os.path.exists(threshold):
         threshold = open(threshold, "r").read()
         threshold
 
@@ -777,8 +776,8 @@ if "seg" in args.task:
         state_dict = torch.load(model_file, map_location='cpu')
         missed = sep_model.load_state_dict(state_dict)
         sep_model.to(device).eval()
-
-        gen, stage = generator.get_stage(latent, detach=True)
+        with torch.no_grad():
+            gen, stage = generator.get_stage(latent, detach=True)
         stage = [s for i, s in enumerate(stage) if i in layers]
         gen = gen.clamp(-1, 1)
         segs = sep_model(stage)

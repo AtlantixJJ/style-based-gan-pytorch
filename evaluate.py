@@ -46,7 +46,7 @@ def iou(y_pred, y_true):
 
 
 class SimpleIoUMetric(object):
-    def __init__(self, ignore_classes=[0], n_class=16):
+    def __init__(self, ignore_classes=[0], n_class=15):
         self.num = 0
         self.n_class = n_class
         self.ignore_classes = ignore_classes
