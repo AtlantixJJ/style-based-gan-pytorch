@@ -10,7 +10,6 @@ sys.path.insert(0, ".")
 import model, utils
 from model.semantic_extractor import get_semantic_extractor
 
-
 WINDOW_SIZE = 100
 n_class = 15
 device = "cuda"
@@ -37,7 +36,8 @@ sep_model.weight.requires_grad = False
 
 # data
 trace = np.load(trace_path) # (N, 15, D)
-weight = trace[-1]
+w = trace[100]
+
 
 # segmentation movie
 img = F.interpolate(image, size=256, mode="bilinear")

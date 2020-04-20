@@ -12,14 +12,18 @@ import model, evaluate, utils, config, dataset
 from lib.face_parsing import unet
 from model.semantic_extractor import get_semantic_extractor
 
-device = "cpu"
+from script.analysis.analyze_trace import get_dic
+from weight_visualization import concat_weight
+
+device = "cuda"
 batch_size = 1
 latent_size = 512
 n_class = 15
 latent = torch.randn(batch_size, latent_size, device=device)
-model_path = "checkpoint/face_celebahq_1024x1024_stylegan.pth"
-extractor_path = "checkpoint/stylegan_unit_extractor.model"
-generator = model.load_model_from_pth_file("stylegan", model_path)
+#model_path = "checkpoint/face_celebahq_1024x1024_stylegan.pth"
+model_path = "checkpoint/face_ffhq_1024x1024_stylegan2.pth"
+extractor_path = "record/vbs/ffhq_stylegan2_linear_layer0,1,2,3,4,5,6,7,8_vbs4/stylegan2_linear_extractor.model"
+generator = model.load_stylegan2(model_path)
 generator.to(device).eval()
 with torch.no_grad():
     image, stage = generator.get_stage(latent)
@@ -28,12 +32,60 @@ dims = [s.shape[1] for s in stage]
 cumdims = np.cumsum([0] + dims)
 
 origin_state_dict = torch.load(extractor_path, map_location=device)
-sep_model = get_semantic_extractor("unitnorm")(
+sep_model = get_semantic_extractor("linear")(
     n_class=n_class,
     dims=dims).to(device)
 sep_model.load_state_dict(origin_state_dict)
 
+w = concat_weight(sep_model.semantic_extractor).detach().cpu().numpy()
+dic, t1, t2, cr = get_dic(w, 0.1)
+
+# Selected featuremaps
+print("=> Visualize selected featuremaps")
+"""
+C = 1 # face
+indice = cr[C]
+viz_imgs = []
+for idx in indice:
+    stage_ind = cumdims.searchsorted(idx + 1) - 1
+    stage_idx = int(idx - cumdims[stage_ind])
+    img = stage[stage_ind][0:1, stage_idx:stage_idx+1]
+    attr = "-".join(dic[idx])
+    viz_imgs.append((img, idx, attr))
+
+for i, (img, idx, attr) in enumerate(viz_imgs):
+    if img.shape[3] >= 1024:
+        continue
+    img = img / img.max() # the featuremap is positive
+    if img.shape[3] <= 256:
+        img = F.interpolate(img, size=256, mode="bilinear")
+    img = utils.heatmap_torch(img)
+    vutils.save_image(img, f"{i:03d}_{idx:04d}_{attr}.png")
+"""
+C = 2 # nose
+print("=> Show random subsamples")
+indice = cr[C]
+count = 0
+print(indice)
+for k in range(1, 20, 5):
+    for i in range(5): # repeat
+        sample = np.random.choice(indice, size=k, replace=False)
+        s = []
+        for idx in sample:
+            stage_ind = cumdims.searchsorted(idx + 1) - 1
+            stage_idx = int(idx - cumdims[stage_ind])
+            img = stage[stage_ind][0:1, stage_idx:stage_idx+1]
+            s.append(img * w[C, idx, 0, 0])
+        size = max([a.shape[2] for a in s])
+        img = sum([F.interpolate(a, size=size, mode="bilinear")
+            for a in s])
+        img = utils.heatmap_torch(img / img.max())
+        vutils.save_image(img, f"{k:02d}_{i}_sample.png")
+        count += 1
+
+
 # random projection
+print("=> Random projection")
 w = torch.randn((sum(dims),))
 wp = w.clone(); wp[wp < 0] = 0
 f = 0
@@ -106,7 +158,7 @@ for i in range(10):
 maxsize = max([img[0].shape[3] for img in vis_imgs])
 
 for img, i, idx, val in vis_imgs:
-    img = (img - img.min()) / (img.max() - img.min())
+    img = img / img.max() # the featuremap is positive
     if img.shape[3] <= 256:
         img = F.interpolate(img, size=256)
     img = utils.heatmap_torch(img)
