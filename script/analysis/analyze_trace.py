@@ -47,14 +47,20 @@ def get_dic(w, threshold=0.01):
     t1 = [(k, v[0]) for k, v in dic.items() if len(v) == 1]
     t2 = [(k, v[0], v[1]) for k, v in dic.items() if len(v) == 2]
     cr = [set() for _ in range(15)]
+    cp = [set() for _ in range(15)]
+    cn = [set() for _ in range(15)]
     for k, vs in dic.items():
         for v in vs:
             c, p = v.split("_")
             c = int(c)
+            if p == 'p' and k not in cp[c]:
+                cp[c].add(k)
+            if p == 'n' and k not in cn[c]:
+                cn[c].add(k)
             if k not in cr[c]:
                 cr[c].add(k)
-    return dic, t1, t2, cr
 
+    return dic, cr, cp, cn
 
 if __name__ == "__main__":
     WINDOW_SIZE = 100

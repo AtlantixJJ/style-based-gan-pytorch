@@ -38,7 +38,7 @@ sep_model = get_semantic_extractor("linear")(
 sep_model.load_state_dict(origin_state_dict)
 
 w = concat_weight(sep_model.semantic_extractor).detach().cpu().numpy()
-dic, t1, t2, cr = get_dic(w, 0.1)
+dic, cr, cp, cn = get_dic(w, 0.1)
 
 # Selected featuremaps
 print("=> Visualize selected featuremaps")
@@ -64,24 +64,59 @@ for i, (img, idx, attr) in enumerate(viz_imgs):
 """
 C = 2 # nose
 print("=> Show random subsamples")
-indice = cr[C]
+indice = list(cr[C])
+cname = utils.CELEBA_CATEGORY[C]
+print(f"=> Category {cname} size {len(indice)}")
 count = 0
 print(indice)
-for k in range(1, 20, 5):
-    for i in range(5): # repeat
+for k in [10, 40, 100, 200, len(indice)]:
+    repeat_num = 1 if k == len(indice) else 5
+    for i in range(repeat_num): # repeat
         sample = np.random.choice(indice, size=k, replace=False)
         s = []
         for idx in sample:
             stage_ind = cumdims.searchsorted(idx + 1) - 1
             stage_idx = int(idx - cumdims[stage_ind])
             img = stage[stage_ind][0:1, stage_idx:stage_idx+1]
-            s.append(img * w[C, idx, 0, 0])
+            s.append(img * w[C, idx])
         size = max([a.shape[2] for a in s])
         img = sum([F.interpolate(a, size=size, mode="bilinear")
             for a in s])
         img = utils.heatmap_torch(img / img.max())
-        vutils.save_image(img, f"{k:02d}_{i}_sample.png")
-        count += 1
+vutils.save_image(img, f"{cname}_sample.png")
+count += 1
+
+C = 1 # skin
+print("=> Positive and negative")
+indice = list(cr[C])
+cname = utils.CELEBA_CATEGORY[C]
+print(f"=> Category {cname} size {len(indice)}")
+
+s = []
+for idx in list(cp[C]):
+    assert w[C, idx] >= 0
+    stage_ind = cumdims.searchsorted(idx + 1) - 1
+    stage_idx = int(idx - cumdims[stage_ind])
+    img = stage[stage_ind][0:1, stage_idx:stage_idx+1]
+    s.append(img * w[C, idx])
+img = sum([F.interpolate(a, size=256, mode="bilinear")
+    for a in s])
+vutils.save_image(
+    utils.heatmap_torch(img / img.max()),
+    f"{cname}_positive.png")
+
+s = []
+for idx in list(cn[C]):
+    assert w[C, idx] <= 0
+    stage_ind = cumdims.searchsorted(idx + 1) - 1
+    stage_idx = int(idx - cumdims[stage_ind])
+    img = stage[stage_ind][0:1, stage_idx:stage_idx+1]
+    s.append(-img * w[C, idx])
+img = sum([F.interpolate(a, size=256, mode="bilinear")
+    for a in s])
+vutils.save_image(
+    utils.heatmap_torch(img / img.max()),
+    f"{cname}_negative.png")
 
 
 # random projection
