@@ -120,6 +120,6 @@ for ind, dic in enumerate(dl):
         utils.plot_dic(record, t, f"{args.output}/image_edit_{args.external}_loss_{ind:02d}_{t}.png")
 
     images = torch.cat(images)
-    images = F.interpolate(images, (256, 256), mode="bilinear")
+    images = F.interpolate(images, (256, 256), mode="bilinear", align_corners=True)
     vutils.save_image(images,f"{args.output}/image_edit_{args.external}_{ind:02d}_result.png", nrow=4)
 

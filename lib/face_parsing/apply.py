@@ -37,7 +37,8 @@ def preprocess(fpath):
 	img = imread(fpath)
 	img_t = torch.from_numpy(img).permute(2, 0, 1).unsqueeze(0)
 	img_t = (img_t - 127.5) / 127.5
-	img_t = F.interpolate(img_t, (512, 512), mode='bilinear')
+	img_t = F.interpolate(img_t, (512, 512),
+		mode='bilinear', align_corners=True)
 	return img_t
 
 if args.file != "":

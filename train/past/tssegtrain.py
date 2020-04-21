@@ -81,19 +81,19 @@ for i in tqdm(range(cfg.n_iter + 1)):
 	gen = sg(latent2)
 	with torch.no_grad():
 		image = tg(latent1)
-		image = F.interpolate(image, cfg.imsize, mode="bilinear")
+		image = F.interpolate(image, cfg.imsize, mode="bilinear", align_corners=True)
 		label = faceparser(image).argmax(1)
 	if cfg.map_id:
 		label = cfg.idmap(label.detach())
 	image = image.detach().cpu().to(cfg.device2)
 	label = label.detach().cpu().to(cfg.device2)
 
-	mseloss = cfg.mse_coef * mse(F.interpolate(gen, cfg.imsize, mode="bilinear"), image)
+	mseloss = cfg.mse_coef * mse(F.interpolate(gen, cfg.imsize, mode="bilinear", align_corners=True), image)
 	segs = sg.extract_segmentation()
 	seglosses = []
 	for s in segs:
 		seglosses.append(logsoftmax(
-			F.interpolate(s, label.shape[2:], mode="bilinear"),
+			F.interpolate(s, label.shape[2:], mode="bilinear", align_corners=True),
 			label))
 	segloss = cfg.seg_coef * sum(seglosses) / len(seglosses)
 

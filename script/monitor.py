@@ -189,8 +189,8 @@ if "projective" in args.task:
             seg, projection = sep_model(stage, True, True)
             pred = seg[0].argmax(1)
             pred_viz = colorizer(pred).float().unsqueeze(0) / 255.
-            projection = F.interpolate(projection, 256, mode="bilinear")
-            pred = F.interpolate(seg[0], 256, mode="bilinear").argmax(1)
+            projection = F.interpolate(projection, 256, mode="bilinear", align_corners=True)
+            pred = F.interpolate(seg[0], 256, mode="bilinear", align_corners=True).argmax(1)
             c = (np.array(utils.CELEBA_COLORS)/255.)[pred.view(-1).tolist()]
             x = projection[0, 0].view(-1).cpu()
             y = projection[0, 1].view(-1).cpu()
@@ -229,7 +229,7 @@ if "layer-conv" in args.task:
 
     image = generator(latent, seg=False)
     image = image.clamp(-1, 1)
-    unet_seg = faceparser(F.interpolate(image, size=512, mode="bilinear"))
+    unet_seg = faceparser(F.interpolate(image, size=512, mode="bilinear", align_corners=True))
     unet_label = unet_seg.argmax(1)
     unet_label_viz = colorizer(unet_label).float() / 255.
     image = (1 + image[0]) / 2
@@ -242,17 +242,17 @@ if "layer-conv" in args.task:
 
     prev_seg = 0
     for i, (s, ss) in enumerate(zip(layer_segs, sum_segs)):
-        #layer_label = F.interpolate(s, size=image.shape[2], mode="bilinear").argmax(1)[0]
+        #layer_label = F.interpolate(s, size=image.shape[2], mode="bilinear", align_corners=True).argmax(1)[0]
         layer_label = s.argmax(1)[0]
         layer_label_viz = colorizer(layer_label).float() / 255.
-        #sum_layers = [F.interpolate(x, size=s.shape[2], mode="bilinear") for x in segs[:i]]
+        #sum_layers = [F.interpolate(x, size=s.shape[2], mode="bilinear", align_corners=True) for x in segs[:i]]
         #sum_layers = sum(sum_layers) + s
-        #sum_layers = F.interpolate(sum_layers, size=image.shape[2], mode="bilinear")
+        #sum_layers = F.interpolate(sum_layers, size=image.shape[2], mode="bilinear", align_corners=True)
 
         if prev_seg is 0:
             prev_seg = ss
         
-        prev_label = F.interpolate(prev_seg, size=s.shape[2], mode="bilinear").argmax(1)[0]
+        prev_label = F.interpolate(prev_seg, size=s.shape[2], mode="bilinear", align_corners=True).argmax(1)[0]
 
         sum_label = ss.argmax(1)[0]
         sum_label_viz = colorizer(sum_label).float() / 255.
@@ -268,7 +268,7 @@ if "layer-conv" in args.task:
                 diff_label_viz.unsqueeze(0), size=256, mode="nearest")[0]
         images.extend([layer_label_viz, sum_label_viz, diff_label_viz])
         prev_seg = ss
-    images = [F.interpolate(img.unsqueeze(0), size=256, mode="bilinear") for img in images]
+    images = [F.interpolate(img.unsqueeze(0), size=256, mode="bilinear", align_corners=True) for img in images]
     images = torch.cat(images)
     print(f"=> Image write to {savepath}_layer-conv.png")
     vutils.save_image(images, f"{savepath}_layer-conv.png", nrow=3)
@@ -350,7 +350,7 @@ if "cosim" in args.task:
             data = 0
             if "cosim-feature" in args.task:
                 print("=> Interpolating large feature")
-                data = torch.cat([F.interpolate(s.cpu(), size=H, mode="bilinear")[0] for s in stage]).permute(1, 2, 0)
+                data = torch.cat([F.interpolate(s.cpu(), size=H, mode="bilinear", align_corners=True)[0] for s in stage]).permute(1, 2, 0)
                 data = utils.torch2numpy(data)
                 np.save(f"feats_{ind}.npy", data)
             elif "cosim-calc" in args.task:
@@ -567,10 +567,10 @@ if "visualize" in args.task:
             latent.normal_()
             image, stage = generator.get_stage(latent)
             seg = sep_model(stage, True)[0]
-            seg = F.interpolate(seg, size=size, mode="bilinear")
+            seg = F.interpolate(seg, size=size, mode="bilinear", align_corners=True)
             pred = seg.argmax(1)
             pred_viz = colorizer(pred).float() / 255.
-            data = torch.cat([F.interpolate(s, size=size, mode="bilinear")[0].cpu() for s in stage]).permute(1, 2, 0)
+            data = torch.cat([F.interpolate(s, size=size, mode="bilinear", align_corners=True)[0].cpu() for s in stage]).permute(1, 2, 0)
             c = (np.array(utils.CELEBA_COLORS)/255.)[pred.view(-1).tolist()]
             data = data.view(-1, data.shape[2])
 

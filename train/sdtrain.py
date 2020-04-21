@@ -53,14 +53,14 @@ for ind, sample in enumerate(pbar):
     real_image, real_label_compat = sample
     real_image = real_image.cuda()
     real_label = utils.onehot(real_label_compat, cfg.n_class).cuda()
-    real_label = F.interpolate(real_label, real_image.size(2), mode="bilinear")
+    real_label = F.interpolate(real_label, real_image.size(2), mode="bilinear", align_corners=True)
     latent.normal_()
     eps.uniform_()
 
     with torch.no_grad():
         fake_image, fake_label_logit = sg(latent)
         fake_label = F.softmax(fake_label_logit, 1)
-        fake_label = F.interpolate(fake_label, fake_image.size(2), mode="bilinear")
+        fake_label = F.interpolate(fake_label, fake_image.size(2), mode="bilinear", align_corners=True)
     disc_fake_in = torch.cat([fake_image, fake_label], 1) if cfg.seg > 0 else fake_image
     disc_real_in = torch.cat([real_image, real_label], 1) if cfg.seg > 0 else real_image
 
@@ -97,7 +97,7 @@ for ind, sample in enumerate(pbar):
     latent.normal_()
     gen, gen_label_logit = sg(latent, detach=True)
     gen_label = F.softmax(gen_label_logit, 1)
-    gen_label = F.interpolate(gen_label, gen.size(2), mode="bilinear")
+    gen_label = F.interpolate(gen_label, gen.size(2), mode="bilinear", align_corners=True)
     disc_gen_in = torch.cat([gen, gen_label], 1) if cfg.seg > 0 else gen
     disc_gen = disc(disc_gen_in, step=step, alpha=alpha)
     gen_loss = -disc_gen.mean()

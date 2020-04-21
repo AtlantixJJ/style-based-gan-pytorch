@@ -88,7 +88,7 @@ for ind in tqdm(range(cfg.n_iter)):
 
 	with torch.no_grad(): # fix main network
 		gen = sg(latent, seg=False).clamp(-1, 1)
-		gen = F.interpolate(gen, cfg.seg_net_imsize, mode="bilinear")
+		gen = F.interpolate(gen, cfg.seg_net_imsize, mode="bilinear", align_corners=True)
 		label = faceparser(gen).argmax(1)
 		if cfg.map_id:
 			label = cfg.idmap(label.detach())
@@ -120,7 +120,7 @@ for ind in tqdm(range(cfg.n_iter)):
 	record['regloss'].append(utils.torch2numpy(regloss))
 
 	# calculate training accuracy
-	gen_label = F.interpolate(segs[-1], label.size(2), mode="bilinear").argmax(1)
+	gen_label = F.interpolate(segs[-1], label.size(2), mode="bilinear", align_corners=True).argmax(1)
 	gen_label_np = gen_label.cpu().numpy()
 	label_np = label.cpu().numpy()
 	for i in range(latent.shape[0]):

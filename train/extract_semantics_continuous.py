@@ -92,7 +92,7 @@ for ind in tqdm(range(cfg.n_iter)):
         l[l<0] = 0
         if segs[-1].size(3) < l.shape[2]:
             segs[-1] = F.interpolate(
-                segs[-1], size=l.shape[2], mode="bilinear")
+                segs[-1], size=l.shape[2], mode="bilinear", align_corners=True)
         if "KL" == cfg.loss_type:
             logits = external_model.seg
             l = F.softmax(logits, dim=1)
@@ -126,7 +126,7 @@ for ind in tqdm(range(cfg.n_iter)):
         # visualize training
         res = []
         size = label.shape[2:]
-        gen = F.interpolate(gen, size=size, mode="bilinear")
+        gen = F.interpolate(gen, size=size, mode="bilinear", align_corners=True)
         for i in range(label.shape[0]): # label (N, M, H, W)
             image = (utils.torch2numpy(gen[i]) + 1) * 127.5
             res.append(image.transpose(1, 2, 0))

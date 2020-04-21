@@ -34,7 +34,7 @@ def preprocess_image(arr, size=(1024, 1024)):
     """
     t = torch.from_numpy(arr.transpose(2, 0, 1)).unsqueeze(0)
     t = (t - 127.5) / 127.5
-    t = F.interpolate(t, size=size, mode="bilinear")
+    t = F.interpolate(t, size=size, mode="bilinear", align_corners=True)
     return t
 
 
@@ -44,7 +44,7 @@ def preprocess_mask(mask, size=(1024, 1024)):
     """
     t = torch.from_numpy(mask).unsqueeze(0).unsqueeze(0)
     t = t / 255.
-    t = F.interpolate(t, size=size, mode="bilinear")
+    t = F.interpolate(t, size=size, mode="bilinear", align_corners=True)
     return t
 
 

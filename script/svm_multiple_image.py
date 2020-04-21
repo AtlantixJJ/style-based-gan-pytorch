@@ -110,7 +110,7 @@ test_noises = [generator.generate_noise() for _ in range(test_size)]
 def get_feature(generator, latent, noise, layer_index):
     feat = [generator.stage[i].detach().cpu() for i in layer_index]
     maxsize = max([f.shape[2] for f in feat])
-    feat = torch.cat([F.interpolate(f, size=maxsize, mode="bilinear") for f in feat], 1)
+    feat = torch.cat([F.interpolate(f, size=maxsize, mode="bilinear", align_corners=True) for f in feat], 1)
     return feat.detach()
 
 
@@ -126,7 +126,7 @@ def test(generator, linear_model, test_latents, test_noises, N):
         est_label = linear_model.predict(stage)
         size = est_label.shape[2]
         
-        seg = F.interpolate(seg, size=size, mode="bilinear")
+        seg = F.interpolate(seg, size=size, mode="bilinear", align_corners=True)
         label = seg.argmax(1).detach().cpu()
         label = idmap(label)
         evaluator.calc_single(est_label, utils.torch2numpy(label))

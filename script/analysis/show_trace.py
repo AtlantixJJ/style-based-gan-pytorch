@@ -13,9 +13,7 @@ from model.semantic_extractor import get_semantic_extractor
 WINDOW_SIZE = 100
 n_class = 15
 device = "cuda"
-name = sys.argv[1] # fixseg_1.0_mul-16
-name = name.replace("expr/", "")
-trace_path = f"expr/{name}/trace.npy"
+trace_path = sys.argv[1]
 latent = torch.randn(1, 512, device=device)
 colorizer = utils.Colorize(15)
 
@@ -40,12 +38,12 @@ w = trace[100]
 
 
 # segmentation movie
-img = F.interpolate(image, size=256, mode="bilinear")
+img = F.interpolate(image, size=256, mode="bilinear", align_corners=True)
 os.system("rm video/*.png")
 for i in tqdm(range(trace.shape[0])):
     sep_model.weight.copy_(torch.from_numpy(trace[i]).unsqueeze(2).unsqueeze(2))
     seg = sep_model(stage)[0]
     label_viz = colorizer(seg.argmax(1)).unsqueeze(0) / 255.
-    label_viz = F.interpolate(label_viz, size=256, mode="bilinear")
+    label_viz = F.interpolate(label_viz, size=256, mode="bilinear", align_corners=True)
     vutils.save_image(torch.cat([img, label_viz]), "video/%04d.png" % i)
 os.system("ffmpeg -y -f image2 -r 12 -i video/%04d.png -pix_fmt yuv420p -b:v 16000k demo.mp4")

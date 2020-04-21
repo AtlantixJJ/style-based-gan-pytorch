@@ -78,7 +78,7 @@ elif "stylegandisc" in model_path:
         seg = model(stage)[0]
         if seg.shape[2] != x.shape[2]:
             seg = F.interpolate(seg,
-                size=x.shape[2], mode="bilinear")
+                size=x.shape[2], mode="bilinear", align_corners=True)
         return seg
 
 print(model_path)

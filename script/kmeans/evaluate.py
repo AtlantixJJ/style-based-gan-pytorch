@@ -39,11 +39,11 @@ for i, f in enumerate(files):
         with torch.no_grad():
             image, stage = generator.get_stage(latent[j:j+1])
             stage = [s for i, s in enumerate(stage) if 3 <= i and i <= 7]
-            image = F.interpolate(image, size=512, mode="bilinear")
+            image = F.interpolate(image, size=512, mode="bilinear", align_corners=True)
             images.append((image.clamp(-1, 1) + 1) / 2)
             size = max([s.shape[2] for s in stage])
             data = torch.cat([
-                F.interpolate(s.cpu(), size=maxsize, mode="bilinear")[0]
+                F.interpolate(s.cpu(), size=maxsize, mode="bilinear", align_corners=True)[0]
                     for s in stage]) # (C, H, W)
             C, H, W = data.shape
             ind = torch.randperm(data.shape[1] * data.shape[2])
@@ -66,6 +66,6 @@ for i, f in enumerate(files):
         label_viz = utils.tensor2label(labels, centeroids.shape[0]).unsqueeze(0)
         images.append(label_viz)
     images = torch.cat([
-        F.interpolate(i, size=256, mode="bilinear")
+        F.interpolate(i, size=256, mode="bilinear", align_corners=True)
         for i in images])
     vutils.save_image(images, f"{f[:-4]}_result.png", nrow=4)

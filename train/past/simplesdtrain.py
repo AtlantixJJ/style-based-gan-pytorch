@@ -151,7 +151,7 @@ for ind, sample in enumerate(pbar):
                 img = (real_image[i] + 1) / 2
                 viz = utils.tensor2label(real_label_compat[i], cfg.n_class)
                 real_label_viz.extend([img, viz])
-            real_label_viz = torch.cat([F.interpolate(m.unsqueeze(0), 256, mode="bilinear").cpu() for m in real_label_viz])
+            real_label_viz = torch.cat([F.interpolate(m.unsqueeze(0), 256, mode="bilinear", align_corners=True).cpu() for m in real_label_viz])
 
             fake_label_viz = []
             fake_label_compat = fake_label_logit.argmax(1)
@@ -159,7 +159,7 @@ for ind, sample in enumerate(pbar):
                 img = (fake_image[i] + 1) / 2
                 viz = utils.tensor2label(fake_label_compat[i], cfg.n_class)
                 fake_label_viz.extend([img, viz])
-            fake_label_viz = torch.cat([F.interpolate(m.unsqueeze(0), 256, mode="bilinear").cpu() for m in fake_label_viz])
+            fake_label_viz = torch.cat([F.interpolate(m.unsqueeze(0), 256, mode="bilinear", align_corners=True).cpu() for m in fake_label_viz])
 
             vutils.save_image(real_label_viz, cfg.expr_dir + "/real_label_viz_%05d.png" % ind, nrow=2)
             vutils.save_image(fake_label_viz, cfg.expr_dir + "/fake_label_viz_%05d.png" % ind, nrow=2)

@@ -56,7 +56,7 @@ class SEVBS2(SECore):
 
 class SEVBS2Continuous(SECore):
     def __init__(self):
-        self.vbs = [4, 16, 32, 64]
+        self.vbs = [32, 64]
         self.extractors = [
             "linear",
             "unit"
@@ -198,7 +198,7 @@ if "jericho" in uname:
     #gpus = ["0"]; assign_run(SEL1Reg().command, gpus)
     #gpus = ["0"]; assign_run(direct_run, gpus)
     #gpus = ["0"]; assign_run(SEDiscLayers().command, gpus)
-    gpus = ["0"]; assign_run(SEVBS2Continuous().command, gpus)
+    gpus = ["0"]; assign_run(SEVBS2().command, gpus)
 elif "instance" in uname:
     gpus = ["0"]; assign_run(SESpherical().command, gpus)
 else:

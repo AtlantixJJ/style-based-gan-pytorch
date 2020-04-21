@@ -102,7 +102,7 @@ class GenerativeSemanticExtractor(BaseSemanticExtractor):
         # summation series
         for i in range(1, len(stage)):
             size = stage[i].shape[2]
-            layers = [F.interpolate(s, size=size, mode="bilinear")
+            layers = [F.interpolate(s, size=size, mode="bilinear", align_corners=True)
                 for s in outputs[:i]]
             sum_layers = sum(layers)
             if i + 1 == len(stage):
@@ -146,7 +146,7 @@ class LinearSemanticExtractor(BaseSemanticExtractor):
         if last_only:
             res = []
             for cat_id in range(len(self.category_groups)):
-                r = [F.interpolate(s, size=size, mode="bilinear")
+                r = [F.interpolate(s, size=size, mode="bilinear", align_corners=True)
                     for s in outputs[cat_id]]
                 res.append(sum(r))
             return res
@@ -155,7 +155,7 @@ class LinearSemanticExtractor(BaseSemanticExtractor):
         for i in range(1, len(stage)):
             size = stage[i].shape[2]
             for cat_id in range(len(self.category_groups)):
-                layers = [F.interpolate(s, size=size, mode="bilinear")
+                layers = [F.interpolate(s, size=size, mode="bilinear", align_corners=True)
                     for s in outputs[cat_id][:i]]
                 sum_layers = sum(layers) + outputs[cat_id][i]
                 outputs[cat_id].append(sum_layers)
@@ -169,14 +169,14 @@ class LinearSemanticExtractor(BaseSemanticExtractor):
         size = max([o.shape[2] for o in outputs])
 
         if last_only:
-            layers = [F.interpolate(s, size=size, mode="bilinear")
+            layers = [F.interpolate(s, size=size, mode="bilinear", align_corners=True)
                 for s in outputs]
             return [sum(layers)]
 
         # summation series
         for i in range(1, len(stage)):
             size = stage[i].shape[2]
-            layers = [F.interpolate(s, size=size, mode="bilinear")
+            layers = [F.interpolate(s, size=size, mode="bilinear", align_corners=True)
                 for s in outputs[:i]]
             sum_layers = sum(layers) + outputs[i]
             outputs.append(sum_layers)
@@ -252,7 +252,7 @@ class ProjectiveLinearSemanticExtractor(LinearSemanticExtractor):
             proj = semantic_projector[i](seg_input)
             projects.append(proj)
         size = stage[-1].shape[2]
-        project = sum([F.interpolate(p, size=size, mode="bilinear")
+        project = sum([F.interpolate(p, size=size, mode="bilinear", align_corners=True)
             for p in projects])
         seg = semantic_visualizer(project)
         if last_only:
@@ -264,7 +264,7 @@ class ProjectiveLinearSemanticExtractor(LinearSemanticExtractor):
         """
         for i in range(1, len(stage)):
             size = stage[i].shape[2]
-            layers = [F.interpolate(s, size=size, mode="bilinear")
+            layers = [F.interpolate(s, size=size, mode="bilinear", align_corners=True)
                 for s in outputs[:i]]
             sum_layers = sum(layers) + outputs[i]
             outputs.append(sum_layers)
@@ -290,7 +290,7 @@ class NormalizedLinearSemanticExtractor(BaseSemanticExtractor):
     def forward(self, stage, last_only=True):
         maxsize = stage[-1].shape[2] // 2
         with torch.no_grad():
-            feat = torch.cat([F.interpolate(s, size=maxsize, mode="bilinear")
+            feat = torch.cat([F.interpolate(s, size=maxsize, mode="bilinear", align_corners=True)
                 for s in stage], 1)
             feat = F.normalize(feat, 2, 1)
 
@@ -312,7 +312,7 @@ class NormalizedLinearSemanticExtractor(BaseSemanticExtractor):
             x = x + sides[i]
             size = min(stage[i].shape[2], sides[i].shape[2])
             if x.shape[3] != size:
-                outputs.append(F.interpolate(x, size=size, mode="bilinear"))
+                outputs.append(F.interpolate(x, size=size, mode="bilinear", align_corners=True))
             else:
                 outputs.append(x)
         
@@ -330,7 +330,7 @@ class UnitNormalizedLinearSemanticExtractor(NormalizedLinearSemanticExtractor):
         w = w.view(-1, w.shape[1], 1, 1)
 
         with torch.no_grad():
-            feat = torch.cat([F.interpolate(s, size=maxsize, mode="bilinear") for s in stage], 1)
+            feat = torch.cat([F.interpolate(s, size=maxsize, mode="bilinear", align_corners=True) for s in stage], 1)
             feat = F.normalize(feat, 2, 1)
 
         if last_only:
@@ -361,7 +361,7 @@ class UnitLinearSemanticExtractor(BaseSemanticExtractor):
                 cur = self.segments[i+1]
                 outputs.append(F.conv2d(stage[i], w[:, prev:cur]))
             maxsize = max([o.shape[2] for o in outputs])
-            layers = [F.interpolate(o, size=maxsize, mode="bilinear")
+            layers = [F.interpolate(o, size=maxsize, mode="bilinear", align_corners=True)
                 for o in outputs]
             return [sum(layers)]
 
@@ -434,13 +434,13 @@ class OVOLinearSemanticExtractor(nn.Module):
 
         if last_only:
             size = stage[-1].shape[2]
-            layers = [F.interpolate(s, size=size, mode="bilinear") for s in outputs]
+            layers = [F.interpolate(s, size=size, mode="bilinear", align_corners=True) for s in outputs]
             outputs = [sum(layers)]
         else:
             # summation series
             for i in range(1, len(stage)):
                 size = stage[i].shape[2]
-                layers = [F.interpolate(s, size=size, mode="bilinear")
+                layers = [F.interpolate(s, size=size, mode="bilinear", align_corners=True)
                     for s in outputs[:i]]
                 sum_layers = sum(layers) + outputs[i]
                 outputs.append(sum_layers)

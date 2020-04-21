@@ -69,7 +69,8 @@ def get_output(generator, model_file, external_model, latent):
         seg = sep_model(stage, True)[0]
 
     size = label.shape[2]
-    image = F.interpolate(image, size=size, mode="bilinear")
+    image = F.interpolate(image,
+        size=size, mode="bilinear", align_corners=True)
     image = (image + 1) / 2
     res = [image]
 
@@ -98,7 +99,8 @@ def get_text(gt, ct):
 
 def process(res):
     res = torch.cat(res)
-    res = F.interpolate(res, 256, mode="bilinear")
+    res = F.interpolate(res, 256,
+        mode="bilinear", align_corners=True)
     return utils.torch2numpy(res * 255).transpose(0, 2, 3, 1)
 
 

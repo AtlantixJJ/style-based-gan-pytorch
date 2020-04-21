@@ -50,7 +50,7 @@ for i in tqdm(range(10001)):
     mselosses = []
     for img in images:
         mselosses.append(mse(
-            F.interpolate(img, target.shape[2:], mode="bilinear"),
+            F.interpolate(img, target.shape[2:], mode="bilinear", align_corners=True),
             target))
     mseloss = sum(mselosses) / len(mselosses)
 
@@ -67,7 +67,7 @@ for i in tqdm(range(10001)):
 
     if i % 1000 == 0:
         images = images + [target]
-        image_list = [F.interpolate(img[0:1], (256, 256), mode="bilinear") for img in images]
+        image_list = [F.interpolate(img[0:1], (256, 256), mode="bilinear", align_corners=True) for img in images]
         image_list = (torch.cat(image_list).clamp(-1, 1) + 1) / 2
         vutils.save_image(image_list, f"{cfg.expr_dir}/img_{i // 200}.png", nrow=4)
 

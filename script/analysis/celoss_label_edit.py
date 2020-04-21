@@ -119,6 +119,6 @@ for ind, dic in enumerate(dl):
     for i in range(len(images)):
         images[i] = images[i].detach().cpu()
 
-    images = F.interpolate(torch.cat(images), (256, 256), mode="bilinear")
+    images = F.interpolate(torch.cat(images), (256, 256), mode="bilinear", align_corners=True)
     vutils.save_image(images,f"{args.output}/label_edit_{args.external}_{ind:02d}_result.png", nrow=4)
 

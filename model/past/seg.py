@@ -458,7 +458,7 @@ class Generator(nn.Module):
                 if count == 0:
                     hidden = self.semantic_extractor[count](blk.seg_input)
                 else:
-                    hidden = F.interpolate(hidden, scale_factor=2, mode="bilinear") + \
+                    hidden = F.interpolate(hidden, scale_factor=2, mode="bilinear", align_corners=True) + \
                                 self.semantic_extractor[count](blk.seg_input)
                     if "res" in self.segcfg:
                         hidden = hidden + self.residue[count](hidden)

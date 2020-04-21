@@ -110,7 +110,7 @@ for ind, dic in enumerate(dl):
     for i in range(len(images)):
         images[i] = images[i].detach().cpu()
     images = torch.cat(images)
-    images = F.interpolate(images, (256, 256), mode="bilinear")
+    images = F.interpolate(images, (256, 256), mode="bilinear", align_corners=True)
     vutils.save_image(images, f"{args.output}/compare_edit_{ind:02d}_original.png", nrow=6)
     images = []
 
@@ -185,6 +185,6 @@ for ind, dic in enumerate(dl):
         utils.plot_dic(record, t, f"{args.output}/compare_edit_loss_{ind:02d}_{t}.png")
 
     images = torch.cat(images)
-    images = F.interpolate(images, (256, 256), mode="bilinear")
+    images = F.interpolate(images, (256, 256), mode="bilinear", align_corners=True)
     vutils.save_image(images,f"{args.output}/compare_edit_{ind:02d}_result.png", nrow=5)
 

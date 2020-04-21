@@ -87,7 +87,8 @@ def catlist(tensor_list, size=256):
     for i in range(len(tensor_list)):
         if len(tensor_list[i].shape) == 3:
             tensor_list[i] = tensor_list[i].unsqueeze(0)
-    a = [F.interpolate(t, size=size, mode="nearest") for t in tensor_list]
+    a = [F.interpolate(t, size=size, mode="nearest", align_corners=True)
+        for t in tensor_list]
     return torch.cat(a)
 
 

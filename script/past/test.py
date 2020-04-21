@@ -104,7 +104,7 @@ def evaluate_on_dataset(predict_func, ds, save_path="record.npy"):
                 ds.n_class).unsqueeze(0)
             gen = gen.unsqueeze(0)
             res = [image, tarlabel, gen, genlabel]
-            res = torch.cat([F.interpolate(item, (256, 256), mode="bilinear") for item in res])
+            res = torch.cat([F.interpolate(item, (256, 256), mode="bilinear", align_corners=True) for item in res])
             vutils.save_image(res, save_path.replace("record.npy", f"{ind}.png"),
                 nrow=2, normalize=True, range=(0, 1), scale_each=True)
 

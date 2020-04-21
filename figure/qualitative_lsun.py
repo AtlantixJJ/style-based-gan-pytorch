@@ -65,7 +65,8 @@ def get_output(generator, model_file, external_model, latent,
         multi_segs = sep_model(stage)
 
     size = label.shape[2:]
-    image = F.interpolate(image, size=size, mode="bilinear")
+    image = F.interpolate(image,
+        size=size, mode="bilinear", align_corners=True)
     image = (utils.torch2numpy(image[0]) + 1) * 127.5
     res = [image.transpose(1, 2, 0)]
     for i, seg in enumerate(multi_segs[:flag]):

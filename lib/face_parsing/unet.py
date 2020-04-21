@@ -53,7 +53,8 @@ class unet(nn.Module):
     def forward(self, inputs, resize=True):
         input_size = inputs.shape[3]
         if input_size != self.train_size:
-            inputs = F.interpolate(inputs, self.train_size, mode="bilinear")
+            inputs = F.interpolate(inputs, self.train_size,
+                mode="bilinear", align_corners=True)
 
         conv1 = self.conv1(inputs)
         maxpool1 = self.maxpool1(conv1)
@@ -76,6 +77,7 @@ class unet(nn.Module):
         final = self.final(up1)
 
         if resize and input_size != self.train_size:
-            final = F.interpolate(final, input_size, mode="bilinear")
+            final = F.interpolate(final, input_size,
+                mode="bilinear", align_corners=True)
         #print(final.shape)
         return final

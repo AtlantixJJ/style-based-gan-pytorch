@@ -59,8 +59,8 @@ M = L = 0
 if hasattr(sep_model, "weight"):
     M, L = sep_model.weight.shape[:2]
 else:
-    M, L = concat_weight(sep_model.semantic_extractor)
-trace = np.zeros((cfg.n_iter // vbs, M, L), "float32")
+    M, L = concat_weight(sep_model.semantic_extractor).shape[:2]
+trace = np.zeros((cfg.n_iter // cfg.vbs, M, L), "float32")
 
 for ind in tqdm(range(cfg.n_iter)):
     ind += 1
@@ -91,7 +91,7 @@ for ind in tqdm(range(cfg.n_iter)):
         l[l<0] = 0
         if segs[-1].size(3) < l.shape[2]:
             segs[-1] = F.interpolate(
-                segs[-1], size=l.shape[2], mode="bilinear")
+                segs[-1], size=l.shape[2], mode="bilinear", align_corners=True)
         if "KL" == cfg.loss_type:
             logits = external_model.seg
             l = F.softmax(logits, dim=1)
@@ -111,9 +111,9 @@ for ind in tqdm(range(cfg.n_iter)):
         sep_model.optim.step()
         sep_model.optim.zero_grad()
         if hasattr(sep_model, "weight"):
-            trace[ind // vbs - 1] = utils.torch2numpy(sep_model.weight[:, :, 0, 0])
+            trace[ind // cfg.vbs - 1] = utils.torch2numpy(sep_model.weight[:, :, 0, 0])
         else:
-            trace[ind // vbs - 1] = concat_weight(sep_model.semantic_extractor)
+            trace[ind // cfg.vbs - 1] = concat_weight(sep_model.semantic_extractor)
 
     # collect training statistic
     for i, segs in enumerate(multi_segs):
@@ -128,7 +128,7 @@ for ind in tqdm(range(cfg.n_iter)):
         # visualize training
         res = []
         size = label.shape[2:]
-        gen = F.interpolate(gen, size=size, mode="bilinear")
+        gen = F.interpolate(gen, size=size, mode="bilinear", align_corners=True)
         for i in range(label.shape[0]): # label (N, M, H, W)
             image = (utils.torch2numpy(gen[i]) + 1) * 127.5
             res.append(image.transpose(1, 2, 0))

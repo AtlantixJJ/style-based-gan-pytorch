@@ -50,7 +50,7 @@ for i in tqdm.tqdm(range(N)):
             images.append((image.clamp(-1, 1) + 1) / 2)
         size = max([s.shape[2] for s in stage])
         data = torch.cat([
-            F.interpolate(s.cpu(), size=maxsize, mode="bilinear")[0]
+            F.interpolate(s.cpu(), size=maxsize, mode="bilinear", align_corners=True)[0]
                 for i, s in enumerate(stage) if 3 <= i and i <= 7]) # (C, H, W)
         ind = torch.randperm(data.shape[1] * data.shape[2])
         ind = ind[:len(ind) // N * S]

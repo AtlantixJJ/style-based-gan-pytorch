@@ -28,7 +28,7 @@ class MultiResolutionConvolution(nn.Module):
         
         size = max([out.size(3) for out in outs])
 
-        return sum([F.interpolate(out, size, mode="bilinear") for out in outs])
+        return sum([F.interpolate(out, size, mode="bilinear", align_corners=True) for out in outs])
 
 
 class ExtendedConv(nn.Module):

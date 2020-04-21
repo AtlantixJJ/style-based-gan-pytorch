@@ -63,7 +63,7 @@ for ind, sample in enumerate(tqdm(cfg.dl)): #for ind in range(cfg.n_iter):
 
     if segs[-1].size(3) < label.shape[2]:
         segs[-1] = F.interpolate(
-            segs[-1], size=label.shape[2], mode="bilinear")
+            segs[-1], size=label.shape[2], mode="bilinear", align_corners=True)
 
     segloss = loss.segloss(segs, label)
 
@@ -91,7 +91,7 @@ for ind, sample in enumerate(tqdm(cfg.dl)): #for ind in range(cfg.n_iter):
         # visualize training
         res = []
         size = label.shape[1:]
-        image = F.interpolate(image, size=size, mode="bilinear")
+        image = F.interpolate(image, size=size, mode="bilinear", align_corners=True)
         for i in range(label.shape[0]): # label (N, M, H, W)
             image = (utils.torch2numpy(image[i]) + 1) * 127.5
             res.append(image.transpose(1, 2, 0))

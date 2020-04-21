@@ -22,11 +22,13 @@ def kl_div(segs, prob):
         if s.size(2) < prob.size(2): 
             l_ = F.interpolate(
                 prob.unsqueeze(1), s.size(2),
-                mode="bilinear")
+                mode="bilinear",
+                align_corners=True)
             layer_loss = F.kl_div(s, l_)
         # label is small : downsample seg
         elif s.size(2) >= prob.size(2): 
-            s_ = F.interpolate(s, prob.size(2), mode="bilinear")
+            s_ = F.interpolate(s, prob.size(2),
+                mode="bilinear", align_corners=True)
             layer_loss = F.kl_div(s_, prob)
         seglosses.append(layer_loss)
     segloss = sum(seglosses[:-1]) * 0.1 + seglosses[-1]
@@ -43,11 +45,13 @@ def segloss(segs, ext_label):
         # label is large : downsample label
         if s.size(2) < ext_label.size(2): 
             l_ = ext_label.float()
-            l_ = F.interpolate(l_.unsqueeze(1), s.size(2), mode="nearest").squeeze(1)
+            l_ = F.interpolate(l_.unsqueeze(1), s.size(2),
+                mode="nearest", align_corners=True).squeeze(1)
             layer_loss = F.cross_entropy(s, l_.long())
         # label is small : downsample seg
         elif s.size(2) > ext_label.size(2): 
-            s_ = F.interpolate(s, ext_label.size(2), mode="bilinear")
+            s_ = F.interpolate(s, ext_label.size(2),
+                mode="bilinear", align_corners=True)
             layer_loss = F.cross_entropy(s_, ext_label)
         else:
             layer_loss = F.cross_entropy(s, ext_label)

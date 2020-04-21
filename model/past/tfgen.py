@@ -474,7 +474,7 @@ class StyledGenerator(nn.Module):
             #gen_np = gen[0].detach().cpu().numpy()
             #gen_np = ((gen_np + 1) * 127.5).transpose(1, 2, 0)
             seg_logit = self.extract_segmentation()[-1]
-            seg_logit = F.interpolate(seg_logit, (512, 512), mode="bilinear")
+            seg_logit = F.interpolate(seg_logit, (512, 512), mode="bilinear", align_corners=True)
             seg = seg_logit.argmax(dim=1)
             #seg = seg.numpy()
         return gen, seg

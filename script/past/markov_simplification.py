@@ -72,7 +72,7 @@ generator = generator.to(device)
 
 image = generator(latent, seg=False)
 image = image.clamp(-1, 1)
-unet_seg = faceparser(F.interpolate(image, size=512, mode="bilinear"))
+unet_seg = faceparser(F.interpolate(image, size=512, mode="bilinear", align_corners=True))
 unet_label = utils.idmap(unet_seg.argmax(1))
 unet_label_viz = colorizer(unet_label).float() / 255.
 image = (1 + image[0]) / 2
@@ -82,14 +82,14 @@ images = [image, unet_label_viz, final_label_viz]
 
 prev_label = 0
 for i, s in enumerate(segs):
-    layer_label = F.interpolate(s, size=image.shape[2], mode="bilinear").argmax(1)[0]
+    layer_label = F.interpolate(s, size=image.shape[2], mode="bilinear", align_corners=True).argmax(1)[0]
     if prev_label is 0:
         prev_label = layer_label
     layer_label_viz = colorizer(layer_label).float() / 255.
-    sum_layers = [F.interpolate(x, size=s.shape[2], mode="bilinear")
+    sum_layers = [F.interpolate(x, size=s.shape[2], mode="bilinear", align_corners=True)
         for x in segs[:i]]
     sum_layers = sum(sum_layers) + s
-    sum_layers = F.interpolate(sum_layers, size=image.shape[2], mode="bilinear")
+    sum_layers = F.interpolate(sum_layers, size=image.shape[2], mode="bilinear", align_corners=True)
     sum_label = sum_layers.argmax(1)[0]
     sum_label_viz = colorizer(sum_label).float() / 255.
     diff_label_viz = sum_label_viz.clone()
@@ -98,7 +98,7 @@ for i, s in enumerate(segs):
         diff_label_viz[i, :, :][sum_label == prev_label] = 1
     images.extend([layer_label_viz, sum_label_viz, diff_label_viz])
     prev_label = sum_label
-images = [F.interpolate(img.unsqueeze(0), size=256, mode="bilinear") for img in images]
+images = [F.interpolate(img.unsqueeze(0), size=256, mode="bilinear", align_corners=True) for img in images]
 images = torch.cat(images)
 print(f"=> Image write to {savepath}_layer-conv.png")
 vutils.save_image(images, f"{savepath}_layer-conv.png", nrow=3)

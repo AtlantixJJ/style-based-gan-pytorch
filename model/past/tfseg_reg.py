@@ -133,7 +133,7 @@ class MultiResolutionConvolution(nn.Module):
         
         size = max([out.size(3) for out in outs])
 
-        return sum([F.interpolate(out, size, mode="bilinear") for out in outs])
+        return sum([F.interpolate(out, size, mode="bilinear", align_corners=True) for out in outs])
 
 class NoiseLayer(nn.Module):
     """adds noise. noise is per pixel (constant over channels) with per-channel weight"""
@@ -498,7 +498,7 @@ class StyledGenerator(nn.Module):
             #gen_np = gen[0].detach().cpu().numpy()
             #gen_np = ((gen_np + 1) * 127.5).transpose(1, 2, 0)
             seg_logit = self.extract_segmentation()[-1]
-            seg_logit = F.interpolate(seg_logit, (512, 512), mode="bilinear")
+            seg_logit = F.interpolate(seg_logit, (512, 512), mode="bilinear", align_corners=True)
             seg = seg_logit.argmax(dim=1)
             #seg = seg.numpy()
         return gen, seg

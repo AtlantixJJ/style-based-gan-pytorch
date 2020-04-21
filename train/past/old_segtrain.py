@@ -73,7 +73,7 @@ for ind, sample in enumerate(pbar):
 			l = logsoftmax(s, label_)
 		elif s.shape[2] > label.shape[2]:
 			l = logsoftmax(
-				F.interpolate(s, label.shape[2:], mode="bilinear"),
+				F.interpolate(s, label.shape[2:], mode="bilinear", align_corners=True),
 				label)
 		else:
 			l = logsoftmax(s, label)
