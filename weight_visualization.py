@@ -19,6 +19,13 @@ def concat_weight(module):
     ws = torch.cat(ws, 1)
     return ws
 
+def assign_weight(module, weight):
+    prev, cur = 0, 0
+    for i, conv in enumerate(module):
+        conv[0].weight.required_grad = False
+        conv[0].weight.copy_(weight[:, prev:cur].unsqueeze(2).unsqueeze(2))
+        conv[0].weight.required_grad = True
+
 def plot_weight_layerwise(module, minimum=-1, maximum=1, savepath="", subfix=""):
     for i, conv in enumerate(module):
         w = utils.torch2numpy(conv[0].weight)[:, :, 0, 0]

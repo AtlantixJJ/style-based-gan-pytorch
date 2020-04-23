@@ -26,7 +26,6 @@ def get_extractor_name(model_path):
         if k in model_path:
             return k
 
-
 class BaseSemanticExtractor(nn.Module):
     def __init__(self, n_class, dims=[], mapid=None, category_groups=None):
         super().__init__()
