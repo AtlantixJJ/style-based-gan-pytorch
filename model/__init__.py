@@ -11,6 +11,14 @@ except:
 from model.tf import from_pth_file as load_stylegan
 from lib.netdissect.proggan import from_pth_file as load_proggan
 
+def load_model(fpath):
+    if "proggan" in fpath:
+        return load_proggan(fpath)
+    elif "stylegan2" in fpath:
+        return load_stylegan2(fpath)
+    elif "stylegan" in fpath:
+        return load_stylegan(fpath)
+
 def load_model_from_pth_file(model_name, fpath):
     if "proggan" in model_name:
         return load_proggan(fpath)

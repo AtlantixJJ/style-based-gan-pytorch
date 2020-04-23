@@ -17,22 +17,20 @@ import model, utils
 from model.semantic_extractor import get_semantic_extractor
 
 # return sorted positive and negatives
-def get_index(x, threshold=0.01):
-    index = np.where(np.abs(x) > threshold)[0]
-    vals = x[index]
-    ag = vals.argsort()[::-1]
-    vals = vals[ag]
-    index = index[ag]
-    positives = index[vals > 0]
-    negatives = index[vals < 0]
+def get_index(x, nt, pt):
+    negatives = np.where(x < nt)[0]
+    positives = np.where(x > pt)[0]
     return positives, negatives
 
-def get_dic(w, threshold=0.01):
+
+def get_dic(w):
     vals = []
     attrs = []
     
     for i in range(w.shape[0]):
-        pos, neg = get_index(w[i], threshold)
+        nt = -w[i][w[i] < 0].std()
+        pt = w[i][w[i] > 0].std()
+        pos, neg = get_index(w[i], 3 * nt, 3 * pt)
         pos = pos.tolist()
         neg = neg.tolist()
         vals.extend(pos + neg)
@@ -46,9 +44,9 @@ def get_dic(w, threshold=0.01):
 
     t1 = [(k, v[0]) for k, v in dic.items() if len(v) == 1]
     t2 = [(k, v[0], v[1]) for k, v in dic.items() if len(v) == 2]
-    cr = [set() for _ in range(15)]
-    cp = [set() for _ in range(15)]
-    cn = [set() for _ in range(15)]
+    cr = [set() for _ in range(w.shape[0])]
+    cp = [set() for _ in range(w.shape[0])]
+    cn = [set() for _ in range(w.shape[0])]
     for k, vs in dic.items():
         for v in vs:
             c, p = v.split("_")

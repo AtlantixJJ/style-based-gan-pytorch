@@ -81,7 +81,6 @@ for ind in tqdm(range(cfg.n_iter)):
         multi_segs = [multi_segs]
         label = label.unsqueeze(1)
 
-
     segloss = 0
     for i, segs in enumerate(multi_segs):
         if label[:, i].max() <= 0:
@@ -102,6 +101,8 @@ for ind in tqdm(range(cfg.n_iter)):
     regloss = 0
     if cfg.l1_reg > 0:
         regloss = regloss + cfg.l1_reg * loss.l1(sep_model)
+    if cfg.l1_pos_reg > 0:
+        regloss = regloss + cfg.l1_reg * loss.l1_pos(sep_model)
     if cfg.norm_reg > 0:
         regloss = regloss + cfg.norm_reg * loss.l1norm(sep_model.semantic_extractor)
     total_loss = segloss + regloss

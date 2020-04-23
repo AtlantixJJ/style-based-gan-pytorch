@@ -56,7 +56,7 @@ class SEVBS2(SECore):
 
 class SEVBS2Continuous(SECore):
     def __init__(self):
-        self.vbs = [32, 64]
+        self.vbs = [4, 16, 32, 64]
         self.extractors = [
             "linear",
             "unit"
@@ -77,8 +77,12 @@ class SEVBS2Continuous(SECore):
 
 class SEL1Reg(SECore):
     def __init__(self):
-        self.l1_reg = ["7e-5", "8e-5", "9e-5"]
-        self.basecmd = "CUDA_VISIBLE_DEVICES=%s python train/extract_semantics.py --task celebahq --model-name stylegan --extractor linear --l1-reg %s --gpu %s --batch-size 1 --iter-num 10000 --last-only 1 --expr record/l1/"
+        self.l1_reg = [
+            "0.01", "0.001", "0.0001", "0.00001",
+            "0.009","0.008", "0.007", "0.006",
+            "0.005","0.004", "0.003", "0.002",
+            "0.0008", "0.0006", "0.0004", "0.0002"]
+        self.basecmd = "CUDA_VISIBLE_DEVICES=%s python train/extract_semantics.py --task celebahq --model-name stylegan --extractor linear --l1-pos-reg %s --gpu %s --batch-size 1 --vbs 8 --iter-num 16000 --disp-iter 1000 --last-only 1 --expr record/l1_pos/"
 
     def args_gen(self, gpus):
         l = []
@@ -198,7 +202,7 @@ if "jericho" in uname:
     #gpus = ["0"]; assign_run(SEL1Reg().command, gpus)
     #gpus = ["0"]; assign_run(direct_run, gpus)
     #gpus = ["0"]; assign_run(SEDiscLayers().command, gpus)
-    gpus = ["0"]; assign_run(SEVBS2().command, gpus)
+    gpus = ["0"]; assign_run(SEL1Reg().command, gpus)
 elif "instance" in uname:
     gpus = ["0"]; assign_run(SESpherical().command, gpus)
 else:

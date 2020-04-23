@@ -20,6 +20,12 @@ def get_semantic_extractor(config):
     elif config == "generative":
         return GenerativeSemanticExtractor
 
+def get_extractor_name(model_path):
+    keywords = ["nonlinear", "linear", "spherical", "generative", "cascade", "projective", "unit"]
+    for k in keywords:
+        if k in model_path:
+            return k
+
 
 class BaseSemanticExtractor(nn.Module):
     def __init__(self, n_class, dims=[], mapid=None, category_groups=None):

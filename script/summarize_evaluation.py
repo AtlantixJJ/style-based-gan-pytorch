@@ -7,7 +7,7 @@ import glob
 
 def get_name(fname):
     fname_ = fname.replace("_agreement.npy", "")
-    fname_ = fname_.replace("fixseg_1.0_", "").replace("-16", "")
+    fname_ = fname_.replace("celebahq_stylegan_linear_layer0,1,2,3,4,5,6,7,8_vbs8_", "")
     ind1 = fname_.rfind("/")
     return fname_[ind1+1:]
 
@@ -29,8 +29,8 @@ best_class = []
 for f in files:
     dic = np.load(f, allow_pickle=True)[()]
     name = get_name(f)
-    _, _, model_global_csv, class_csv, best_ind = utils.format_agreement_result(dic)
-    best_models.append(get_best_model(model_global_csv, best_ind, name))
+    _, _, model_global_csv, class_csv = utils.format_test_result(dic)
+    best_models.append(get_best_model(model_global_csv, 0, name))
     best_class.append(get_best_model(class_csv, 2, name))
 best_models = [model_global_csv.split("\n")[0]] + best_models
 best_class = [class_csv.split("\n")[0]] + best_class

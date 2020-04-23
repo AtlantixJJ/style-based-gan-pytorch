@@ -5,6 +5,9 @@ import torch.nn.functional as F
 def l1(module):
     return sum([p.abs().sum() for p in module.parameters()])
 
+def l1_pos(module):
+    return sum([p[p > 0].sum() for p in module.parameters()])
+
 
 def l1norm(module):
     res = 0

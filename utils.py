@@ -92,13 +92,22 @@ def catlist(tensor_list, size=256):
     return torch.cat(a)
 
 
-HEATMAP_COLOR = cm.get_cmap("Reds")
+POSITIVE_COLOR = cm.get_cmap("Reds")
+NEGATIVE_COLOR = cm.get_cmap("Blues")
 def heatmap_numpy(image):
     """
     assume numpy array as input: (N, H, W) in [0, 1]
     returns: (N, H, W, 3)
     """
-    return HEATMAP_COLOR(image)[:, :, :, :3]
+    image1 = image.copy(); image1[image1 < 0] = 0
+    image2 = -image.copy(); image2[image2 < 0] = 0
+    pos_img = POSITIVE_COLOR(image1)[:, :, :, :3]
+    neg_img = NEGATIVE_COLOR(image2)[:, :, :, :3]
+    x = np.zeros_like(pos_img)
+    x[image1 > 0] = pos_img[image1 > 0]
+    x[image2 > 0] = neg_img[image2 > 0]
+    x[(image1 <= 0) & (image2 <= 0)].fill(1)
+    return x
 
 
 def heatmap_torch(tensor):
@@ -106,7 +115,7 @@ def heatmap_torch(tensor):
     assume 4D torch.Tensor (N, 1, H, W)
     """
     numpy_arr = torch2numpy(tensor[:, 0, :, :])
-    heatmap = HEATMAP_COLOR(numpy_arr)[:, :, :, :3]
+    heatmap = heatmap_numpy(numpy_arr)
     t = torch.from_numpy(heatmap.transpose(0, 3, 1, 2)).float()
     return t.to(tensor.device)
 
