@@ -20,10 +20,10 @@ batch_size = 1
 latent_size = 512
 
 torch.manual_seed(3)
-all_latent = torch.randn(3, 512, device=device)
-latent = all_latent[0:1]
+all_latent = torch.randn(512, 512)
+latent = all_latent[0:1].to(device)
 #extractor_path = "record/vbs_conti/ffhq_stylegan2_unit_layer0,1,2,3,4,5,6,7,8_vbs64/stylegan2_unit_extractor.model"
-extractor_path = "record/l1/celebahq_stylegan_linear_layer0,1,2,3,4,5,6,7,8_vbs8_l10.01/stylegan_linear_extractor.model"
+extractor_path = "record/l1/celebahq_stylegan_linear_layer0,1,2,3,4,5,6,7,8_vbs8_l10.0001/stylegan_linear_extractor.model"
 
 model_path = "checkpoint/face_celebahq_1024x1024_stylegan.pth" if "celebahq" in extractor_path else "checkpoint/face_ffhq_1024x1024_stylegan2.pth"
 
@@ -78,30 +78,72 @@ def mean_weight(w, stage):
         ws.append(mean_stage(mask, stage))
     return torch.stack(ws)
 
-w = mean_weight(w, stage)
+def multiple_mean(ws):
+    f = []
+    for i in range(ws[0].shape[0]):
+        weights = [x[i] for x in ws if x[i].abs().sum() < 1e-3]
+        if len(weights) > 0:
+            f.append(sum(weights) / len(weights))
+        else:
+            f.append(ws[0][i])
+    return torch.stack(f)
+
+
 mean_model = get_semantic_extractor("linear")(
     n_class=w.shape[0],
     dims=dims).to(device)
-assign_weight(mean_model.semantic_extractor, w)
-
 colorizer = utils.Colorize(w.shape[0])
+
+# single instance
+mw = mean_weight(w, stage)
+assign_weight(mean_model.semantic_extractor, mw)
+
 viz_imgs = []
 for i in range(3):
-    latent = all_latent[i:i+1]
+    latent = all_latent[i:i+1].to(device)
     with torch.no_grad():
         image, stage = generator.get_stage(latent)
         image = (image.clamp(-1, 1) + 1) / 2
-        image_small = F.interpolate(image,
-            size=256, mode="bilinear", align_corners=True)
 
     seg1 = sep_model(stage)[0]
     seg2 = mean_model(stage)[0]
     label1 = seg1.argmax(1)
     label2 = seg2.argmax(1)
-    label1_viz = colorizer(label1)
-    label2_viz = colorizer(label2)
+    label1_viz = colorizer(label1).unsqueeze(0)
+    label2_viz = colorizer(label2).unsqueeze(0)
 
-    viz_imgs.extend([image_small, label1_viz, label2_viz])
-
-vutils.save_image(viz_imgs, "fake_kmeans.png", nrow=3)
+    viz_imgs.extend([image, label1_viz, label2_viz])
+viz_imgs = [F.interpolate(img,
+    size=256, mode="bilinear", align_corners=True) for img in viz_imgs]
+vutils.save_image(torch.cat(viz_imgs), "fake_kmeans_single.png", nrow=3)
     
+# multiple instances
+for k in [4, 8, 16, 32]:
+    print(f"=> {k} instances")
+    mw = []
+    for i in range(k):
+        latent = all_latent[i:i+1].to(device)
+        with torch.no_grad():
+            image, stage = generator.get_stage(latent)
+            image = (image.clamp(-1, 1) + 1) / 2
+        mw.append(mean_weight(w, stage))
+    mw = multiple_mean(mw)
+    assign_weight(mean_model.semantic_extractor, mw)
+
+    viz_imgs = []
+    for i in range(3):
+        latent = all_latent[i+k:i+k+1].to(device)
+        with torch.no_grad():
+            image, stage = generator.get_stage(latent)
+            image = (image.clamp(-1, 1) + 1) / 2
+        seg1 = sep_model(stage)[0]
+        seg2 = mean_model(stage)[0]
+        label1 = seg1.argmax(1)
+        label2 = seg2.argmax(1)
+        label1_viz = colorizer(label1).unsqueeze(0) / 255.
+        label2_viz = colorizer(label2).unsqueeze(0) / 255.
+
+        viz_imgs.extend([image, label1_viz, label2_viz])
+    viz_imgs = [F.interpolate(img,
+        size=256, mode="bilinear", align_corners=True) for img in viz_imgs]
+    vutils.save_image(torch.cat(viz_imgs), f"fake_kmeans_{k}.png", nrow=3)

@@ -27,7 +27,7 @@ parser.add_argument(
 parser.add_argument(
     "--test-size", default=1000, type=int)
 parser.add_argument(
-    "--total-class", default=16, type=int)
+    "--total-class", default=15, type=int)
 parser.add_argument(
     "--debug", default=0, type=int)
 args = parser.parse_args()

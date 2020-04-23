@@ -43,8 +43,6 @@ latent = torch.randn(1, 512, device=device)
 for folder in ["latent", "noise", "label"]:
     os.system(f"mkdir {args.output}/{folder}")
 
-#idmap = utils.CelebAIDMap()
-
 for ind in tqdm(range(args.number)):
     latent_path = f"{args.output}/latent/{ind:05d}.npy"
     noise_path = f"{args.output}/noise/{ind:05d}.npy"
