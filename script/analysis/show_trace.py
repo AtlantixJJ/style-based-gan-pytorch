@@ -34,7 +34,6 @@ sep_model.weight.requires_grad = False
 
 # data
 trace = np.load(trace_path) # (N, 15, D)
-w = trace[100]
 
 
 # segmentation movie

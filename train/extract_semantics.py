@@ -102,7 +102,7 @@ for ind in tqdm(range(cfg.n_iter)):
     if cfg.l1_reg > 0:
         regloss = regloss + cfg.l1_reg * loss.l1(sep_model)
     if cfg.l1_pos_reg > 0:
-        regloss = regloss + cfg.l1_reg * loss.l1_pos(sep_model)
+        regloss = regloss + cfg.l1_pos_reg * loss.l1_pos(sep_model)
     if cfg.norm_reg > 0:
         regloss = regloss + cfg.norm_reg * loss.l1norm(sep_model.semantic_extractor)
     total_loss = segloss + regloss
