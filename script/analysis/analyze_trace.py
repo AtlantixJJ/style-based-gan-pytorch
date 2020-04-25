@@ -10,7 +10,7 @@ import torch.nn.functional as F
 import torchvision.utils as vutils
 import numpy as np
 from tqdm import tqdm
-import sys, os
+import sys, os, pymp
 sys.path.insert(0, ".")
 
 import model, utils
@@ -68,18 +68,24 @@ if __name__ == "__main__":
 
     # data
     trace = np.load(trace_path) # (N, 15, D)
+    if "unit" in trace_path:
+        trace /= np.linalg.norm(trace, 2, 2, keepdims=True)
     weight = trace[-1]
+    
+    os.system("rm video/*.png")
+    maximum, minimum = trace.max(), trace.min()
+    x = np.arange(0, trace.shape[2], 1)
+    with pymp.Parallel(4) as p:
+        #for i in tqdm(range(trace.shape[0])):
+        for i in p.range(trace.shape[0]):
+            fig = plt.figure(figsize=(12, 12))
 
-    st, ed = 100, 101
-    maximum, minimum = trace[st:ed].max(), trace[st:ed].min()
-    for i in range(st, ed):
-        fig = plt.figure(figsize=(12, 12))
-
-        for j in range(trace.shape[1]):
-            ax = plt.subplot(4, 4, j + 1)
-            ax.plot(trace[i, j])
-            ax.axes.get_xaxis().set_visible(False)
-            ax.set_ylim([minimum, maximum])
-        fig.savefig(f"trace_{i:02d}.png", bbox_inches='tight')
-        plt.close()
+            for j in range(trace.shape[1]):
+                ax = plt.subplot(4, 4, j + 1)
+                ax.scatter(x, trace[i, j], s=2)
+                ax.axes.get_xaxis().set_visible(False)
+                ax.set_ylim([minimum, maximum])
+            fig.savefig(f"video/{i:04d}.png", bbox_inches='tight')
+            plt.close()
+    os.system("ffmpeg -y -f image2 -r 12 -i video/%04d.png -pix_fmt yuv420p -b:v 16000k trace_weight.mp4")
 

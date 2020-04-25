@@ -18,8 +18,7 @@ latent = torch.randn(1, 512, device=device)
 colorizer = utils.Colorize(15)
 
 # generator
-#model_path = f"checkpoint/face_celebahq_1024x1024_stylegan.pth"
-model_path = f"checkpoint/face_ffhq_1024x1024_stylegan2.pth"
+model_path = "checkpoint/face_celebahq_1024x1024_stylegan.pth" if "celebahq" in trace_path else "checkpoint/face_ffhq_1024x1024_stylegan2.pth"
 
 generator = model.load_model(model_path)
 generator.to(device).eval()
@@ -35,7 +34,6 @@ sep_model.weight.requires_grad = False
 
 # data
 trace = np.load(trace_path) # (N, 15, D)
-
 
 # segmentation movie
 img = F.interpolate(image, size=256, mode="bilinear", align_corners=True)
