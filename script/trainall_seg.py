@@ -33,13 +33,26 @@ class SECore(object):
             yield count, cmd
 
 
+class SEBCE(SECore):
+    def __init__(self, extractors):
+        self.extractors = extractors
+        self.basecmd = "python train/extract_semantics.py --task celebahq --model-name stylegan --extractor %s --gpu %s --batch-size 1 --vbs 16 --iter-num 16000 --disp-iter 1000 --loss BCE --last-only 1 --expr record/bce"
+
+    def args_gen(self, gpus):
+        l = []
+        count = 0
+        for i in range(len(self.extractors)):
+            extractor = self.extractors[i]
+            gpu = gpus[count]
+            l.append((count, (extractor, gpu)))
+            count = (count + 1) % len(gpus)
+        return l
+
+
 class SEVBS2(SECore):
-    def __init__(self):
-        self.vbs = [4, 16, 32, 64]
-        self.extractors = [
-            "linear",
-            "unit"
-        ]
+    def __init__(self, extractors):
+        self.vbs = [1, 4, 16, 32, 64]
+        self.extractors = extractors
         self.basecmd = "python train/extract_semantics.py --task ffhq --model-name stylegan2 --disp-iter 1000 --extractor %s --gpu %s --batch-size 1 --iter-num %d --vbs %d --load checkpoint/face_ffhq_1024x1024_stylegan2.pth --expr record/vbs"
 
     def args_gen(self, gpus):
@@ -202,7 +215,8 @@ if "jericho" in uname:
     #gpus = ["0"]; assign_run(SEL1Reg().command, gpus)
     #gpus = ["0"]; assign_run(direct_run, gpus)
     #gpus = ["0"]; assign_run(SEDiscLayers().command, gpus)
-    gpus = ["0"]; assign_run(SEL1Reg().command, gpus)
+    gpus = ["0"]; assign_run(SEBCE(["linear"]).command, gpus)
+    gpus = ["0"]; assign_run(SEBCE(["unit"]).command, gpus)
 elif "instance" in uname:
     gpus = ["0"]; assign_run(SESpherical().command, gpus)
 else:

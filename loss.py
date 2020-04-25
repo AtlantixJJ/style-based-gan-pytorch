@@ -39,6 +39,32 @@ def kl_div(segs, prob):
     return segloss
 
 
+def onehot(x, n):
+    z = torch.zeros(x.shape[0], n, x.shape[2], x.shape[3])
+    return z.scatter_(1, x, 1)
+
+# multilabel non-exclusive classification
+def bceloss(segs, ext_label):
+    multihot = onehot(ext_label.unsqueeze(1).cpu(), segs[0].shape[1]).cuda()
+    seglosses = []
+    for s in segs:
+        layer_loss = 0
+        # label is large : downsample label
+        if s.size(2) < multihot.size(2): 
+            l_ = F.interpolate(multihot.unsqueeze(1), s.size(2),
+                mode="bilinear", align_corners=True)
+            layer_loss = F.binary_cross_entropy_with_logits(s, l_)
+        # label is small : downsample seg
+        elif s.size(2) >= multihot.size(2): 
+            s_ = F.interpolate(s, multihot.size(2),
+                mode="bilinear", align_corners=True)
+            layer_loss = F.binary_cross_entropy_with_logits(s_, multihot)
+        seglosses.append(layer_loss)
+    segloss = sum(seglosses[:-1]) * 0.1 + seglosses[-1]
+    #print(segloss, segs.min(), segs.max(), prob.min(), prob.max())
+    return segloss
+
+
 # segs : [(N, C, H, W)]
 # ext_label : (N, H, W)
 def segloss(segs, ext_label):

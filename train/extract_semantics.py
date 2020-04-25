@@ -95,8 +95,10 @@ for ind in tqdm(range(cfg.n_iter)):
             logits = external_model.seg
             l = F.softmax(logits, dim=1)
             segloss = segloss + loss.kl_div(segs, l)
-        else:
+        elif "CE" == cfg.loss_type:
             segloss = segloss + loss.segloss(segs, l)
+        elif "BCE" == cfg.loss_type:
+            segloss = segloss + loss.bceloss(segs, l)
 
     regloss = 0
     if cfg.l1_reg > 0:
@@ -147,6 +149,9 @@ for ind in tqdm(range(cfg.n_iter)):
         utils.write_log(cfg.expr_dir, record)
         utils.plot_dic(record, "loss", f"{cfg.expr_dir}/loss.png")
 
+        # trace
+        np.save(f"{cfg.expr_dir}/trace.npy", trace)
+        
         # show metric
         for i in range(len(category_groups)):
             metrics[i].aggregate(ind + 1 - cfg.disp_iter)

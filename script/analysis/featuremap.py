@@ -22,8 +22,8 @@ latent_size = 512
 torch.manual_seed(3)
 all_latent = torch.randn(3, 512, device=device)
 latent = all_latent[0:1]
-#extractor_path = "record/vbs_conti/ffhq_stylegan2_unit_layer0,1,2,3,4,5,6,7,8_vbs64/stylegan2_unit_extractor.model"
-extractor_path = "record/l1/celebahq_stylegan_linear_layer0,1,2,3,4,5,6,7,8_vbs8_l10.01/stylegan_linear_extractor.model"
+extractor_path = "record/vbs_conti/ffhq_stylegan2_unit_layer0,1,2,3,4,5,6,7,8_vbs64/stylegan2_unit_extractor.model"
+#extractor_path = "record/l1_pos/celebahq_stylegan_linear_layer0,1,2,3,4,5,6,7,8_vbs8_l1-1_l1pos0.01/stylegan_linear_extracdtor.model"
 
 model_path = "checkpoint/face_celebahq_1024x1024_stylegan.pth" if "celebahq" in extractor_path else "checkpoint/face_ffhq_1024x1024_stylegan2.pth"
 
@@ -70,7 +70,7 @@ plt.close()
 
 # Selected featuremaps
 print("=> Visualize selected featuremaps")
-C = utils.CELEBA_CATEGORY.index("eye")
+C = utils.CELEBA_CATEGORY.index("u_lip")
 indice = list(cr[C])
 
 # sort in descending order
@@ -109,7 +109,6 @@ for ind in range(3):
 
 """
 print("=> Show random subsamples")
-C = 2 # nose
 indice = list(cr[C])
 cname = utils.CELEBA_CATEGORY[C]
 print(f"=> Category {cname} size {len(indice)}")
@@ -194,7 +193,7 @@ for C in range(15):
         img_p, img_n, image_small, img_t,
         img_sp, img_sn, imgdiff_s, imgres,
         img_lp, img_ln, imgdiff_l])
-    vutils.save_image(img, f"2_{cname}_positive_negative.png", nrow=4)
+    vutils.save_image(img, f"{cname}_positive_negative.png", nrow=4)
 
 for C in range(15):
     indice = list(cr[C])
@@ -229,7 +228,7 @@ for C in range(15):
     arr = [a / maxi for a in arr] + [final]  
 
     imgs = torch.cat([utils.heatmap_torch(m) for m in arr] + [image_small])
-    vutils.save_image(imgs, f"{i}_{cname}_segments.png", nrow=4)
+    vutils.save_image(imgs, f"{cname}_segments.png", nrow=4)
 
 
 

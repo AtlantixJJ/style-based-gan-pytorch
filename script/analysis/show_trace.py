@@ -20,7 +20,8 @@ colorizer = utils.Colorize(15)
 # generator
 #model_path = f"checkpoint/face_celebahq_1024x1024_stylegan.pth"
 model_path = f"checkpoint/face_ffhq_1024x1024_stylegan2.pth"
-generator = model.load_model_from_pth_file("stylegan2", model_path)
+
+generator = model.load_model(model_path)
 generator.to(device).eval()
 with torch.no_grad():
     image, stage = generator.get_stage(latent)
