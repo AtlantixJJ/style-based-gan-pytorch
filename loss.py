@@ -1,6 +1,12 @@
 import torch
 import torch.nn.functional as F
 
+def l1dev(module):
+    loss = 0
+    for p in module.parameters():
+        stddev = p.std()
+        loss = loss + p[p.abs() < stddev].sum()
+    return loss
 
 def l1(module):
     return sum([p.abs().sum() for p in module.parameters()])

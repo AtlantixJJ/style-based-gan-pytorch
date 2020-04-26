@@ -16,10 +16,16 @@ device = "cuda"
 latent = torch.randn(1, 512, device=device)
 colorizer = utils.Colorize(15)
 
+# data
+trace_path1 = "record/useless/l1_bce/celebahq_stylegan_linear_layer0,1,2,3,4,5,6,7,8_vbs16_l10.001_l1pos_-1/trace.npy"
+trace_path2 = "record/useless/l1_bce/celebahq_stylegan_linear_layer0,1,2,3,4,5,6,7,8_vbs16_l10.0001_l1pos_-1/trace.npy"
+trace1 = np.load(trace_path1) # (N1, 15, D)
+trace2 = np.load(trace_path2) # (N2, 15, D)
+
 # generator
-#model_path = f"checkpoint/face_celebahq_1024x1024_stylegan.pth"
-model_path = f"checkpoint/face_ffhq_1024x1024_stylegan2.pth"
-generator = model.load_model_from_pth_file("stylegan2", model_path)
+model_path = "checkpoint/face_celebahq_1024x1024_stylegan.pth" if "celebahq" in trace_path1 else "checkpoint/face_ffhq_1024x1024_stylegan2.pth"
+
+generator = model.load_model(model_path)
 generator.to(device).eval()
 with torch.no_grad():
     image, stage = generator.get_stage(latent)
@@ -35,12 +41,6 @@ sep_model2 = get_semantic_extractor("unit")(
     dims=dims).to(device)
 sep_model2.weight.requires_grad = False
 
-
-# data
-trace_path1 = "record/vbs_conti/ffhq_stylegan2_unit_layer0,1,2,3,4,5,6,7,8_vbs4/trace.npy"
-trace_path2 = "record/vbs_conti/ffhq_stylegan2_unit_layer0,1,2,3,4,5,6,7,8_vbs16/trace.npy"
-trace1 = np.load(trace_path1) # (N1, 15, D)
-trace2 = np.load(trace_path2) # (N2, 15, D)
 
 # segmentation movie
 os.system("rm video/*.png")
@@ -58,4 +58,4 @@ for ind in tqdm(range(trace1.shape[0])):
     imgs = [F.interpolate(x,
         size=256, mode="bilinear", align_corners=True) for x in imgs]
     vutils.save_image(torch.cat(imgs), "video/%04d.png" % ind, nrow=2)
-os.system("ffmpeg -y -f image2 -r 12 -i video/%04d.png -pix_fmt yuv420p -b:v 16000k demo.mp4")
+os.system("ffmpeg -y -f image2 -r 12 -i video/%04d.png -pix_fmt yuv420p -b:v 16000k comparative_trace.mp4")

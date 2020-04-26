@@ -119,6 +119,15 @@ class SEL1PosReg(SEL1Reg):
             ]
         self.basecmd = "CUDA_VISIBLE_DEVICES=%s python train/extract_semantics.py --task celebahq --model-name stylegan --extractor linear --l1-pos-reg %s --gpu %s --batch-size 1 --vbs 1 --iter-num 10000 --disp-iter 1000 --loss BCE --last-only 1 --expr record/l1_pos_bce/"
 
+class SEL1DEV(SEL1Reg):
+    def __init__(self):
+        self.l1_reg = [
+            "0.001", "0.0001", "0.00001",
+            #"0.009","0.008", "0.007", "0.006",
+            #"0.005","0.004", "0.003", "0.002",
+            #"0.0008", "0.0006", "0.0004", "0.0002"
+            ]
+        self.basecmd = "CUDA_VISIBLE_DEVICES=%s python train/extract_semantics.py --task celebahq --model-name stylegan --extractor linear --l1-stddev %s --gpu %s --batch-size 1 --vbs 1 --iter-num 10000 --disp-iter 1000 --loss BCE --last-only 1 --expr record/l1_bce_stddev/"
 
 class SELayers(SECore):
     def __init__(self):
@@ -226,7 +235,7 @@ if "jericho" in uname:
     #gpus = ["0"]; assign_run(SECore().command, gpus)
     #gpus = ["0"]; assign_run(direct_run, gpus)
     #gpus = ["0"]; assign_run(SEL1Reg().command, gpus)
-    gpus = ["0"]; assign_run(SEL1PosReg().command, gpus)
+    gpus = ["0"]; assign_run(SEL1DEV().command, gpus)
     #gpus = ["0"]; assign_run(SEBCE(["linear"]).command, gpus)
     #gpus = ["0"]; assign_run(SEBCE(["unit"]).command, gpus)
 elif "instance" in uname:
