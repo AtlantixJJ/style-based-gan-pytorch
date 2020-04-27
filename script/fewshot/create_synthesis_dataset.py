@@ -38,29 +38,34 @@ with torch.no_grad():
     image = (image.clamp(-1, 1) + 1) / 2
 dims = [s.shape[3] for s in stage]
 
-#external_model = get_segmenter("celebahq", args.external_model)
-sep_model = model.semantic_extractor.get_semantic_extractor("unit")(
-    n_class=15,
-    dims=dims)
-sep_model.load_state_dict(torch.load(args.external_model))
+external_model = get_segmenter(
+    "celebahq",
+    "checkpoint/faceparse_unet_512.pth")
+#sep_model = model.semantic_extractor.get_semantic_extractor("unit")(
+#    n_class=15,
+#    dims=dims)
+#sep_model.load_state_dict(torch.load(args.external_model))
 
 # setup
 
-for folder in ["latent", "noise", "label"]:
+for folder in ["latent", "noise", "label", "image"]:
     os.system(f"mkdir {args.output}/{folder}")
 
 for ind in tqdm(range(args.number)):
     latent_path = f"{args.output}/latent/{ind:05d}.npy"
     noise_path = f"{args.output}/noise/{ind:05d}.npy"
     label_path = f"{args.output}/label/{ind:05d}.png"
+    image_path = f"{args.output}/image/{ind:05d}.png"
     latent.normal_()
     with torch.no_grad():
-        #image = generator(latent)
+        image = generator(latent)
         image, stage = generator.get_stage(latent)
+        image = image.clamp(-1, 1)
         noise = generator.get_noise()
-    #label = external_model.segment_batch(image.clamp(-1, 1))
-    label = sep_model(stage)[0].argmax(1)
+    label = external_model.segment_batch(image)
+    #label = sep_model(stage)[0].argmax(1)
 
     utils.imwrite(label_path, utils.torch2numpy(label[0]))
+    vutils.save_image((image + 1) / 2, image_path)
     np.save(latent_path, utils.torch2numpy(latent).astype("float32"))
     np.save(noise_path, utils.torch2numpy(noise).astype("float32"))

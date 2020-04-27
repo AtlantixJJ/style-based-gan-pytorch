@@ -8,182 +8,173 @@ import matplotlib.pyplot as plt
 import torch
 import numpy as np
 from tqdm import tqdm
-from model.tfseg import StyledGenerator
 import argparse
 import torch.nn.functional as F
 from torchvision import utils as vutils
 from lib.face_parsing import unet
-import evaluate, utils, dataset
-from model.linear import LinearSemanticExtractor, OVOLinearSemanticExtractor
+import evaluate, utils, dataset, model
+from model.semantic_extractor import get_semantic_extractor, get_extractor_name
 import pickle
 
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "--model", default="checkpoint/fixseg_conv-16-1.model")
+    "--model", default="checkpoint/face_celebahq_1024x1024_stylegan.pth")
 parser.add_argument(
     "--data-dir", default="datasets/Synthesized")
 parser.add_argument(
     "--gpu", default="0")
 parser.add_argument(
+    "--train-size", default=4, type=int)
+parser.add_argument(
     "--layer-index", default="4", type=str)
 parser.add_argument(
-    "--train-size", default=4, type=int)
+    "--repeat-idx", default=0, type=int)
+parser.add_argument(
+    "--test-dir", default="datasets/Synthesized_test")
 parser.add_argument(
     "--test-size", default=1000, type=int)
 parser.add_argument(
     "--total-class", default=15, type=int)
+parser.add_argument(
+    "--debug", default=0, type=int)
 args = parser.parse_args()
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
 
-print("=> Use One v.s. One from thundersvm")
-from thundersvm import SVC as SVM
-
 # constants setup
-torch.manual_seed(1)
+torch.manual_seed(65537)
 device = "cuda" if int(args.gpu) > -1 else "cpu"
 ds = dataset.LatentSegmentationDataset(
     latent_dir=args.data_dir + "/latent",
     noise_dir=args.data_dir + "/noise",
-    image_dir=None,
+    image_dir=args.data_dir + "/image",
     seg_dir=args.data_dir + "/label")
-dl = torch.utils.data.DataLoader(ds, batch_size=1, shuffle=False)
+dl = torch.utils.data.DataLoader(ds, batch_size=args.train_size, shuffle=False)
+
+test_ds = dataset.LatentSegmentationDataset(
+    latent_dir=args.test_dir + "/latent",
+    noise_dir=args.test_dir + "/noise",
+    image_dir=None,
+    seg_dir=args.test_dir + "/label")
+test_dl = torch.utils.data.DataLoader(test_ds, batch_size=1, shuffle=False)
 
 # build model
+print("=> Use One v.s. One from thundersvm")
+from thundersvm import SVC as SVM
+
 print("=> Setup generator")
-resolution = utils.resolution_from_name(args.model)
-generator = StyledGenerator(resolution=resolution, semantic=f"conv-{args.total_class}-1").to(device)
-state_dict = torch.load(args.model, map_location='cpu')
-missing_dict = generator.load_state_dict(state_dict, strict=False)
-print(missing_dict)
-generator.eval()
+extractor_path = "record/celebahq1/celebahq_stylegan_unit_layer0,1,2,3,4,5,6,7,8_vbs1_l1-1_l1pos-1_l1dev-1_l1unit-1/stylegan_unit_extractor.model"
+model_path = "checkpoint/face_celebahq_1024x1024_stylegan.pth" if "celebahq" in extractor_path else "checkpoint/face_ffhq_1024x1024_stylegan2.pth"
+
+latent = torch.randn(1, 512, device=device)
+generator = model.load_model(model_path)
+generator.to(device).eval()
+with torch.no_grad():
+    image, stage = generator.get_stage(latent)
+    image = (image.clamp(-1, 1) + 1) / 2
+    image_small = F.interpolate(image,
+        size=256, mode="bilinear", align_corners=True)
+vutils.save_image(image, "image.png")
+dims = [s.shape[1] for s in stage]
+cumdims = np.cumsum([0] + dims)
 
 # setup test
 print("=> Setup test data")
-test_latents = torch.randn(args.test_size, 512)
-test_noises = [generator.generate_noise() for _ in range(args.test_size)]
-
 # set up input
-latent = torch.randn(1, 512).to(device)
-layer_index = [int(i) for i in args.layer_index.split(",")]
+layer_index = int(args.layer_index)
 colorizer = utils.Colorize(args.total_class)
-stylegan_dims = [512, 512, 512, 512, 256, 128, 64, 32, 16]
-stylegan_dims = [stylegan_dims[l] for l in layer_index]
-linear_model = 0
-
-test_size = args.test_size
-test_latents = torch.randn(test_size, 512)
-test_noises = [generator.generate_noise() for _ in range(test_size)]
 
 
 def get_feature(generator, latent, noise, layer_index):
-    feat = [generator.stage[i].detach().cpu() for i in layer_index]
-    maxsize = max([f.shape[2] for f in feat])
-    feat = torch.cat([F.interpolate(f, size=maxsize, mode="bilinear", align_corners=True) for f in feat], 1)
-    return feat.detach()
+    with torch.no_grad():
+        generator.set_noise(generator.parse_noise(noise))
+        image, stage = generator.get_stage(latent)
+    feat = stage[layer_index].detach().cpu()
+    #maxsize = max([f.shape[2] for f in feat])
+    #feat = torch.cat(utils.bu(feat, maxsize), 1)
+    return feat
 
 
-def test(generator, linear_model, test_latents, test_noises, N):
+def test(generator, pred_func, test_dl):
     result = []
     evaluator = evaluate.MaskCelebAEval()
-    for i in tqdm(range(N)):
-        latent = test_latents[i:i+1].to(device)
-        noise = [n.to(latent.device) for n in test_noises[i]]
-        generator.set_noise(noise)
-        image, seg = generator(latent)
-        stage = [generator.stage[l] for l in layer_index]
-        est_label = linear_model.predict(stage)
-        size = est_label.shape[2]
-        
-        seg = F.interpolate(seg, size=size, mode="bilinear", align_corners=True)
-        label = seg.argmax(1).detach().cpu()
+    for i, sample in enumerate(tqdm(test_dl)):
+        latent, noise, image, label = sample
+        generator.set_noise(generator.parse_noise(noise[0].to(device)))
+        image, stage = generator.get_stage(latent[0].to(device), detach=True)
+        est_label = pred_func(stage) 
         evaluator.calc_single(est_label, utils.torch2numpy(label))
 
-        if i < 8:
+        if i < 4:
             label_viz = colorizer(label).unsqueeze(0).float() / 255.
             est_label_viz = torch.from_numpy(colorizer(est_label))
             est_label_viz = est_label_viz.permute(2, 0, 1).unsqueeze(0).float() / 255.
             image = (image.detach().cpu().clamp(-1, 1) + 1) / 2
             result.extend([image, label_viz, est_label_viz])
 
+        if args.debug == 1 and i > 4:
+            break
+            
+        if i >= args.test_size:
+            break
+
     global_dic, class_dic = evaluator.aggregate()
+    evaluator.summarize()
     return global_dic, class_dic, result
 
 
-images = []
-stages = []
-feats = []
-labels = []
 for ind, sample in enumerate(tqdm(dl)):
-    latent, noise, image, label = sample
-    latent = latent[0].to(device)
-    label = label[:, :, :, 0].unsqueeze(0)
-    labels.append(label)
+    if ind == args.repeat_idx:
+        break
 
-    generator.set_noise(generator.parse_noise(noise[0].to(device)))
-    image = generator(latent, seg=False)
-    stages.append([generator.stage[l].detach() for l in layer_index])
-    feat = get_feature(generator, latent, noise, layer_index)
+latents, noises, images, labels = sample
+latents = latents.squeeze(1)
+labels = labels[:, :, :, 0].long().unsqueeze(1)
+labels_viz = [colorizer(l).unsqueeze(0).float() / 255. for l in labels]
+fpath = f"results/svm_image_{ind}_b{args.train_size}.png"
+small_images = utils.bu(images, 256)
+vutils.save_image(small_images, fpath)
+
+feats = []
+for i in range(latents.shape[0]):
+    feat = get_feature(
+        generator,
+        latents[i:i+1].to(device),
+        noises[i].to(device),
+        layer_index)
     feats.append(feat)
-    image = image.clamp(-1, 1).detach().cpu()
-    images.append((image + 1) / 2)
+feats = torch.cat(feats)
 
-    if (ind + 1) % args.train_size != 0:
-        continue
 
-    feats = torch.cat(feats)
-    labels = torch.cat(labels)
-    labels_viz = [colorizer(l).unsqueeze(0).float() / 255. for l in labels]
+print(f"=> Feature shape: {feats.shape}")
+print(f"=> Label shape: {labels.shape}")
+N, C, H, W = feats.shape
+feats = feats.permute(0, 2, 3, 1).reshape(-1, C).float().cpu().numpy()
+print(f"=> Feature for SVM shape: {feats.shape}")
+labels = F.interpolate(labels.float(), size=H, mode="nearest").long().numpy()
 
-    print(f"=> Feature shape: {feats.shape}")
-    print(f"=> Label shape: {labels.shape}")
-    N, C, H, W = feats.shape
-    feats = feats.permute(0, 2, 3, 1).reshape(-1, C).float().cpu().numpy()
-    print(f"=> Feature for SVM shape: {feats.shape}")
-    labels = F.interpolate(labels.float(), size=H, mode="nearest").long().numpy()
-
-    svm_model = SVM(kernel="linear")
+for C in range(args.total_class):
+    labels_C = labels.copy()
+    mask1 = labels_C != C
+    labels_C[mask1] = 0
+    labels_C[~mask1] = 1
+    others_size = mask1.sum()
+    ones_size = np.prod(labels_C.shape) - others_size
+    print(f"=> Class {C} On: {ones_size} Off: {others_size}")
+    svm_model = SVM(kernel="linear", probability=True, max_mem_size=8 * 1024)
     svm_model.fit(feats, labels.reshape(-1))
-    model_path = f"results/svm_ovo_{ind}_l{args.layer_index}_b{args.train_size}.model"
+    model_path = f"results/svm_{ind}_c{C}_l{args.layer_index}_b{args.train_size}.model"
     svm_model.save_to_file(model_path)
     est_labels = svm_model.predict(feats)
-
-    n_class = svm_model.get_nr_class()
-    map_from = list(range(n_class))
-    map_to = svm_model.get_labels()
-    id2cid = {fr:to for fr, to in zip(map_from, map_to)}
-    inv_idmap = lambda x: utils.idmap(x, id2cid=id2cid)
-    coef = np.array([svm_model.get_decfun(i)[0] for i in range(n_class)])
-    linear_model = LinearSemanticExtractor(
-        n_class,
-        stylegan_dims,
-        inv_idmap).to(device)
-    linear_model.copy_weight_from(coef)
-    est_labels = np.concatenate([linear_model.predict(stage) for stage in stages])
-    
+    est_labels = est_labels.reshape(N, 1, H, W)
+    est_labels[est_labels > 0] = C
     est_labels = torch.from_numpy(est_labels)
-    est_labels_viz = [colorizer(l).unsqueeze(0).float() / 255. for l in est_labels]
-    res = []
-    for img, lbl, pred in zip(images, labels_viz, est_labels_viz):
-        res.extend([img, lbl, pred])
+    est_labels_viz = [colorizer(l).unsqueeze(0).float() / 255.
+        for l in est_labels]
+
     res = [F.interpolate(r.detach().cpu(), size=256, mode="nearest") for r in res]
-    fpath = f"results/svm_train_{ind}_l{args.layer_index}_b{args.train_size}_idmap-{name}.png"
-    vutils.save_image(torch.cat(res), fpath, nrow=3)
+    fpath = f"results/svm_train_{ind}_c{C}_l{args.layer_index}_b{args.train_size}.png"
+    vutils.save_image(torch.cat(est_labels_viz), fpath)
 
-    global_dic, class_dic, images = test(
-        generator, linear_model,
-        test_latents, test_noises, args.test_size)
-    images = [F.interpolate(img, size=256, mode="nearest") for img in images]
-
-    fpath = fpath.replace("train", "result")
-    vutils.save_image(torch.cat(images), fpath, nrow=3)
-    np.save(fpath.replace(".png", "global.npy"), global_dic)
-    np.save(fpath.replace(".png", "class.npy"), class_dic)
-
-    feats = []
-    labels = []
-    images = []
-    stages = []
-    if ind > args.train_size * 4:
-        break
+    

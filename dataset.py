@@ -351,7 +351,8 @@ class LatentSegmentationDataset(torch.utils.data.Dataset):
         else:
             noise = 0
         if self.image_dir is not None:
-            image_path = osj(self.image_dir, name.replace(".npy", ".jpg"))
+            # hardcode
+            image_path = osj(self.image_dir, name.replace(".npy", ".png"))
             image = utils.imread(image_path).copy()
         else:
             image = 0
