@@ -29,7 +29,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--task", default="log,seg,fast-celeba-agreement,weight,celeba-evaluator", help="")
 parser.add_argument("--model", default="")
 parser.add_argument("--gpu", default="0")
-parser.add_argument("--recursive", default="0")
+parser.add_argument("--recursive", default="1")
 args = parser.parse_args()
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
