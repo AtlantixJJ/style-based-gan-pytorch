@@ -71,13 +71,15 @@ if __name__ == "__main__":
     if "unit" in trace_path:
         trace /= np.linalg.norm(trace, 2, 2, keepdims=True)
     weight = trace[-1]
-    
+
+    TOTAL = 1000
+    STEP = trace.shape[0] // TOTAL
     os.system("rm video/*.png")
     maximum, minimum = trace.max(), trace.min()
     x = np.arange(0, trace.shape[2], 1)
     with pymp.Parallel(4) as p:
         #for i in tqdm(range(trace.shape[0])):
-        for i in p.range(trace.shape[0]):
+        for i in p.xrange(0, trace.shape[0], STEP):
             fig = plt.figure(figsize=(12, 12))
 
             for j in range(trace.shape[1]):
@@ -85,7 +87,7 @@ if __name__ == "__main__":
                 ax.scatter(x, trace[i, j], s=2)
                 ax.axes.get_xaxis().set_visible(False)
                 ax.set_ylim([minimum, maximum])
-            fig.savefig(f"video/{i:04d}.png", bbox_inches='tight')
+            fig.savefig(f"video/{i//STEP:04d}.png", bbox_inches='tight')
             plt.close()
     os.system("ffmpeg -y -f image2 -r 12 -i video/%04d.png -pix_fmt yuv420p -b:v 16000k trace_weight.mp4")
 

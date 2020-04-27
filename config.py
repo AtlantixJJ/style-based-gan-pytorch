@@ -160,6 +160,10 @@ class SemanticExtractorConfig(BaseConfig):
         self.parser.add_argument(
             "--l1-pos-reg", type=float, default=-1, help="Only do L1 regularization on positive weight.")
         self.parser.add_argument(
+            "--l1-stddev", type=float, default=-1, help="L1 standard deviation regularization")
+        self.parser.add_argument(
+            "--l1-unit", type=float, default=-1, help="L1 reg on L2 unit")
+        self.parser.add_argument(
             "--norm-reg", type=float, default=-1, help="L1 norm regularization")
 
     def parse(self):
@@ -171,7 +175,9 @@ class SemanticExtractorConfig(BaseConfig):
         self.ortho_reg = self.args.ortho_reg
         self.positive_reg = self.args.positive_reg
         self.l1_reg = self.args.l1_reg
+        self.l1_unit = self.args.l1_unit
         self.l1_pos_reg = self.args.l1_pos_reg
+        self.l1_stddev = self.args.l1_stddev
         self.norm_reg = self.args.norm_reg
         self.loss_type = self.args.loss
         self.upsample = self.args.upsample
@@ -179,7 +185,7 @@ class SemanticExtractorConfig(BaseConfig):
         self.seg_net_path = self.args.seg_net
         self.semantic_extractor = self.args.extractor
         self.record = {'loss': [], 'segloss': [], 'regloss': []}
-        self.name = f"{self.task}_{self.model_name}_{self.semantic_extractor}_layer{self.args.layers}_vbs{self.vbs}_l1{self.l1_reg}_l1pos_{self.l1_pos_reg}"
+        self.name = f"{self.task}_{self.model_name}_{self.semantic_extractor}_layer{self.args.layers}_vbs{self.vbs}_l1{self.l1_reg}_l1pos{self.l1_pos_reg}_l1dev{self.l1_stddev}_l1unit{self.l1_unit}"
         self.expr_dir = osj(self.args.expr, self.name)
 
     def __str__(self):
@@ -190,8 +196,9 @@ class SemanticExtractorConfig(BaseConfig):
         strs.append("=> Segmentation network: %s" % self.seg_net_path)
         strs.append("=> Segmentation configure: %s" % self.semantic_extractor)
         strs.append("=> Orthogonal regularization: %f" % self.ortho_reg)
-        strs.append("=> Positive regularization: %f" % self.positive_reg)
         strs.append("=> L1 regularization: %f" % self.l1_reg)
+        strs.append("=> L1 positive regularization: %f" % self.l1_pos_reg)
+        strs.append("=> L1 stddev regularization: %f" % self.l1_stddev)
         strs.append("=> L1 norm regularization: %f" % self.norm_reg)
         return "\n".join(strs)
 

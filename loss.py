@@ -1,9 +1,23 @@
 import torch
 import torch.nn.functional as F
 
+def l1dev(module):
+    loss = 0
+    for p in module.parameters():
+        stddev = p.std()
+        ap = p.abs()
+        loss = loss + ap[ap < stddev].sum()
+    return loss
 
 def l1(module):
     return sum([p.abs().sum() for p in module.parameters()])
+
+def unitl1(module):
+    loss = 0
+    for p in module.parameters():
+        v = F.normalize(p[:, :, 0, 0], 2, 1)
+        loss = loss + v.abs().sum()
+    return loss
 
 def l1_pos(module):
     return sum([p[p > 0].sum() for p in module.parameters()])

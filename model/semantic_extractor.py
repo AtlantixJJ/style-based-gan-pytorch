@@ -342,7 +342,7 @@ class UnitNormalizedLinearSemanticExtractor(NormalizedLinearSemanticExtractor):
             res = F.conv2d(feat, w)
             mini, maxi = res.min(), res.max()
             res = 2 * ((res - mini) / (maxi - mini) - 0.5)
-            return [5 * res]
+            return [10 * res]
 
 
 class UnitLinearSemanticExtractor(BaseSemanticExtractor):

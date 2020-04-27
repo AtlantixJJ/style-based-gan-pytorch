@@ -91,14 +91,7 @@ for ind in tqdm(range(cfg.n_iter)):
         if segs[-1].size(3) < l.shape[2]:
             segs[-1] = F.interpolate(
                 segs[-1], size=l.shape[2], mode="bilinear", align_corners=True)
-        if "KL" == cfg.loss_type:
-            logits = external_model.seg
-            l = F.softmax(logits, dim=1)
-            segloss = segloss + loss.kl_div(segs, l)
-        elif "CE" == cfg.loss_type:
-            segloss = segloss + loss.segloss(segs, l)
-        elif "BCE" == cfg.loss_type:
-            segloss = segloss + loss.bceloss(segs, l)
+        segloss = segloss + 0.2 * loss.segloss(segs, l) + 0.8 * loss.bceloss(segs, l)
 
     regloss = 0
     if cfg.l1_reg > 0:
