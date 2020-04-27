@@ -17,8 +17,8 @@ latent = torch.randn(1, 512, device=device)
 colorizer = utils.Colorize(15)
 
 # data
-trace_path1 = "record/useless/l1_bce/celebahq_stylegan_linear_layer0,1,2,3,4,5,6,7,8_vbs16_l10.001_l1pos_-1/trace.npy"
-trace_path2 = "record/useless/l1_bce/celebahq_stylegan_linear_layer0,1,2,3,4,5,6,7,8_vbs16_l10.0001_l1pos_-1/trace.npy"
+trace_path1 = "record/l1_pos_bce/celebahq_stylegan_linear_layer0,1,2,3,4,5,6,7,8_vbs1_l1-1_l1pos0.01_l1dev-1/trace.npy"
+trace_path2 = "record/l1_pos_bce/celebahq_stylegan_linear_layer0,1,2,3,4,5,6,7,8_vbs1_l1-1_l1pos1e-05_l1dev-1/trace.npy"
 trace1 = np.load(trace_path1) # (N1, 15, D)
 trace2 = np.load(trace_path2) # (N2, 15, D)
 
@@ -42,9 +42,12 @@ sep_model2 = get_semantic_extractor("unit")(
 sep_model2.weight.requires_grad = False
 
 
+TOTAL = 1000
+STEP = trace1.shape[0] // TOTAL
+
 # segmentation movie
 os.system("rm video/*.png")
-for ind in tqdm(range(trace1.shape[0])):
+for ind in tqdm(range(0, trace1.shape[0], STEP)):
     sep_model1.weight.copy_(torch.from_numpy(trace1[ind]).unsqueeze(2).unsqueeze(2))
     sep_model2.weight.copy_(torch.from_numpy(trace2[ind]).unsqueeze(2).unsqueeze(2))
     label1 = sep_model1(stage)[0].argmax(1)
@@ -57,5 +60,8 @@ for ind in tqdm(range(trace1.shape[0])):
     imgs = [image, diff_label, label1_viz, label2_viz]
     imgs = [F.interpolate(x,
         size=256, mode="bilinear", align_corners=True) for x in imgs]
-    vutils.save_image(torch.cat(imgs), "video/%04d.png" % ind, nrow=2)
+    vutils.save_image(
+        torch.cat(imgs),
+        "video/%04d.png" % ( ind // STEP),
+        nrow=2)
 os.system("ffmpeg -y -f image2 -r 12 -i video/%04d.png -pix_fmt yuv420p -b:v 16000k comparative_trace.mp4")

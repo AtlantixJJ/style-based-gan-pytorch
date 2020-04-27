@@ -26,10 +26,10 @@ colors = list(matplotlib.colors.cnames.keys())
 from weight_visualization import *
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--task", default="log,seg,fastagreement", help="")
+parser.add_argument("--task", default="log,seg,fast-celeba-agreement,weight,celeba-evaluator", help="")
 parser.add_argument("--model", default="")
 parser.add_argument("--gpu", default="0")
-parser.add_argument("--recursive", default="0")
+parser.add_argument("--recursive", default="1")
 args = parser.parse_args()
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
@@ -484,7 +484,7 @@ if "weight" in args.task:
     if "spherical" in model_file:
         ws = sep_model.weight[:, :, 0, 0]
         minimum, maximum = ws.min().detach(), ws.max().detach()
-    elif "unit" in model_file:
+    elif "_unit_extractor" in model_file:
         ws = sep_model.weight[:, :, 0, 0]
         ws = F.normalize(ws, 2, 1)
         minimum, maximum = ws.min().detach(), ws.max().detach()
@@ -504,7 +504,7 @@ if "weight" in args.task:
     fig.savefig(f"{savepath}_class.png", bbox_inches='tight')
     plt.close()
     
-    if "spherical" in model_file or "unit" in model_file:
+    if "spherical" in model_file or "_unit_extractor" in model_file:
         plot_weight_concat(
             ws.detach().numpy(),
             maximum, minimum)

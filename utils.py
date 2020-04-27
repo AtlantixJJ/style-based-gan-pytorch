@@ -52,6 +52,25 @@ def tensor2image(x):
     return ((x + 1) * 127.5).astype("uint8")
 
 
+def bu(x, s):
+    if type(x) is list:
+        return [F.interpolate(img,
+            size=s, mode="bilinear", align_corners=True) for img in x]
+    elif isinstance(x, torch.Tensor):
+        return F.interpolate(x,
+            size=s, mode="bilinear", align_corners=True)
+
+
+# make 2-exponential pyramids: (4, 8, 16, ..., 1024)
+# [(N, 3, H, W)]
+def make_pyramid(images):
+    img1_p = torch.cat(bu(images[:4], 128))
+    img1 = vutils.make_grid(img1_p, nrow=2, padding=0).unsqueeze(0)
+    img2_p = torch.cat([img1] + bu(images[4:7], 256))
+    img2 = vutils.make_grid(img2_p, nrow=2, padding=0).unsqueeze(0)
+    return torch.cat([img2] + bu(images[7:], 512), dim=3)
+
+
 def lerp(a, b, x, y, i):
     """
     Args:
@@ -92,6 +111,24 @@ def catlist(tensor_list, size=256):
     return torch.cat(a)
 
 
+def simple_dilate(img):
+    res = torch.zeros_like(img)
+    xs, ys = np.where(img.cpu().numpy())
+
+    def inbox(x, y):
+        return (x >= 0) and (y >= 0) and \
+            (x < img.shape[0]) and (y < img.shape[1])
+
+    for x, y in zip(xs, ys):
+        if not img[x, y]:
+            continue
+        for i in range(-1, 2, 1):
+            for j in range(-1, 2, 1):
+                if inbox(x + i, y + j):
+                    res[x + i, y + j] = True
+    return res
+
+    
 POSITIVE_COLOR = cm.get_cmap("Reds")
 NEGATIVE_COLOR = cm.get_cmap("Blues")
 def heatmap_numpy(image):
@@ -99,14 +136,21 @@ def heatmap_numpy(image):
     assume numpy array as input: (N, H, W) in [0, 1]
     returns: (N, H, W, 3)
     """
-    image1 = image.copy(); image1[image1 < 0] = 0
-    image2 = -image.copy(); image2[image2 < 0] = 0
+    image1 = image.copy()
+    mask1 = image1 > 0
+    image1[~mask1] = 0
+
+    image2 = -image.copy()
+    mask2 = image2 > 0
+    image2[~mask2] = 0
+
     pos_img = POSITIVE_COLOR(image1)[:, :, :, :3]
     neg_img = NEGATIVE_COLOR(image2)[:, :, :, :3]
-    x = np.zeros_like(pos_img)
-    x[image1 > 0] = pos_img[image1 > 0]
-    x[image2 > 0] = neg_img[image2 > 0]
-    x[(image1 <= 0) & (image2 <= 0)].fill(1)
+
+    x = np.ones_like(pos_img)
+    x[mask1] = pos_img[mask1]
+    x[mask2] = neg_img[mask2]
+
     return x
 
 

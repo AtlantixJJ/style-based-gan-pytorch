@@ -22,7 +22,7 @@ latent_size = 512
 torch.manual_seed(3)
 all_latent = torch.randn(3, 512, device=device)
 latent = all_latent[0:1]
-extractor_path = "record/vbs_conti/ffhq_stylegan2_unit_layer0,1,2,3,4,5,6,7,8_vbs64/stylegan2_unit_extractor.model"
+extractor_path = "record/bce/celebahq_stylegan_unit_layer0,1,2,3,4,5,6,7,8_vbs16_l1-1/stylegan_unit_extractor.model"
 #extractor_path = "record/l1_pos/celebahq_stylegan_linear_layer0,1,2,3,4,5,6,7,8_vbs8_l1-1_l1pos0.01/stylegan_linear_extracdtor.model"
 
 model_path = "checkpoint/face_celebahq_1024x1024_stylegan.pth" if "celebahq" in extractor_path else "checkpoint/face_ffhq_1024x1024_stylegan2.pth"
@@ -47,9 +47,11 @@ sep_model = get_semantic_extractor(get_extractor_name(extractor_path))(
 sep_model.load_state_dict(origin_state_dict)
 
 try:
-    w = concat_weight(sep_model.semantic_extractor).detach().cpu().numpy()
+    tw = concat_weight(sep_model.semantic_extractor).unsqueeze(2).unsqueeze(2)
+    w = tw[:, :, 0, 0].detach().cpu().numpy()
 except:
-    w = sep_model.weight[:, :, 0, 0].detach().cpu().numpy()
+    tw = sep_model.weight
+    w = tw[:, :, 0, 0].detach().cpu().numpy()
 dic, cr, cp, cn = get_dic(w)
 
 print("=> Show statistics of each featuremap")
@@ -68,69 +70,7 @@ plt.scatter(x, absv, s=2)
 plt.savefig("min.png")
 plt.close()
 
-# Selected featuremaps
-print("=> Visualize selected featuremaps")
-C = utils.CELEBA_CATEGORY.index("u_lip")
-indice = list(cr[C])
 
-# sort in descending order
-data = list(zip(indice, w[C, indice]))
-data.sort(key=lambda x : x[1])
-indice = [v[0] for v in data]
-
-cname = utils.CELEBA_CATEGORY[C]
-print(f"=> Category {cname} size {len(indice)}")
-
-for ind in range(3):
-    latent = all_latent[ind:ind+1]
-    with torch.no_grad():
-        image, stage = generator.get_stage(latent)
-        image = (image.clamp(-1, 1) + 1) / 2
-        image_small = F.interpolate(image, size=256, mode="bilinear", align_corners=True)
-
-    viz_imgs = []
-    for idx in indice:
-        stage_ind = cumdims.searchsorted(idx + 1) - 1
-        stage_idx = int(idx - cumdims[stage_ind])
-        img = stage[stage_ind][0:1, stage_idx:stage_idx+1]
-        attr = "-".join(dic[idx])
-        viz_imgs.append((img, idx, attr))
-
-    for i, (img, idx, attr) in enumerate(viz_imgs):
-        if img.shape[3] >= 1024:
-            continue
-        img = img / max(-img.min(), img.max())
-        if img.shape[3] <= 256:
-            img = F.interpolate(img, size=256, mode="bilinear", align_corners=True)
-        img = utils.heatmap_torch(img)
-        vutils.save_image(img, f"{ind}_{i:03d}_{idx:04d}_{attr}.png")
-        vutils.save_image(image_small, f"{ind}_image.png")
-
-
-"""
-print("=> Show random subsamples")
-indice = list(cr[C])
-cname = utils.CELEBA_CATEGORY[C]
-print(f"=> Category {cname} size {len(indice)}")
-count = 0
-print(indice)
-for k in [10, 40, 100, 200, len(indice)]:
-    repeat_num = 1 if k == len(indice) else 5
-    for i in range(repeat_num): # repeat
-        sample = np.random.choice(indice, size=k, replace=False)
-        s = []
-        for idx in sample:
-            stage_ind = cumdims.searchsorted(idx + 1) - 1
-            stage_idx = int(idx - cumdims[stage_ind])
-            img = stage[stage_ind][0:1, stage_idx:stage_idx+1]
-            s.append(img * w[C, idx])
-        size = max([a.shape[2] for a in s])
-        img = sum([F.interpolate(a, size=size, mode="bilinear", align_corners=True)
-            for a in s])
-        img = utils.heatmap_torch(img / img.max())
-vutils.save_image(img, f"{cname}_sample.png")
-count += 1
-"""
 
 def partial_sum(w, indice, stage, size=256):
     s = []
@@ -143,6 +83,73 @@ def partial_sum(w, indice, stage, size=256):
         return torch.zeros(1, 1, size, size, device=device)
     return sum([F.interpolate(a, size=size, mode="bilinear", align_corners=True)
         for a in s])
+
+
+print("=> Stage contribution")
+# each stage is of the same resolution
+with torch.no_grad():
+    image, stage = generator.get_stage(latent)
+    image = (image.clamp(-1, 1) + 1) / 2
+    image_small = F.interpolate(image,
+        size=256, mode="bilinear", align_corners=True)
+
+prev, cur = 0, 0
+scores = []
+for s in stage:
+    cur += s.shape[1]
+    score = F.conv2d(s, tw[:, prev:cur])
+    scores.append(score)
+    prev = cur
+
+for C in range(15):
+    cname = utils.CELEBA_CATEGORY[C]
+    print(f"=> Category {cname}")
+
+    # individual layer
+    sc = [s[:, C:C+1] for s in scores]
+    maxi = max([max(-a.min(), a.max()) for a in sc])
+    arr = [utils.heatmap_torch(m / maxi) for m in sc]
+
+    # cumulative layers
+    cur = sc[0]
+    cc = [cur]
+    uc = []
+    for s in sc[1:]:
+        uc.append(utils.bu(cur, s.shape[3]))
+        cur = uc[-1] + s
+        cc.append(cur)
+    cumarr = [a / max(-a.min(), a.max()) for a in cc]
+    cumarr = [utils.heatmap_torch(m) for m in cumarr]
+    
+    # difference is cumulative layers
+    dc = [cc[i] - utils.bu(cc[i-1], cc[i].shape[3])
+        for i in range(1, len(cc))]
+    for i in range(len(dc)):
+        if dc[i].shape[3] < 64:
+            continue
+        #dilated = uc[i] + uc[i].std() * 0.2
+        #dc[i][dilated <= 0] = 0
+        #diffcum[i][cc[i+1] > 0] = 1
+    diffcum = [a / max(-a.min(), a.max()) for a in dc]
+    diffcum = [utils.heatmap_torch(m) for m in diffcum]
+    line = cc[-1].abs() < cc[-1].std() * 0.2
+    for i in range(len(diffcum)):
+        if dc[i].shape[3] < 64:
+            continue
+        cline = F.interpolate(line.float(), size=dc[i].shape[3]) > 0
+        for j in range(3):
+            diffcum[i][:, j:j+1, :, :][cline] = 0 # black
+    diffcum = [torch.zeros_like(diffcum[0])] + diffcum
+    
+    # make a pyramid
+    p1 = utils.make_pyramid(arr)
+    p2 = utils.make_pyramid(cumarr)
+    p3 = utils.make_pyramid(diffcum)
+
+    # save image
+    imgs = torch.cat([p1, p2, p3])
+    vutils.save_image(imgs, f"{cname}_stage.png", nrow=1)
+
 
 print("=> Weight distribution")
 wsorted = w.copy()
@@ -159,43 +166,9 @@ for i in range(wsorted.shape[0]):
     plt.savefig(f"weight_distribution_{i}.png")
     plt.close()
 
-print("=> Positive and negative")
 
-for C in range(15):
-    indice = list(cr[C])
-    cname = utils.CELEBA_CATEGORY[C]
-    print(f"=> Category {cname} size {len(indice)}")
-
-    NT, PT = - w[C][w[C]<0].std(), w[C][w[C]>0].std()
-    with torch.no_grad():
-        image, stage = generator.get_stage(latent)
-        image = (image.clamp(-1, 1) + 1) / 2
-        image_small = F.interpolate(image, size=256, mode="bilinear", align_corners=True)
-
-    mp = partial_sum(w[C], np.where(w[C] > 0)[0], stage)
-    mn = -partial_sum(w[C], np.where(w[C] < 0)[0], stage)
-    mt = partial_sum(w[C], np.where(w[C] != 0)[0], stage)
-
-    sp = partial_sum(w[C], np.where((0 <= w[C]) & (w[C] < PT))[0], stage)
-    sn = -partial_sum(w[C], np.where((NT <= w[C]) & (w[C] < 0))[0], stage)
-    lp = partial_sum(w[C], np.where(PT <= w[C])[0], stage)
-    ln = -partial_sum(w[C], np.where(w[C] < NT)[0], stage)
-    diff_s = sp - sn
-    diff_l = lp - ln
-    res = sp - sn + lp - ln
-    arr = [mp, mn, mt, sp, sn, lp, ln, diff_s, diff_l, res]
-    maxi = max([a.max() for a in arr])
-
-    img_p, img_n, img_t, img_sp, img_sn, img_lp, img_ln, imgdiff_s, imgdiff_l, imgres = [
-        utils.heatmap_torch(m / max(-m.min(), m.max())) for m in arr]
-    
-    img = torch.cat([
-        img_p, img_n, image_small, img_t,
-        img_sp, img_sn, imgdiff_s, imgres,
-        img_lp, img_ln, imgdiff_l])
-    vutils.save_image(img, f"{cname}_positive_negative.png", nrow=4)
-
-for C in range(15):
+print("=> Segments of weight")
+for C in [0, 1, 2, 4, 5, 6, 7, 10]:
     indice = list(cr[C])
     cname = utils.CELEBA_CATEGORY[C]
     print(f"=> Category {cname} size {len(indice)}")
@@ -232,6 +205,44 @@ for C in range(15):
 
 
 
+print("=> Positive and negative")
+
+for C in [0, 1, 2, 4, 5, 6, 7, 10]:
+    indice = list(cr[C])
+    cname = utils.CELEBA_CATEGORY[C]
+    print(f"=> Category {cname} size {len(indice)}")
+
+    NT, PT = - w[C][w[C]<0].std(), w[C][w[C]>0].std()
+    with torch.no_grad():
+        image, stage = generator.get_stage(latent)
+        image = (image.clamp(-1, 1) + 1) / 2
+        image_small = F.interpolate(image, size=256, mode="bilinear", align_corners=True)
+
+    mp = partial_sum(w[C], np.where(w[C] > 0)[0], stage)
+    mn = -partial_sum(w[C], np.where(w[C] < 0)[0], stage)
+    mt = partial_sum(w[C], np.where(w[C] != 0)[0], stage)
+
+    sp = partial_sum(w[C], np.where((0 <= w[C]) & (w[C] < PT))[0], stage)
+    sn = -partial_sum(w[C], np.where((NT <= w[C]) & (w[C] < 0))[0], stage)
+    lp = partial_sum(w[C], np.where(PT <= w[C])[0], stage)
+    ln = -partial_sum(w[C], np.where(w[C] < NT)[0], stage)
+    diff_s = sp - sn
+    diff_l = lp - ln
+    res = sp - sn + lp - ln
+    arr = [mp, mn, mt, sp, sn, lp, ln, diff_s, diff_l, res]
+    maxi = max([a.max() for a in arr])
+
+    img_p, img_n, img_t, img_sp, img_sn, img_lp, img_ln, imgdiff_s, imgdiff_l, imgres = [
+        utils.heatmap_torch(m / max(-m.min(), m.max())) for m in arr]
+    
+    img = torch.cat([
+        img_p, img_n, image_small, img_t,
+        img_sp, img_sn, imgdiff_s, imgres,
+        img_lp, img_ln, imgdiff_l])
+    vutils.save_image(img, f"{cname}_positive_negative.png", nrow=4)
+
+
+
 # random projection
 print("=> Random projection")
 w = torch.randn((sum(dims),))
@@ -246,6 +257,46 @@ for s in stage:
 f = (f - f.min()) / (f.max() - f.min())
 img = utils.heatmap_torch(f)
 vutils.save_image(img, "random_full.png")
+
+
+# Selected featuremaps
+print("=> Visualize selected featuremaps")
+C = utils.CELEBA_CATEGORY.index("nose")
+indice = list(cr[C])
+
+# sort in descending order
+data = list(zip(indice, w[C, indice]))
+data.sort(key=lambda x : x[1])
+indice = [v[0] for v in data]
+
+cname = utils.CELEBA_CATEGORY[C]
+print(f"=> Category {cname} size {len(indice)}")
+
+for ind in range(3):
+    latent = all_latent[ind:ind+1]
+    with torch.no_grad():
+        image, stage = generator.get_stage(latent)
+        image = (image.clamp(-1, 1) + 1) / 2
+        image_small = F.interpolate(image, size=256, mode="bilinear", align_corners=True)
+
+    viz_imgs = []
+    for idx in indice[:10]:
+        stage_ind = cumdims.searchsorted(idx + 1) - 1
+        stage_idx = int(idx - cumdims[stage_ind])
+        img = stage[stage_ind][0:1, stage_idx:stage_idx+1]
+        attr = "-".join(dic[idx])
+        viz_imgs.append((img, idx, attr))
+
+    for i, (img, idx, attr) in enumerate(viz_imgs):
+        if img.shape[3] >= 1024:
+            continue
+        img = img / max(-img.min(), img.max())
+        if img.shape[3] <= 256:
+            img = F.interpolate(img, size=256, mode="bilinear", align_corners=True)
+        img = utils.heatmap_torch(img)
+        vutils.save_image(img, f"{ind}_{i:03d}_{idx:04d}_{attr}.png")
+        vutils.save_image(image_small, f"{ind}_image.png")
+
 
 # score map
 score = sep_model(stage)[0][0]
@@ -268,6 +319,8 @@ imgs1 = torch.cat([F.interpolate(img, size=256) for img in imgs1])
 imgs2 = torch.cat([F.interpolate(img, size=256) for img in imgs2])
 vutils.save_image(imgs1, "score_full.png", nrow=4)
 vutils.save_image(imgs2, "score_positive.png", nrow=4)
+
+
 
 
 catid = 1
@@ -312,4 +365,27 @@ for img, i, idx, val in vis_imgs:
         img = F.interpolate(img, size=256)
     img = utils.heatmap_torch(img)
     vutils.save_image(img, f"{i:02d}_{idx:04d}_{val:.3f}.png")
+
+print("=> Show random subsamples")
+indice = list(cr[C])
+cname = utils.CELEBA_CATEGORY[C]
+print(f"=> Category {cname} size {len(indice)}")
+count = 0
+print(indice)
+for k in [10, 40, 100, 200, len(indice)]:
+    repeat_num = 1 if k == len(indice) else 5
+    for i in range(repeat_num): # repeat
+        sample = np.random.choice(indice, size=k, replace=False)
+        s = []
+        for idx in sample:
+            stage_ind = cumdims.searchsorted(idx + 1) - 1
+            stage_idx = int(idx - cumdims[stage_ind])
+            img = stage[stage_ind][0:1, stage_idx:stage_idx+1]
+            s.append(img * w[C, idx])
+        size = max([a.shape[2] for a in s])
+        img = sum([F.interpolate(a, size=size, mode="bilinear", align_corners=True)
+            for a in s])
+        img = utils.heatmap_torch(img / img.max())
+vutils.save_image(img, f"{cname}_sample.png")
+count += 1
 """
