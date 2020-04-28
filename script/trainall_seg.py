@@ -9,7 +9,7 @@ class SECore(object):
     def __init__(self):
         self.last_only = [1]
         self.extractors = [
-            "linear",
+            #"linear",
             "nonlinear",
             "generative",
             "spherical"
