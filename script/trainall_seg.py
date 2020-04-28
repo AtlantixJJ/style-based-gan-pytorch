@@ -32,7 +32,7 @@ class SECore(object):
             yield count, cmd
 
 
-class SECore2(object):
+class SECore2(SECore):
     def __init__(self):
         self.last_only = [1]
         self.extractors = [
@@ -43,7 +43,7 @@ class SECore2(object):
             "unit",
             "unitnorm"
         ]
-        self.basecmd = "python train/extract_semantics.py --task celebahq --model-name stylegan --extractor %s --gpu %s --batch-size 1 --iter-num 10000 --last-only %d --expr record/celebahq%d"
+        self.basecmd = "python train/extract_semantics.py --task ffhq --model-name stylegan2 --extractor %s --gpu %s --batch-size 1 --iter-num 10000 --last-only %d --expr record/ffhq%d --load checkpoint/face_ffhq_1024x1024_stylegan2.pth"
 
 
 class SEBCE(SECore):
@@ -261,8 +261,8 @@ uname = subprocess.run(["uname", "-a"], capture_output=True)
 uname = uname.stdout.decode("ascii")
 if "jericho" in uname:
     #gpus = ["0"]; assign_run(SECore().command, gpus)
+    gpus = ["0"]; assign_run(SECore2().command, gpus)
     #gpus = ["0"]; assign_run(direct_run, gpus)
-    gpus = ["0"]; assign_run(SECore().command, gpus)
     #gpus = ["0"]; assign_run(SEL1PosReg().command, gpus)
     #gpus = ["0"]; assign_run(SEL1DEV().command, gpus)
     #gpus = ["0"]; assign_run(SEBCE(["linear"]).command, gpus)

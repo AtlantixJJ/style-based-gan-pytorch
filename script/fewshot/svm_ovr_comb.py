@@ -27,7 +27,7 @@ device = "cuda"
 total_class = 15
 layer_index = 4
 train_size = 16
-svm_path = f"results/svm_l{layer_index}_b{train_size}.model"
+svm_path = f"results/svm_l{layer_index}_b{train_size}.model.npy"
 latent = torch.randn(1, 512, device=device)
 generator = model.load_model(model_path)
 generator.to(device).eval()
