@@ -55,7 +55,7 @@ dl = torch.utils.data.DataLoader(ds, batch_size=args.train_size, shuffle=False)
 test_ds = dataset.LatentSegmentationDataset(
     latent_dir=args.test_dir + "/latent",
     noise_dir=args.test_dir + "/noise",
-    image_dir=None,
+    image_dir=args.data_dir + "/image",
     seg_dir=args.test_dir + "/label")
 test_dl = torch.utils.data.DataLoader(test_ds, batch_size=1, shuffle=False)
 
@@ -133,6 +133,7 @@ latents = latents.squeeze(1)
 labels = labels[:, :, :, 0].long().unsqueeze(1)
 labels_viz = [colorizer(l).unsqueeze(0).float() / 255. for l in labels]
 fpath = f"results/svm_image_{ind}_b{args.train_size}.png"
+images = images.permute(0, 2, 3, 1).float() / 255.
 small_images = utils.bu(images, 256)
 vutils.save_image(small_images, fpath)
 
