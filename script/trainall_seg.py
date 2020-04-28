@@ -6,12 +6,12 @@ class SECore(object):
     def __init__(self):
         self.last_only = [1]
         self.extractors = [
-            #"linear",
+            "linear",
             "nonlinear",
             "generative",
             "spherical"
-            #"unit",
-            #"unitnorm"
+            "unit",
+            "unitnorm"
         ]
         self.basecmd = "python train/extract_semantics.py --task celebahq --model-name stylegan --extractor %s --gpu %s --batch-size 1 --iter-num 10000 --last-only %d --expr record/celebahq%d"
 
@@ -30,6 +30,20 @@ class SECore(object):
         for count, arg in self.args_gen(gpus):
             cmd = self.basecmd % arg
             yield count, cmd
+
+
+class SECore2(object):
+    def __init__(self):
+        self.last_only = [1]
+        self.extractors = [
+            "linear",
+            "nonlinear",
+            "generative",
+            "spherical"
+            "unit",
+            "unitnorm"
+        ]
+        self.basecmd = "python train/extract_semantics.py --task celebahq --model-name stylegan --extractor %s --gpu %s --batch-size 1 --iter-num 10000 --last-only %d --expr record/celebahq%d"
 
 
 class SEBCE(SECore):
