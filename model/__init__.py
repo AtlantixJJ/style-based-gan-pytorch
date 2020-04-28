@@ -3,6 +3,7 @@ import model.inception
 import model.simple
 import model.semantic_extractor
 try:
+    raise KeyboardInterrupt
     import model.stylegan2
     from model.stylegan2 import from_pth_file as load_stylegan2
 except:
