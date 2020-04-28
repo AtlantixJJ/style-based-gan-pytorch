@@ -41,6 +41,7 @@ parser.add_argument(
 args = parser.parse_args()
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
+USE_THUNDER = True
 
 # constants setup
 torch.manual_seed(65537)
@@ -60,8 +61,12 @@ test_ds = dataset.LatentSegmentationDataset(
 test_dl = torch.utils.data.DataLoader(test_ds, batch_size=1, shuffle=False)
 
 # build model
-print("=> Use One v.s. One from thundersvm")
-from thundersvm import SVC as SVM
+if USE_THUNDER:
+    print("=> Use thundersvm")
+    from thundersvm import OneClassSVM, SVC
+else:
+    print("=> Use liblinear (multicore)")
+    import lib.liblinear.liblinearutil as svm
 
 print("=> Setup generator")
 extractor_path = "record/celebahq1/celebahq_stylegan_unit_layer0,1,2,3,4,5,6,7,8_vbs1_l1-1_l1pos-1_l1dev-1_l1unit-1/stylegan_unit_extractor.model"
@@ -133,9 +138,9 @@ latents = latents.squeeze(1)
 labels = labels[:, :, :, 0].long().unsqueeze(1)
 labels_viz = [colorizer(l).unsqueeze(0).float() / 255. for l in labels]
 fpath = f"results/svm_image_{ind}_b{args.train_size}.png"
-images = images.permute(0, 2, 3, 1).float() / 255.
+images = images.permute(0, 3, 1, 2).float() / 255.
 small_images = utils.bu(images, 256)
-vutils.save_image(small_images, fpath)
+vutils.save_image(small_images, fpath, nrow=4)
 
 feats = []
 for i in range(latents.shape[0]):
@@ -156,26 +161,61 @@ print(f"=> Feature for SVM shape: {feats.shape}")
 labels = F.interpolate(labels.float(), size=H, mode="nearest").long().numpy()
 
 for C in range(args.total_class):
-    labels_C = labels.copy()
-    mask1 = labels_C != C
-    labels_C[mask1] = 0
-    labels_C[~mask1] = 1
-    others_size = mask1.sum()
-    ones_size = np.prod(labels_C.shape) - others_size
+    labels_C = labels.copy().reshape(-1)
+    mask1 = labels_C == C
+    labels_C[mask1] = 1
+    labels_C[~mask1] = 0
+    ones_size = mask1.sum()
+    others_size = (~mask1).sum()
     print(f"=> Class {C} On: {ones_size} Off: {others_size}")
-    svm_model = SVM(kernel="linear", probability=True, max_mem_size=8 * 1024)
-    svm_model.fit(feats, labels.reshape(-1))
+    if ones_size <= 100:
+        print("=> Skip")
+        continue
+    
     model_path = f"results/svm_{ind}_c{C}_l{args.layer_index}_b{args.train_size}.model"
-    svm_model.save_to_file(model_path)
-    est_labels = svm_model.predict(feats)
-    est_labels = est_labels.reshape(N, 1, H, W)
-    est_labels[est_labels > 0] = C
-    est_labels = torch.from_numpy(est_labels)
-    est_labels_viz = [colorizer(l).unsqueeze(0).float() / 255.
-        for l in est_labels]
+    feats /= np.linalg.norm(feats, 2, 1, keepdims=True)
 
-    res = [F.interpolate(r.detach().cpu(), size=256, mode="nearest") for r in res]
+    if USE_THUNDER: # better to use this
+        svm_model = SVC(kernel="linear")
+        svm_model.fit(feats, labels_C)
+        svm_model.save_to_file(model_path)
+        est_labels = svm_model.predict(feats)
+        # draw support vectors
+        indice = svm_model.support_
+        zeros = np.zeros_like(labels_C)
+        zeros[indice] = 1
+    else:
+        svm_model = svm.train(labels_C, feats, "-n 32 -s 2 -B -1 -q")
+        model_path = f"results/svm_train_{ind}_c{C}_l{args.layer_index}_b{args.train_size}.model"
+        svm.save_model(model_path, svm_model)
+        est_labels, acc, vals = svm.predict(labels_C, feats, svm_model)
+        est_labels = np.array(est_labels)
+        coef = np.array(svm_model.get_decfun(0)[0])
+
+    zeros = zeros.reshape(N, 1, H, W)
+    est_labels = est_labels.reshape(N, 1, H, W)
+    labels_C = labels_C.reshape(N, 1, H, W)
+    
+    mask = est_labels > 0
+    est_labels[mask] = C if C > 0 else 1
+    est_labels[~mask] = 0
+
+    est_labels_viz = [
+        colorizer(l).unsqueeze(0).float() / 255.
+        for l in torch.from_numpy(est_labels)]
+    labels_C_viz = [
+        colorizer(l).unsqueeze(0).float() / 255.
+        for l in torch.from_numpy(labels_C)]
+    zeros_viz = [
+        colorizer(l).unsqueeze(0).float() / 255.
+        for l in torch.from_numpy(zeros)]
+
+    res = []
+    for lbl, pred, zero in zip(labels_C_viz, est_labels_viz, zeros_viz):
+        res.extend([lbl, pred, zero])
+    res = [F.interpolate(r.detach().cpu(), size=256, mode="nearest")
+        for r in res]
     fpath = f"results/svm_train_{ind}_c{C}_l{args.layer_index}_b{args.train_size}.png"
-    vutils.save_image(torch.cat(est_labels_viz), fpath)
+    vutils.save_image(torch.cat(res), fpath, nrow=3)
 
     
