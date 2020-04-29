@@ -36,7 +36,7 @@ from lib.face_parsing import unet
 import evaluate, utils, dataset, model
 from model.semantic_extractor import get_semantic_extractor, get_extractor_name 
 
-USE_THUNDER = True
+USE_THUNDER = False
 
 # constants setup
 torch.manual_seed(65537)
@@ -119,6 +119,7 @@ print(f"=> Feature for SVM shape: {feats.shape}")
 labels = F.interpolate(labels.float(), size=H, mode="nearest").long().numpy()
 
 coefs = []
+intercepts = []
 svs = []
 segs = []
 cur = 0
@@ -131,12 +132,13 @@ for C in range(args.total_class):
     others_size = (~mask1).sum()
     print(f"=> Class {C} On: {ones_size} Off: {others_size}")
     
-    feats /= np.linalg.norm(feats, 2, 1, keepdims=True)
+    #feats /= np.linalg.norm(feats, 2, 1, keepdims=True)
 
     if USE_THUNDER: # better to use this
-        svm_model = SVC(kernel="linear")
+        svm_model = SVC(kernel="linear", probability=True)
         svm_model.fit(feats, labels_C)
         coefs.append(svm_model.coef_)
+        intercepts.append(svm_model.intercept_)
         sv = svm_model.support_vectors_
         svs.append(sv)
         segs.append((cur, cur + sv.shape[0]))
@@ -155,7 +157,7 @@ for C in range(args.total_class):
         svm.save_model(model_path, svm_model)
         est_labels, acc, vals = svm.predict(labels_C, feats, svm_model)
         est_labels = np.array(est_labels)
-        coef = np.array(svm_model.get_decfun(0)[0])
+        coef = np.array(svm_model.get_decfun()[0])
 
     """
     zeros = zeros.reshape(N, 1, H, W)
@@ -192,8 +194,10 @@ for C in range(args.total_class):
     vutils.save_image(torch.cat(res), fpath, nrow=3)
     """
 
-model_path = f"results/svm_l{args.layer_index}_b{args.train_size}.model"
-coefs = np.concatenate(coefs)
-svs = np.concatenate(svs)[:, 1:] # The first element is shit
-segs = np.array(segs)
-np.save(model_path, [coefs, svs, segs])
+if USE_THUNDER:
+    model_path = f"results/svm_l{args.layer_index}_b{args.train_size}.model"
+    coefs = np.concatenate(coefs)
+    intercepts = np.array(intercepts)
+    svs = np.concatenate(svs)[:, 1:] # The first element is shit
+    segs = np.array(segs)
+    np.save(model_path, [coefs, intercepts, svs, segs])

@@ -9,7 +9,7 @@ class SECore(object):
             "linear",
             "nonlinear",
             "generative",
-            "spherical"
+            "spherical",
             "unit",
             "unitnorm"
         ]
@@ -36,10 +36,10 @@ class SECore2(SECore):
     def __init__(self):
         self.last_only = [1]
         self.extractors = [
-            "linear",
-            "nonlinear",
-            "generative",
-            "spherical"
+            #"linear",
+            #"nonlinear",
+            #"generative",
+            #"spherical",
             "unit",
             "unitnorm"
         ]
@@ -270,4 +270,4 @@ if "jericho" in uname:
 elif "instance" in uname:
     gpus = ["0"]; assign_run(SESpherical().command, gpus)
 else:
-    gpus = ["4", "5", "6", "7"]; assign_run(SEL1Reg().command, gpus)
+    gpus = ["0", "1", "2", "3", "4", "5"]; assign_run(SECore().command, gpus)

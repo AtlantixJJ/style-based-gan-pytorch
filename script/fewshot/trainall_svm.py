@@ -6,7 +6,7 @@ layer_index = [3, 4, 5, 6, 7]
 cmds = []
 cmd_idx = -1
 mutex = threading.Lock()
-gpus = [1,2,3,4,5,6,7]
+gpus = [5,5,5,6,6,6]
 basecmd = "python script/fewshot/svm_bce.py --layer-index {layer} --train-size {ts}"
 
 def fetch():

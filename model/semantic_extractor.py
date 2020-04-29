@@ -123,13 +123,14 @@ class LinearSemanticExtractor(BaseSemanticExtractor):
     """
     Extract the semantic segmentation from internal representation using 1x1 conv.
     """
-    def __init__(self, **kwargs):
+    def __init__(self, use_bias=False, **kwargs):
         super().__init__(**kwargs)
+        self.use_bias = use_bias
         self.build()
 
     def build(self):
         def conv_block(in_dim, out_dim, ksize):
-            _m = [nn.Conv2d(in_dim, out_dim, ksize, bias=False)]
+            _m = [nn.Conv2d(in_dim, out_dim, ksize, bias=self.use_bias)]
             return nn.Sequential(*_m)
 
         self.semantic_extractor = nn.ModuleList([
