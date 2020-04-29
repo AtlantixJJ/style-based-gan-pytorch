@@ -9,6 +9,7 @@ import numpy as np
 from tqdm import tqdm
 import argparse, glob
 from thundersvm import SVC
+import lib.liblinear.liblinearutil as svm
 
 import torch
 import torch.nn.functional as F
@@ -27,7 +28,12 @@ device = "cuda"
 total_class = 15
 layer_index = 3
 train_size = 16
-svm_path = f"results/svm_l{layer_index}_b{train_size}.model.npy"
+ds = dataset.LatentSegmentationDataset(
+    latent_dir="datasets/Synthesized/latent",
+    noise_dir="datasets/Synthesized/noise",
+    image_dir="datasets/Synthesized/image",
+    seg_dir="datasets/Synthesized/label")
+dl = torch.utils.data.DataLoader(ds, batch_size=train_size, shuffle=False)
 latent = torch.randn(1, 512, device=device)
 generator = model.load_model(model_path)
 generator.to(device).eval()
@@ -35,7 +41,7 @@ with torch.no_grad():
     image, stage = generator.get_stage(latent)
     image = (image.clamp(-1, 1) + 1) / 2
     image_small = F.interpolate(image,
-        size=256, mode="bilinear", align_corners=True)
+        size=256, mode="bilinear", align_corners=True).cpu()
 #vutils.save_image(image, "image.png")
 dims = [s.shape[1] for s in stage]
 cumdims = np.cumsum([0] + dims)
@@ -45,7 +51,7 @@ colorizer = utils.Colorize(total_class)
 sep_model = get_semantic_extractor(get_extractor_name(extractor_path))(
     n_class=total_class,
     dims=dims)
-#sep_model.load_state_dict(torch.load(extractor_path))
+sep_model.load_state_dict(torch.load(extractor_path))
 sep_model.to(device).eval()
 
 svm_model = get_semantic_extractor("linear")(
@@ -54,12 +60,57 @@ svm_model = get_semantic_extractor("linear")(
     use_bias=True)
 svm_model.to(device).eval()
 
-def get_feature(generator, latent, noise, layer_index):
+
+def load(svm_path):
+    if "%d" in svm_path:
+        w = []
+        for i in range(total_class):
+            model = svm.load_model(svm_path % i)
+            v = np.array(model.get_decfun()[0])
+            if model.get_labels() == [0, 1]:
+                v = -v
+            w.append(v)
+        return np.stack(w), None
+    else:
+        w, b, sv, segs = np.load(svm_path, allow_pickle=True)
+        return w, b
+
+
+latent = torch.randn(8, 512, device=device)
+
+def evaluate(layer_index, train_size):
+    svm_path = f"results/svm_train_0_c%d_l{layer_index}_b{train_size}.model"
+    w, b = load(svm_path)
+    w_ = torch.from_numpy(w).float().unsqueeze(2).unsqueeze(2)
+
     with torch.no_grad():
-        generator.set_noise(generator.parse_noise(noise))
-        image, stage = generator.get_stage(latent)
-    feat = stage[layer_index].detach().cpu()
-    return feat
+        images, stage = generator.get_stage(latent)
+    images = utils.bu((images.clamp(-1, 1) + 1) / 2, 256).cpu()
+    feats = stage[layer_index].detach().cpu()
+
+    seg = sep_model(stage)[0].cpu()
+    label = utils.bu(seg, 256).argmax(1)
+    label_viz = colorizer(label).float() / 255.
+    est_seg = F.conv2d(feats, w_)
+    estl = utils.bu(est_seg, 256).argmax(1)
+    estl_viz = colorizer(estl).float() / 255.
+
+    res = []
+    for img, lbl, pred in zip(images, label_viz, estl_viz):
+        res.extend([img, lbl, pred])
+    res = torch.stack(res)
+    vutils.save_image(res, f"svm_raw_all_l{layer_index}_b{train_size}.png", nrow=3)
+
+    scores = [utils.bu(est_seg[0:1, i:i+1], 256) for i in range(est_seg.shape[1])]
+    scores = [s / max(-s.min(), s.max()) for s in scores]
+    maps = [utils.heatmap_torch(s) for s in scores]
+    res = [images[0:1], label_viz[0:1], estl_viz[0:1]] + maps
+    vutils.save_image(torch.cat(res), f"svm_raw_score_l{layer_index}_b{train_size}.png", nrow=4)
+
+for layer_index in [3, 4, 5, 6]:
+    for train_size in [16, 32, 64, 256]:
+        print(f"=> Layer {layer_index} Size {train_size}")
+        evaluate(layer_index, train_size)
 
 w, b, sv, segs = np.load(svm_path, allow_pickle=True)
 utils.requires_grad(svm_model, False)
@@ -73,14 +124,3 @@ for i, layer in enumerate(svm_model.semantic_extractor):
         layer[0].weight.fill_(0.)
         layer[0].bias.fill_(0.)
 utils.requires_grad(svm_model, True)
-
-seg = sep_model(stage)[0]
-est_seg = svm_model(stage)[0]
-label, estl = [utils.bu(l, 256).argmax(1) for l in [seg, est_seg]]
-labels_viz = [colorizer(l).float().unsqueeze(0) / 255.
-    for l in [label, estl]]
-scores = [utils.bu(seg[:, i:i+1], 256) for i in range(seg.shape[1])]
-scores = [s / max(-s.min(), s.max()) for s in scores]
-maps = [utils.heatmap_torch(s) for s in scores]
-res = [image_small] + labels_viz + maps
-vutils.save_image(torch.cat(res), "svm_raw.png", nrow=3)

@@ -168,7 +168,7 @@ class Colorize(object):
     def __init__(self, n=19):
         self.cmap = labelcolormap(n)
 
-    def __call__(self, gray_image):
+    def colorize_single(self, gray_image):
         if gray_image.shape[0] == 1:
             gray_image = gray_image[0]
         size = gray_image.shape
@@ -188,6 +188,17 @@ class Colorize(object):
                 mask = (label == gray_image)
                 color_image[mask] = self.cmap[label]
         return color_image
+
+    def __call__(self, images):
+        if (len(images.shape) == 4 and images.shape[1] == 1) or len(images.shape) == 3:
+            colorization = [self.colorize_single(img) for img in images]
+            if isinstance(images, torch.Tensor):
+                return torch.stack(colorization)
+            else:
+                return np.stack(colorization)
+        else:
+            return self.colorize_single(images)
+
 
 
 def uint82bin(n, count=8):
