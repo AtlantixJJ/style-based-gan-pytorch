@@ -30,6 +30,22 @@ class SECore(object):
             yield count, cmd
 
 
+class SEBias(SECore):
+    def __init__(self):
+        self.layers = ["0,1,2,3,4,5,6,7,8", "3,4,5,6,7"]
+        self.cmd1 = "python train/extract_semantics.py --task celebahq --model-name stylegan --extractor linear --layers %s --gpu %s --batch-size 1 --iter-num 10000 --last-only 1 --expr record/nobias"
+        self.cmd2 = "python train/extract_semantics.py --task ffhq --model-name stylegan2 --extractor linear --layers %s --gpu %s --batch-size 1 --iter-num 10000 --last-only 1 --expr record/nobias --load checkpoint/face_ffhq_1024x1024_stylegan2.pth"
+    
+    def args_gen(self, gpus):
+        l = []
+        count = 0
+        for cmd in [self.cmd1, self.cmd2]:
+            for l in layers:
+                gpu = gpus[count]
+                l.append((count, (l, gpu)))
+                count = (count + 1) % len(gpus)
+
+
 class SEMix(SECore):
     def __init__(self):
         self.lams = [0.1, 0.25, 0.5, 0.75, 0.9]
@@ -282,7 +298,8 @@ if "jericho" in uname:
     #gpus = ["0"]; assign_run(SECore().command, gpus)
     #gpus = ["0"]; assign_run(SECore2().command, gpus)
     #gpus = ["0"]; assign_run(direct_run, gpus)
-    gpus = ["0"]; assign_run(SEL1PosReg().command, gpus)
+    #gpus = ["0"]; assign_run(SEL1PosReg().command, gpus)
+    gpus = ["0"]; assign_run(SEBias().command, gpus)
     #gpus = ["0"]; assign_run(SEL1DEV().command, gpus)
     #gpus = ["0"]; assign_run(SEBCE(["linear"]).command, gpus)
     #gpus = ["0"]; assign_run(SEBCE(["unit"]).command, gpus)
