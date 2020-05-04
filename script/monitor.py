@@ -26,7 +26,7 @@ colors = list(matplotlib.colors.cnames.keys())
 from weight_visualization import *
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--task", default="log,seg,fast-celeba-agreement,weight,celeba-evaluator", help="")
+parser.add_argument("--task", default="log,seg,fast-celeba-agreement,celeba-evaluator", help="")
 parser.add_argument("--model", default="")
 parser.add_argument("--gpu", default="0")
 parser.add_argument("--recursive", default="0")
@@ -188,7 +188,7 @@ if "projective" in args.task:
             image = (image.clamp(-1, 1) + 1) / 2
             seg, projection = sep_model(stage, True, True)
             pred = seg[0].argmax(1)
-            pred_viz = colorizer(pred).float().unsqueeze(0) / 255.
+            pred_viz = colorizer(pred).float() / 255.
             projection = F.interpolate(projection, 256, mode="bilinear", align_corners=True)
             pred = F.interpolate(seg[0], 256, mode="bilinear", align_corners=True).argmax(1)
             c = (np.array(utils.CELEBA_COLORS)/255.)[pred.view(-1).tolist()]
@@ -216,7 +216,6 @@ if "celeba-evaluator" in args.task:
 
 
 if "layer-conv" in args.task:
-    colorizer = utils.Colorize(16) #label to rgb
     model_file = model_files[-1]
     latent = torch.randn(64, latent_size, device=device)[45:46]
     state_dict = torch.load(model_file, map_location='cpu')
@@ -782,12 +781,11 @@ if "seg" in args.task:
         gen = gen.clamp(-1, 1)
         segs = sep_model(stage)
         segs = [s[0].argmax(0) for s in segs]
-        label = external_model.segment_batch(gen)
+        label = external_model.segment_batch(gen)[0]
 
         segs += [label]
 
         segs = [colorizer(s).float() / 255. for s in segs]
-
         res = segs + [(gen[0] + 1) / 2]
         res = [F.interpolate(m.unsqueeze(0), 256).cpu()[0] for m in res]
         fpath = savepath + '{}_segmentation.png'.format(i)

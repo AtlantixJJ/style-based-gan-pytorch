@@ -35,8 +35,10 @@ for f in files:
 best_models = [model_global_csv.split("\n")[0]] + best_models
 best_class = [class_csv.split("\n")[0]] + best_class
 
-with open("global_result.csv", "w") as f:
+name = dir.replace("record/", "")
+
+with open(f"{name}_global.csv", "w") as f:
     f.write("\n".join(best_models))
-with open("class_result.csv", "w") as f:
+with open(f"{name}_class.csv", "w") as f:
     f.write("\n".join(best_class))
 

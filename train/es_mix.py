@@ -58,7 +58,7 @@ if cfg.task != "celebahq" and cfg.task != "ffhq":
 M = L = 0
 if hasattr(sep_model, "weight"):
     M, L = sep_model.weight.shape[:2]
-else:
+elif cfg.semantic_extractor not in ["nonlinear", "generative"]:
     M, L = concat_weight(sep_model.semantic_extractor).shape[:2]
 trace = np.zeros((cfg.n_iter // cfg.vbs, M, L), "float32")
 
@@ -91,13 +91,12 @@ for ind in tqdm(range(cfg.n_iter)):
         if segs[-1].size(3) < l.shape[2]:
             segs[-1] = F.interpolate(
                 segs[-1], size=l.shape[2], mode="bilinear", align_corners=True)
-        segloss = segloss + 0.2 * loss.segloss(segs, l) + 0.8 * loss.bceloss(segs, l)
+        lam = cfg.l1_pos_reg
+        segloss = segloss + lam * loss.segloss(segs, l) + (1 - lam) * loss.bceloss(segs, l)
 
     regloss = 0
     if cfg.l1_reg > 0:
         regloss = regloss + cfg.l1_reg * loss.l1(sep_model)
-    if cfg.l1_pos_reg > 0:
-        regloss = regloss + cfg.l1_pos_reg * loss.l1_pos(sep_model)
     if cfg.l1_stddev > 0:
         regloss = regloss + cfg.l1_stddev * loss.l1dev(sep_model)
     if cfg.l1_unit > 0:
@@ -112,7 +111,7 @@ for ind in tqdm(range(cfg.n_iter)):
         sep_model.optim.zero_grad()
         if hasattr(sep_model, "weight"):
             trace[ind // cfg.vbs - 1] = utils.torch2numpy(sep_model.weight[:, :, 0, 0])
-        else:
+        elif cfg.semantic_extractor not in ["nonlinear", "generative"]:
             trace[ind // cfg.vbs - 1] = concat_weight(sep_model.semantic_extractor)
 
     # collect training statistic

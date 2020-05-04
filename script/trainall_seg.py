@@ -4,7 +4,6 @@ basecmd = "python train/wgan.py --task wgan --gpu 0,1,2,3 --batch-size 256 --ite
 
 class SECore(object):
     def __init__(self):
-        self.last_only = [1]
         self.extractors = [
             "linear",
             "nonlinear",
@@ -13,23 +12,43 @@ class SECore(object):
             "unit",
             "unitnorm"
         ]
-        self.basecmd = "python train/extract_semantics.py --task celebahq --model-name stylegan --extractor %s --gpu %s --batch-size 1 --iter-num 10000 --last-only %d --expr record/celebahq%d"
+        self.basecmd = "python train/extract_semantics.py --task celebahq --model-name stylegan --extractor %s --gpu %s --batch-size 1 --iter-num 10000 --last-only 1 --expr record/bce"
 
     def args_gen(self, gpus):
         l = []
         count = 0
-        for j in self.last_only:
-            for i in range(len(self.extractors)):
-                extractor = self.extractors[i]
-                gpu = gpus[count]
-                l.append((count, (extractor, gpu, j, j)))
-                count = (count + 1) % len(gpus)
+        for i in range(len(self.extractors)):
+            extractor = self.extractors[i]
+            gpu = gpus[count]
+            l.append((count, (extractor, gpu)))
+            count = (count + 1) % len(gpus)
         return l
     
     def command(self, gpus):
         for count, arg in self.args_gen(gpus):
             cmd = self.basecmd % arg
             yield count, cmd
+
+
+class SEMix(SECore):
+    def __init__(self):
+        self.lams = [0.1, 0.25, 0.5, 0.75, 0.9]
+        self.extractors = [
+            "linear",
+            "nonlinear",
+            "unit"]
+        self.basecmd = "python train/es_mix.py --task celebahq --model-name stylegan --extractor %s --gpu %s --batch-size 1 --iter-num 10000 --last-only 1 --l1-pos-reg %f --expr record/bce_kl"
+
+    def args_gen(self, gpus):
+        l = []
+        count = 0
+        for lam in self.lams:
+            for i in range(len(self.extractors)):
+                extractor = self.extractors[i]
+                gpu = gpus[count]
+                l.append((count, (extractor, gpu, lam)))
+                count = (count + 1) % len(gpus)
+        return l
 
 
 class SECore2(SECore):
@@ -125,7 +144,7 @@ class SEL1Reg(SECore):
 class SEL1PosReg(SEL1Reg):
     def __init__(self):
         self.l1_reg = [
-            "0.01", "0.001", 
+            "0.01", "0.001", "0.0001", "0.00001"
             #"0.0001", "0.00001",
             #"0.009","0.008", "0.007", "0.006",
             #"0.005","0.004", "0.003", "0.002",
@@ -261,13 +280,13 @@ uname = subprocess.run(["uname", "-a"], capture_output=True)
 uname = uname.stdout.decode("ascii")
 if "jericho" in uname:
     #gpus = ["0"]; assign_run(SECore().command, gpus)
-    gpus = ["0"]; assign_run(SECore2().command, gpus)
+    #gpus = ["0"]; assign_run(SECore2().command, gpus)
     #gpus = ["0"]; assign_run(direct_run, gpus)
-    #gpus = ["0"]; assign_run(SEL1PosReg().command, gpus)
+    gpus = ["0"]; assign_run(SEL1PosReg().command, gpus)
     #gpus = ["0"]; assign_run(SEL1DEV().command, gpus)
     #gpus = ["0"]; assign_run(SEBCE(["linear"]).command, gpus)
     #gpus = ["0"]; assign_run(SEBCE(["unit"]).command, gpus)
 elif "instance" in uname:
     gpus = ["0"]; assign_run(SESpherical().command, gpus)
 else:
-    gpus = ["0", "1", "2", "3", "4", "5"]; assign_run(SECore().command, gpus)
+    gpus = ["0", "1", "2", "3", "4", "5", "6", "7"]; assign_run(SEMix().command, gpus)
