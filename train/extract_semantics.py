@@ -45,6 +45,7 @@ sep_model = get_semantic_extractor(cfg.semantic_extractor)(
     n_class=n_class,
     dims=dims,
     mapid=None,
+    use_bias=cfg.use_bias,
     category_groups=category_groups).to(cfg.device)
 
 is_resize = cfg.semantic_extractor != "spherical"

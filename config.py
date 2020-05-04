@@ -141,6 +141,8 @@ class SemanticExtractorConfig(BaseConfig):
         self.parser.add_argument(
             "--layers", default="0,1,2,3,4,5,6,7,8", help="The layers from which the semantics are extracted.")
         self.parser.add_argument(
+            "--use-bias", default=0, type=int, help="Whether to use bias.")
+        self.parser.add_argument(
             "--upsample", default="bilinear", help="Upsample method of feature map. bilinear, nearest.")
         self.parser.add_argument(
             "--loss", default="CE", help="CE | KL")
@@ -172,6 +174,7 @@ class SemanticExtractorConfig(BaseConfig):
             for l in self.args.layers.split(",")]
         self.last_only = self.args.last_only
         self.vbs = self.args.vbs
+        self.use_bias = self.args.use_bias
         self.ortho_reg = self.args.ortho_reg
         self.positive_reg = self.args.positive_reg
         self.l1_reg = self.args.l1_reg
@@ -185,7 +188,7 @@ class SemanticExtractorConfig(BaseConfig):
         self.seg_net_path = self.args.seg_net
         self.semantic_extractor = self.args.extractor
         self.record = {'loss': [], 'segloss': [], 'regloss': []}
-        self.name = f"{self.task}_{self.model_name}_{self.semantic_extractor}_layer{self.args.layers}_vbs{self.vbs}_l1{self.l1_reg}_l1pos{self.l1_pos_reg}_l1dev{self.l1_stddev}_l1unit{self.l1_unit}"
+        self.name = f"{self.task}_{self.model_name}_{self.semantic_extractor}_layer{self.args.layers}_bias{self.use_bias}_l1{self.l1_reg}_l1pos{self.l1_pos_reg}_l1dev{self.l1_stddev}_l1unit{self.l1_unit}"
         self.expr_dir = osj(self.args.expr, self.name)
 
     def __str__(self):
