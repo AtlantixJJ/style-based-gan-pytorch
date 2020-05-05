@@ -32,7 +32,7 @@ extractor_path = "record/celebahq1/celebahq_stylegan_unit_layer0,1,2,3,4,5,6,7,8
 model_path = "checkpoint/face_celebahq_1024x1024_stylegan.pth" if "celebahq" in extractor_path else "checkpoint/face_ffhq_1024x1024_stylegan2.pth"
 
 torch.manual_seed(65537)
-device = "cuda"
+device = "cpu"
 total_class = 15
 layer_index = 3
 train_size = 16
