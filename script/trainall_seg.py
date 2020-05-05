@@ -30,20 +30,20 @@ class SECore(object):
             yield count, cmd
 
 
-class SEBias(SECore):
+class SEBias(object):
     def __init__(self):
         self.layers = ["0,1,2,3,4,5,6,7,8", "3,4,5,6,7"]
-        self.cmd1 = "python train/extract_semantics.py --task celebahq --model-name stylegan --extractor linear --bias 1 --layers %s --gpu %s --batch-size 1 --iter-num 10000 --last-only 1 --expr record/nobias"
-        self.cmd2 = "python train/extract_semantics.py --task ffhq --model-name stylegan2 --extractor linear --layers %s --gpu %s --batch-size 1 --iter-num 10000 --last-only 1 --bias 1 --expr record/nobias --load checkpoint/face_ffhq_1024x1024_stylegan2.pth"
+        self.cmd1 = "python train/extract_semantics.py --task celebahq --model-name stylegan --extractor linear --use-bias 1 --layers %s --gpu %s --batch-size 1 --iter-num 10000 --expr record/bias"
+        self.cmd2 = "python train/extract_semantics.py --task ffhq --model-name stylegan2 --extractor linear --layers %s --gpu %s --batch-size 1 --iter-num 10000 --use-bias 1 --expr record/bias --load checkpoint/face_ffhq_1024x1024_stylegan2.pth"
     
-    def args_gen(self, gpus):
+    def command(self, gpus):
         l = []
         count = 0
-        for cmd in [self.cmd1, self.cmd2]:
+        for cmd in [self.cmd2]:
             for layer in self.layers:
                 gpu = gpus[count]
-                l.append((count, (layer, gpu)))
                 count = (count + 1) % len(gpus)
+                yield count, cmd % (layer, gpu)
 
 
 class SEMix(SECore):

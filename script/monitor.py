@@ -720,7 +720,8 @@ if "celeba-agreement" in args.task:
         generator.set_noise(noise)
     sep_model = get_semantic_extractor(get_extractor_name(model_file))(
         n_class=n_class,
-        dims=dims)
+        dims=dims,
+        use_bias="bias1" in model_file)
     sep_model.to(device).eval()
     print("=> Load from %s" % model_file)
     is_resize = "spherical" not in model_file
@@ -770,7 +771,8 @@ if "seg" in args.task:
         print("=> Load from %s" % model_file)
         sep_model = get_semantic_extractor(get_extractor_name(model_file))(
             n_class=n_class,
-            dims=dims).to(device)
+            dims=dims,
+            use_bias="bias1" in model_file).to(device)
         sep_model.eval()
         state_dict = torch.load(model_file, map_location='cpu')
         missed = sep_model.load_state_dict(state_dict)
