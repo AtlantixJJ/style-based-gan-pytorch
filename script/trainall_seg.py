@@ -194,22 +194,14 @@ class SEL1Unit(SEL1Reg):
 
 class SELayers(SECore):
     def __init__(self):
-        self.all_layers = "0,1,2,3,4,5,6,7,8"
-        self.layer_num = 9
-        self.basecmd = "CUDA_VISIBLE_DEVICES=%s python train/extract_semantics.py --task celebahq --model-name stylegan --extractor linear --layers %s --gpu %s --batch-size 1 --iter-num 10000 --disp-iter 5000 --last-only 1 --expr record/layers/"
-
-    # python script/monitor.py --task fast-celeba-agreement --model record/layers --recursive 1
+        self.all_layers = ["0,1,2,3,4,5,6,7,8", "1,2,3,4,5,6,7,8", "2,3,4,5,6,7,8", "3,4,5,6,7,8", "3,4,5,6,7"]
+        self.basecmd = "CUDA_VISIBLE_DEVICES=%s python train/extract_semantics.py --task celebahq --model-name stylegan --extractor linear --layers %s --gpu %s --batch-size 1 --iter-num 10000 --disp-iter 5000 --expr record/layers/"
 
     def args_gen(self, gpus):
         l = []
         count = 0
-        for rev in [True]:
-            for i in range(self.layer_num):
-                layers = self.all_layers[2*i:]
-                if rev:
-                    if i < 5:
-                        continue
-                    layers = self.all_layers[:2*i-1]
+        for rev in [False, True]:
+            for layers in self.all_layers:
                 gpu = gpus[count]
                 l.append((count, (gpu, layers, gpu)))
                 count = (count + 1) % len(gpus)
@@ -306,4 +298,4 @@ if "jericho" in uname:
 elif "instance" in uname:
     gpus = ["0"]; assign_run(SESpherical().command, gpus)
 else:
-    gpus = ["0", "1", "2", "3", "4", "5", "6", "7"]; assign_run(SEMix().command, gpus)
+    gpus = ["0", "1", "2", "3", "4", "5", "6", "7"]; assign_run(SELayers().command, gpus)
