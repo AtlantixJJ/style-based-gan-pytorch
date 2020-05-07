@@ -505,7 +505,7 @@ if "weight" in args.task and "nonlinear" not in model_files[-1] and "generative"
     fig.savefig(f"{savepath}_class.png", bbox_inches='tight')
     plt.close()
     
-    if "spherical" in model_file or "_unit_extractor" in model_file:
+    if "spherical" in model_file or "_unit_extractor" in model_file or "unitnorm" in model_file:
         plot_weight_concat(
             ws.detach().numpy(),
             maximum, minimum)
