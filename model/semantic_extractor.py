@@ -27,7 +27,7 @@ def get_extractor_name(model_path):
             return k
 
 class BaseSemanticExtractor(nn.Module):
-    def __init__(self, n_class, dims=[], mapid=None, category_groups=None):
+    def __init__(self, n_class, dims=[], mapid=None, category_groups=None, **kwargs):
         super().__init__()
         self.mapid = mapid
         self.n_class = n_class

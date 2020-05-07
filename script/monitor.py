@@ -124,7 +124,7 @@ elif "proggan" in args.model:
     latent_size = 512 
 
 def get_extractor_name(model_path):
-    keywords = ["nonlinear", "linear", "spherical", "generative", "cascade", "projective", "unit"]
+    keywords = ["nonlinear", "linear", "spherical", "generative", "projective", "unitnorm", "unit"]
     for k in keywords:
         if k in model_path:
             return k
@@ -471,7 +471,7 @@ if "surgery" in args.task:
         vutils.save_image(torch.cat(images), f"{savepath}_surgery{subfix}.png", nrow=6)
 
 
-if "weight" in args.task:
+if "weight" in args.task and "nonlinear" not in model_files[-1] and "generative" not in model_files[-1]:
     model_file = model_files[-1]
     sep_model = get_semantic_extractor(get_extractor_name(model_file))(
         n_class=n_class,
@@ -483,7 +483,7 @@ if "weight" in args.task:
     if "spherical" in model_file:
         ws = sep_model.weight[:, :, 0, 0]
         minimum, maximum = ws.min().detach(), ws.max().detach()
-    elif "_unit_extractor" in model_file:
+    elif ("unit_extractor" in model_file) or ("unitnorm" in model_file):
         ws = sep_model.weight[:, :, 0, 0]
         ws = F.normalize(ws, 2, 1)
         minimum, maximum = ws.min().detach(), ws.max().detach()
