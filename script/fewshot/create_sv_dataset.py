@@ -61,7 +61,11 @@ for ind in tqdm(range(args.number)):
         feat = torch.cat([utils.bu(s, maxsize)[0] for s in stage])
 
     # get the (approximated) support vectors
-    mask = torch.Tensor(maxsize, maxsize).byte().to(device)
+    mask = torch.Tensor(maxsize, maxsize).to(device)
+    try:
+        mask = mask.bool()
+    except:
+        mask = mask.byte()
     mask[:-1] = label[:-1] != label[1:] # left - right
     mask[1:] |= mask[:-1] # right - left
     mask[:, :-1] |= label[:, :-1] != label[:, 1:] # top - bottom

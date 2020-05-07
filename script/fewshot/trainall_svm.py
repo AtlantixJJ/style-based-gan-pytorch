@@ -6,8 +6,9 @@ layer_index = [3, 4, 5, 6, 7]
 cmds = []
 cmd_idx = -1
 mutex = threading.Lock()
-gpus = [5,5,5,6,6,6]
-basecmd = "python script/fewshot/svm_bce.py --layer-index {layer} --train-size {ts}"
+gpus = [5] * 15
+#basecmd = "python script/fewshot/svm_bce.py --layer-index {layer} --train-size {ts}"
+basecmd = "python script/fewshot/sv.py --single-class {c}"
 
 def fetch():
     global cmd_idx
@@ -47,9 +48,12 @@ def worker(gpu):
 
 def get_all_commands():
     cmds = []
-    for ts in train_size:
-        for l in layer_index:
-            cmds.append(basecmd.format(layer=l, ts=ts))
+    
+    #for ts in train_size:
+    #    for l in layer_index:
+    #        cmds.append(basecmd.format(layer=l, ts=ts))
+    for c in range(15):
+        cmds.append(basecmd.format(c=c))
     return cmds
 
 cmds = get_all_commands()

@@ -38,45 +38,19 @@ from lib.face_parsing import unet
 import evaluate, utils, dataset, model
 from model.semantic_extractor import get_semantic_extractor, get_extractor_name 
 
+USE_THUNDER = False
 
 # constants setup
 torch.manual_seed(65537)
 device = "cuda" if int(args.gpu) > -1 else "cpu"
 
 # build model
-print("=> Use thundersvm")
-from thundersvm import OneClassSVM, SVC
-
-print("=> Setup generator")
-extractor_path = "record/celebahq1/celebahq_stylegan_unit_layer0,1,2,3,4,5,6,7,8_vbs1_l1-1_l1pos-1_l1dev-1_l1unit-1/stylegan_unit_extractor.model"
-model_path = "checkpoint/face_celebahq_1024x1024_stylegan.pth" if "celebahq" in extractor_path else "checkpoint/face_ffhq_1024x1024_stylegan2.pth"
-
-latent = torch.randn(1, 512, device=device)
-generator = model.load_model(model_path)
-generator.to(device).eval()
-with torch.no_grad():
-    image, stage = generator.get_stage(latent)
-    image = (image.clamp(-1, 1) + 1) / 2
-    image_small = F.interpolate(image,
-        size=256, mode="bilinear", align_corners=True)
-vutils.save_image(image_small[:16], "image.png", nrow=4)
-dims = [s.shape[1] for s in stage]
-cumdims = np.cumsum([0] + dims)
-
-# setup test
-print("=> Setup test data")
-# set up input
-layer_index = int(args.layer_index)
-colorizer = utils.Colorize(args.total_class)
-
-
-def get_feature(generator, latent, noise, layer_index):
-    with torch.no_grad():
-        generator.set_noise(generator.parse_noise(noise))
-        image, stage = generator.get_stage(latent)
-    feat = stage[layer_index].detach().cpu()
-    return feat
-
+if USE_THUNDER:
+    print("=> Use thundersvm")
+    from thundersvm import OneClassSVM, SVC
+else:
+    print("=> Use liblinear (multicore)")
+    import lib.liblinear.liblinearutil as svm
 
 feats = np.load("sv_feat.npy")
 labels = np.load("sv_label.npy")
@@ -100,16 +74,26 @@ for C in Cs:
     print(f"=> Class {C} On: {ones_size} Off: {others_size}")
     
     #feats /= np.linalg.norm(feats, 2, 1, keepdims=True)
+    if USE_THUNDER:
+        svm_model = SVC(kernel="linear", verbose=True)
+        svm_model.fit(feats, labels_C)
+        coefs.append(svm_model.coef_)
+        intercepts.append(svm_model.intercept_)
+    else:
+        svm_model = svm.train(labels_C, feats, "-n 32 -s 2 -B -1 -q")
+        #if args.single_class > 0:
+        #    model_path = f"results/sv_linear_c{args.single_class}.model"
+        #svm.save_model(model_path, svm_model)
+        coef = np.array(svm_model.get_decfun()[0])
+        coefs.append(coef)
+        intercepts.append(0)
 
-    svm_model = SVC(kernel="linear", verbose=True)
-    svm_model.fit(feats, labels_C)
-    coefs.append(svm_model.coef_)
-    intercepts.append(svm_model.intercept_)
 
-
-model_path = f"results/sv_l{args.layer_index}_b{args.train_size}.model"
-if args.single_class > 0:
-    model_path = f"results/sv_l{args.layer_index}_b{args.train_size}_c{args.single_class}.model"
+model_path = f"results/sv.model"
+if args.single_class > -1:
+    model_path = f"results/sv_c{args.single_class}.model"
+if not USE_THUNDER:
+    model_path = model_path.replace("sv", "sv_liblinear")
 coefs = np.concatenate(coefs)
 intercepts = np.array(intercepts)
 np.save(model_path, [coefs, intercepts])

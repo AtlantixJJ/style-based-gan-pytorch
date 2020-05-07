@@ -32,7 +32,7 @@ extractor_path = "record/celebahq1/celebahq_stylegan_unit_layer0,1,2,3,4,5,6,7,8
 model_path = "checkpoint/face_celebahq_1024x1024_stylegan.pth" if "celebahq" in extractor_path else "checkpoint/face_ffhq_1024x1024_stylegan2.pth"
 
 torch.manual_seed(65537)
-device = "cpu"
+device = "cuda"
 total_class = 15
 layer_index = 3
 train_size = 16
@@ -73,10 +73,13 @@ def load(svm_path):
     if "%d" in svm_path:
         w = []
         for i in range(total_class):
+
             model = svm.load_model(svm_path % i)
             v = np.array(model.get_decfun()[0])
             if model.get_labels() == [0, 1]:
                 v = -v
+
+            #v, b = np.load(svm_path % i, allow_pickle=True)
             w.append(v)
         return np.stack(w), None
     else:
@@ -86,11 +89,12 @@ def load(svm_path):
 
 latent = torch.randn(8, 512, device=device)
 
-def evaluate(layer_index, train_size):
-    svm_path = f"results/svm_train_0_c%d_l{layer_index}_b{train_size}.model"
+def evaluate(layer_index, train_size, w0):
+    svm_path = f"results/liblinear/svm_train_0_c%d_l{layer_index}_b{train_size}.model"
     w, b = load(svm_path)
     w_ = torch.from_numpy(w).float().unsqueeze(2).unsqueeze(2)
-
+    k = (w0/(w_ + 1e-7)).mean()
+    w_ *= k
     #minimum, maximum = w.min(), w.max()
     plot_weight_concat(w, -1, 1, f"svm_weight_l{layer_index}_b{train_size}.png")
 
@@ -118,7 +122,49 @@ def evaluate(layer_index, train_size):
     res = [images[0:1], label_viz[0:1], estl_viz[0:1]] + maps
     vutils.save_image(torch.cat(res), f"svm_raw_score_l{layer_index}_b{train_size}.png", nrow=4)
 
+def evaluate_comb():
+    svm_path = f"results/sv_liblinear_c%d.model.npy"
+    w, b = load(svm_path)
+    # hard code
+    w[1:] *= -1
+    w_ = torch.from_numpy(w).float().unsqueeze(2).unsqueeze(2)
+
+    res = []
+    #minimum, maximum = w.min(), w.max()
+    plot_weight_concat(w, -1, 1, f"svm_weight.png")
+
+    for i in range(latent.shape[0]):
+        with torch.no_grad():
+            images, stage = generator.get_stage(latent[i:i+1])
+        images = utils.bu((images.clamp(-1, 1) + 1) / 2, 256).cpu()
+        feats = stage[3:8]
+        maxsize = max([s.shape[3] for s in feats])
+        feats = torch.cat([utils.bu(s, maxsize) for s in feats], 1)
+        feats = feats.detach().cpu()
+
+        seg = sep_model(stage)[0].cpu()
+        label = utils.bu(seg, 256).argmax(1)
+        label_viz = colorizer(label).float() / 255.
+        est_seg = F.conv2d(feats, w_)
+        estl = utils.bu(est_seg, 256).argmax(1)
+        estl_viz = colorizer(estl).float() / 255.
+
+        res.extend([images, label_viz, estl_viz])
+    res = torch.cat(res)
+    vutils.save_image(res, f"svm_raw_all.png", nrow=3)
+
+    scores = [utils.bu(est_seg[0:1, i:i+1], 256) for i in range(est_seg.shape[1])]
+    scores = [s / max(-s.min(), s.max()) for s in scores]
+    maps = [utils.heatmap_torch(s) for s in scores]
+    res = [images, label_viz, estl_viz] + maps
+    vutils.save_image(torch.cat(res), f"svm_raw_score.png", nrow=4)
+
+#evaluate_comb()
+
 for layer_index in [3, 4, 5, 6]:
+    w0_path = f"results/liblinear/svm_train_0_c%d_l{layer_index}_b16.model"
+    w, b = load(w0_path)
+    w0 = torch.from_numpy(w).float().unsqueeze(2).unsqueeze(2)
     for train_size in [16, 32, 64, 256]:
         print(f"=> Layer {layer_index} Size {train_size}")
-        evaluate(layer_index, train_size)
+        evaluate(layer_index, train_size, w0)

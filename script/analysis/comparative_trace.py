@@ -17,8 +17,8 @@ latent = torch.randn(1, 512, device=device)
 colorizer = utils.Colorize(15)
 
 # data
-trace_path1 = "record/l1_pos_bce/celebahq_stylegan_linear_layer0,1,2,3,4,5,6,7,8_vbs1_l1-1_l1pos0.01_l1dev-1/trace.npy"
-trace_path2 = "record/l1_pos_bce/celebahq_stylegan_linear_layer0,1,2,3,4,5,6,7,8_vbs1_l1-1_l1pos1e-05_l1dev-1/trace.npy"
+trace_path1 = sys.argv[1] #"record/l1_pos_bce/celebahq_stylegan_linear_layer0,1,2,3,4,5,6,7,8_vbs1_l1-1_l1pos0.01_l1dev-1/trace.npy"
+trace_path2 = sys.argv[2] #"record/l1_pos_bce/celebahq_stylegan_linear_layer0,1,2,3,4,5,6,7,8_vbs1_l1-1_l1pos1e-05_l1dev-1/trace.npy"
 trace1 = np.load(trace_path1) # (N1, 15, D)
 trace2 = np.load(trace_path2) # (N2, 15, D)
 
@@ -41,19 +41,15 @@ sep_model2 = get_semantic_extractor("unit")(
     dims=dims).to(device)
 sep_model2.weight.requires_grad = False
 
-
-TOTAL = 1000
-STEP = trace1.shape[0] // TOTAL
-
 # segmentation movie
 os.system("rm video/*.png")
-for ind in tqdm(range(0, trace1.shape[0], STEP)):
+for ind in tqdm(range(0, trace1.shape[0])):
     sep_model1.weight.copy_(torch.from_numpy(trace1[ind]).unsqueeze(2).unsqueeze(2))
     sep_model2.weight.copy_(torch.from_numpy(trace2[ind]).unsqueeze(2).unsqueeze(2))
     label1 = sep_model1(stage)[0].argmax(1)
     label2 = sep_model2(stage)[0].argmax(1)
-    label1_viz = colorizer(label1).unsqueeze(0) / 255.
-    label2_viz = colorizer(label2).unsqueeze(0) / 255.
+    label1_viz = colorizer(label1) / 255.
+    label2_viz = colorizer(label2) / 255.
     diff_label = label2_viz.clone()
     for i in range(3):
         diff_label[:, i, :, :][label1 == label2] = 1
@@ -62,6 +58,6 @@ for ind in tqdm(range(0, trace1.shape[0], STEP)):
         size=256, mode="bilinear", align_corners=True) for x in imgs]
     vutils.save_image(
         torch.cat(imgs),
-        "video/%04d.png" % ( ind // STEP),
+        "video/%04d.png" % ind,
         nrow=2)
-os.system("ffmpeg -y -f image2 -r 12 -i video/%04d.png -pix_fmt yuv420p -b:v 16000k comparative_trace.mp4")
+os.system(f"ffmpeg -y -f image2 -r 12 -i video/%04d.png -pix_fmt yuv420p -b:v 16000k {sys.argv[3]}.mp4")
