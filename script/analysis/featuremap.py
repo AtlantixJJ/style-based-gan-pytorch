@@ -351,8 +351,8 @@ for i in range(score.shape[0]):
 
 imgs1 = torch.cat([F.interpolate(img, size=256) for img in imgs1])
 imgs2 = torch.cat([F.interpolate(img, size=256) for img in imgs2])
-vutils.save_image(imgs1, "score_full.png", nrow=4)
-vutils.save_image(imgs2, "score_positive.png", nrow=4)
+vutils.save_image(imgs1, f"{fpath}_score_full.png", nrow=4)
+vutils.save_image(imgs2, f"{fpath}_score_positive.png", nrow=4)
 
 
 
