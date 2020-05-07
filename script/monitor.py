@@ -478,6 +478,8 @@ if "weight" in args.task and "nonlinear" not in model_files[-1] and "generative"
         dims=dims)
     sep_model.load_state_dict(torch.load(model_file))
     
+    print("=> Load from %s" % model_file)
+
     # weight vector
     minimum = maximum = ws = 0
     if "spherical" in model_file:
