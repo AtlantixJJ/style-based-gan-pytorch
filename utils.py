@@ -725,7 +725,7 @@ def format_test_result(dic,
 
     # table 1: global metrics
     global_latex = global_csv = 0
-    numbers = [dic[m] for m in global_metrics]
+    numbers = [0] + [dic[m] for m in global_metrics]
     numbers = np.array(numbers)
     strs = [["model"] + global_metrics]
     strs.append([str_num(n) for n in numbers])
