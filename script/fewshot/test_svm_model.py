@@ -25,6 +25,10 @@ style.use('seaborn-poster') #sets the size of the charts
 style.use('ggplot')
 colors = list(matplotlib.colors.cnames.keys())
 
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--model", default="results/l2solver_l4_b245.model.npy")
+args = parser.parse_args()
 
 
 print("=> Setup generator")
@@ -89,14 +93,13 @@ def load(svm_path):
 
 latent = torch.randn(8, 512, device=device)
 
-def evaluate(layer_index, train_size, w0):
-    svm_path = f"results/liblinear/svm_train_0_c%d_l{layer_index}_b{train_size}.model"
-    w, b = load(svm_path)
+def evaluate(w, b, layer_index, name, w0=None):
     w_ = torch.from_numpy(w).float().unsqueeze(2).unsqueeze(2)
-    k = (w0/(w_ + 1e-7)).mean()
-    w_ *= k
-    #minimum, maximum = w.min(), w.max()
-    plot_weight_concat(w, -1, 1, f"svm_weight_l{layer_index}_b{train_size}.png")
+    if w0 is not None:
+        k = (w0/(w_ + 1e-7)).mean()
+        w_ *= k
+    minimum, maximum = w.min(), w.max()
+    plot_weight_concat(w, minimum, maximum, f"{name}_weight.png")
 
     with torch.no_grad():
         images, stage = generator.get_stage(latent)
@@ -114,24 +117,24 @@ def evaluate(layer_index, train_size, w0):
     for img, lbl, pred in zip(images, label_viz, estl_viz):
         res.extend([img, lbl, pred])
     res = torch.stack(res)
-    vutils.save_image(res, f"svm_raw_all_l{layer_index}_b{train_size}.png", nrow=3)
+    vutils.save_image(res, f"{name}_raw.png", nrow=3)
 
     scores = [utils.bu(est_seg[0:1, i:i+1], 256) for i in range(est_seg.shape[1])]
     scores = [s / max(-s.min(), s.max()) for s in scores]
     maps = [utils.heatmap_torch(s) for s in scores]
     res = [images[0:1], label_viz[0:1], estl_viz[0:1]] + maps
-    vutils.save_image(torch.cat(res), f"svm_raw_score_l{layer_index}_b{train_size}.png", nrow=4)
+    vutils.save_image(torch.cat(res), f"{name}_score.png", nrow=4)
 
 def evaluate_comb():
-    svm_path = f"results/sv_liblinear_c%d.model.npy"
-    w, b = load(svm_path)
-    # hard code
-    w[1:] *= -1
+    # for libliner
+    #svm_path = f"results/sv_liblinear_c%d.model.npy"; w, b = load(svm_path); w[1:] *= -1
+    # for l2solver
+    w, b = np.load(args.model, allow_pickle=True)
     w_ = torch.from_numpy(w).float().unsqueeze(2).unsqueeze(2)
 
     res = []
     #minimum, maximum = w.min(), w.max()
-    plot_weight_concat(w, -1, 1, f"svm_weight.png")
+    plot_weight_concat(w, -1, 1, f"{name}_svm_weight.png")
 
     for i in range(latent.shape[0]):
         with torch.no_grad():
@@ -151,20 +154,24 @@ def evaluate_comb():
 
         res.extend([images, label_viz, estl_viz])
     res = torch.cat(res)
-    vutils.save_image(res, f"svm_raw_all.png", nrow=3)
+    vutils.save_image(res, f"{name}_svm_raw_all.png", nrow=3)
 
     scores = [utils.bu(est_seg[0:1, i:i+1], 256) for i in range(est_seg.shape[1])]
     scores = [s / max(-s.min(), s.max()) for s in scores]
     maps = [utils.heatmap_torch(s) for s in scores]
     res = [images, label_viz, estl_viz] + maps
-    vutils.save_image(torch.cat(res), f"svm_raw_score.png", nrow=4)
+    vutils.save_image(torch.cat(res), f"{name}_svm_raw_score.png", nrow=4)
 
 #evaluate_comb()
 
-for layer_index in [3, 4, 5, 6]:
-    w0_path = f"results/liblinear/svm_train_0_c%d_l{layer_index}_b16.model"
-    w, b = load(w0_path)
-    w0 = torch.from_numpy(w).float().unsqueeze(2).unsqueeze(2)
-    for train_size in [16, 32, 64, 256]:
+
+for layer_index in [4]:
+    #w0_path = f"results/liblinear/svm_train_0_c%d_l{layer_index}_b16.model"
+    #w, b = load(w0_path)
+    #w0 = torch.from_numpy(w).float().unsqueeze(2).unsqueeze(2)
+    
+    for train_size in [16, 256]:
         print(f"=> Layer {layer_index} Size {train_size}")
-        evaluate(layer_index, train_size, w0)
+        name = f"l2solver_l{layer_index}_b{train_size}"
+        w, b = np.load(f"results/{name}.model.npy", allow_pickle=True)
+        evaluate(w, b, layer_index, name)
