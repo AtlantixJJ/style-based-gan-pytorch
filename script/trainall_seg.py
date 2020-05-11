@@ -207,6 +207,10 @@ class SESGD(SECore):
         self.extractors = ["linear", "unit", "nonlinear"]
         self.basecmd = "python train/extract_semantics.py --task celebahq --model-name stylegan --extractor %s --optim sgd --lr 0.01 --gpu %s --loss BCE --expr record/sgd_bce/"
 
+class SESGD2(SECore):
+    def __init__(self):
+        self.extractors = ["linear", "unit", "nonlinear"]
+        self.basecmd = "python train/extract_semantics.py --task ffhq --model-name stylegan2 --extractor %s --gpu %s --expr record/ffhq_sgd_bce --load checkpoint/face_ffhq_1024x1024_stylegan2.pth"
 
 def assign_run(command_generator, gpus, false_exec=False):
     slots = [""] * len(gpus)
@@ -247,7 +251,7 @@ def direct_run(gpus):
 uname = subprocess.run(["uname", "-a"], capture_output=True)
 uname = uname.stdout.decode("ascii")
 if "jericho" in uname:
-    gpus = ["0"]; assign_run(SESGD().command, gpus)
+    gpus = ["0"]; assign_run(SESGD2().command, gpus)
     #gpus = ["0"]; assign_run(SECore2().command, gpus)
     #gpus = ["0"]; assign_run(direct_run, gpus)
     #gpus = ["0"]; assign_run(SEL1PosReg().command, gpus)

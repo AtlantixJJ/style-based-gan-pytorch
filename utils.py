@@ -111,7 +111,7 @@ def catlist(tensor_list, size=256):
     return torch.cat(a)
 
 
-def simple_dilate(img):
+def simple_dilate(img, s=1):
     res = torch.zeros_like(img)
     xs, ys = np.where(img.cpu().numpy())
 
@@ -122,8 +122,8 @@ def simple_dilate(img):
     for x, y in zip(xs, ys):
         if not img[x, y]:
             continue
-        for i in range(-1, 2, 1):
-            for j in range(-1, 2, 1):
+        for i in range(-s, s + 1, 1):
+            for j in range(-s, s + 1, 1):
                 if inbox(x + i, y + j):
                     res[x + i, y + j] = True
     return res

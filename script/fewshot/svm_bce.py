@@ -75,15 +75,17 @@ cumdims = np.cumsum([0] + dims)
 # setup test
 print("=> Setup test data")
 # set up input
-layer_index = int(args.layer_index)
+layer_indice = [int(l) for l in args.layer_index.split(",")]
 colorizer = utils.Colorize(args.total_class)
 
 
-def get_feature(generator, latent, noise, layer_index):
+def get_feature(generator, latent, noise):
     with torch.no_grad():
         generator.set_noise(generator.parse_noise(noise))
         image, stage = generator.get_stage(latent)
-    feat = stage[layer_index].detach().cpu()
+    feats = stage[layer_indice]
+    maxsize = max([f.shape[3] for f in feats])
+    feat = torch.cat([utils.bu(f, maxsize).detach().cpu() for f in feats], 1)
     return feat
 
 
@@ -134,7 +136,7 @@ for C in range(args.total_class):
     
     #feats /= np.linalg.norm(feats, 2, 1, keepdims=True)
 
-    if USE_THUNDER: # better to use this
+    if USE_THUNDER:
         svm_model = SVC(kernel="linear", probability=True)
         svm_model.fit(feats, labels_C)
         coefs.append(svm_model.coef_)

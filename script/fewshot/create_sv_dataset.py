@@ -44,6 +44,21 @@ external_model = get_segmenter(
 #    dims=dims)
 #sep_model.load_state_dict(torch.load(args.external_model))
 
+def get_inv_catprob(label):
+    dic = {}
+    for i in range(label.max()):
+        mask = label == i
+        if mask.sum() == 0:
+            continue
+        dic[i] = label.shape[0] / mask.sum()
+
+    s = sum(dic.values())
+    for k in dic.keys():
+        dic[k] = dic[k] / s
+
+    return dic
+        
+
 # setup
 feats = []
 labels = []
@@ -66,14 +81,20 @@ for ind in tqdm(range(args.number)):
         mask = mask.bool()
     except:
         mask = mask.byte()
-    mask[:-1] = label[:-1] != label[1:] # left - right
-    mask[1:] |= mask[:-1] # right - left
-    mask[:, :-1] |= label[:, :-1] != label[:, 1:] # top - bottom
-    mask[:, 1:] |= mask[:, :-1] # bottom - top
+
+    probs = get_inv_catprob(label)
+    print(probs)
+    #mask[:-1] = label[:-1] != label[1:] # left - right
+    #mask[1:] |= mask[:-1] # right - left
+    #mask[:, :-1] |= label[:, :-1] != label[:, 1:] # top - bottom
+    #mask[:, 1:] |= mask[:, :-1] # bottom - top
+    mask = utils.simple_dilate(mask, 5)
+
     mask_viz = mask.float().unsqueeze(0).unsqueeze(0)
     
     feats.append(utils.torch2numpy(feat[:, mask].transpose(1, 0)))
     labels.append(utils.torch2numpy(label[mask]))
+    break
 
 np.save("sv_feat", np.concatenate(feats))
 np.save("sv_label", np.concatenate(labels))

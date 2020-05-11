@@ -77,6 +77,7 @@ class BaseConfig(object):
         self.save_iter = self.args.save_iter
         self.imsize = self.args.imsize
         self.lr = self.args.lr
+        self.optim = self.args.optim
         self.model_name = self.args.model_name
         self.load = self.args.load
         self.batch_size = self.args.batch_size
