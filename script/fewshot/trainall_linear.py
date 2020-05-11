@@ -4,18 +4,29 @@ import os
 # 1, 2, 3, 4
 train_size = [1, 2, 3, 4, 6, 8, 10, 12, 16, 20, 24, 28, 32, 36, 40, 48, 64, 80, 96, 128, 256, 384, 512, 768, 1024]; gpus = [0, 1, 2, 3, 4, 5, 6, 7]
 #train_size = list(range(72, 97, 8)); gpus = [0, 1]
-basecmd = "python script/linear_multiple_image.py --train-size %d --gpu %d --repeat-idx %d"
 
-def command(gpus):
+
+def command_linear_multiple(gpus):
     count = 0
+    basecmd = "python script/linear_multiple_image.py --train-size %d --gpu %d --repeat-idx %d"
     for ind in range(5):
         for j, ts in enumerate(train_size):
             idx = count % len(gpus)
             yield idx, basecmd % (ts, gpus[idx], ind)
             count += 1
 
+
+def command_sv(gpus):
+    count = 0
+    basecmd = "python script/fewshot/sv_linear.py --single-class %d"
+    for c in range(15):
+        idx = count % len(gpus)
+        yield idx, basecmd % c
+        count += 1
+gpus = [0] * 15
+
 slots = [[] for _ in gpus]
-for i, c in command(gpus):
+for i, c in command_sv(gpus):
     slots[i].append(c)
 
 for slot in slots:

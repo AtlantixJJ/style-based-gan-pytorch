@@ -103,6 +103,6 @@ for ind in tqdm(range(args.number)):
     data = utils.torch2numpy(feat[:, mask].transpose(1, 0))
     labels = utils.torch2numpy(label[mask])
 
-    np.save(f"datasets/SV/sv_feat{ind}", feats)
+    np.save(f"datasets/SV/sv_feat{ind}", data)
     np.save(f"datasets/SV/sv_label{ind}", labels)
     
