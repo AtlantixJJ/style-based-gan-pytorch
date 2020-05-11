@@ -16,7 +16,7 @@ from segmenter import get_segmenter
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "--number", default=100, type=int)
+    "--number", default=32, type=int)
 parser.add_argument(
     "--seed", default=65537, type=int) # 1314 for test
 args = parser.parse_args()
@@ -44,20 +44,13 @@ external_model = get_segmenter(
 #    dims=dims)
 #sep_model.load_state_dict(torch.load(args.external_model))
 
-def get_inv_catprob(label):
-    dic = {}
-    for i in range(label.max()):
-        mask = label == i
-        if mask.sum() == 0:
-            continue
-        dic[i] = label.shape[0] / mask.sum()
-
-    s = sum(dic.values())
-    for k in dic.keys():
-        dic[k] = dic[k] / s
-
-    return dic
-        
+def random_select(mask, region, number):
+    idx, idy = np.where(region)
+    inds = np.random.choice(np.arange(len(idx)),
+        size=number,
+        replace=False)
+    for i in inds:
+        mask[idx[i], idy[i]] = True
 
 # setup
 feats = []
@@ -82,20 +75,34 @@ for ind in tqdm(range(args.number)):
     except:
         mask = mask.byte()
 
-    probs = get_inv_catprob(label)
-    print(probs)
-    #mask[:-1] = label[:-1] != label[1:] # left - right
-    #mask[1:] |= mask[:-1] # right - left
-    #mask[:, :-1] |= label[:, :-1] != label[:, 1:] # top - bottom
-    #mask[:, 1:] |= mask[:, :-1] # bottom - top
-    mask = utils.simple_dilate(mask, 5)
+    mask[:-1] = label[:-1] != label[1:] # left - right
+    mask[:, :-1] |= label[:, :-1] != label[:, 1:] # top - bottom
+    mask[1:] |= mask[:-1] # right - left
+    mask[:, 1:] |= mask[:, :-1] # bottom - top
+    for C in range(15):
+        # every hard class is fully sampled
+        if C not in [0, 1, 2, 6, 10, 12]: 
+            mask |= label == C
+    mask = utils.simple_dilate(mask, 3)
+    #mask_viz = mask.float().unsqueeze(0).unsqueeze(0)
+    #vutils.save_image(mask_viz, "viz.png")
+    #print(mask.sum())
 
-    mask_viz = mask.float().unsqueeze(0).unsqueeze(0)
-    
-    feats.append(utils.torch2numpy(feat[:, mask].transpose(1, 0)))
-    labels.append(utils.torch2numpy(label[mask]))
-    break
+    """
+    areas = []
+    for C in range(15):
+        m = label == C
+        m = m & ~mask
+        if m.sum() == 0:
+            continue
+        areas.append([C, 1. / m.sum()])
+    s = sum([a[1] for a in areas])
+    areas = [[c, a/s] for c, a in areas]
+    areas.sort(key=lambda x : x[1])
+    """
+    data = utils.torch2numpy(feat[:, mask].transpose(1, 0))
+    labels = utils.torch2numpy(label[mask])
 
-np.save("sv_feat", np.concatenate(feats))
-np.save("sv_label", np.concatenate(labels))
+    np.save(f"datasets/SV/sv_feat{ind}", feats)
+    np.save(f"datasets/SV/sv_label{ind}", labels)
     

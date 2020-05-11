@@ -119,13 +119,28 @@ def simple_dilate(img, s=1):
         return (x >= 0) and (y >= 0) and \
             (x < img.shape[0]) and (y < img.shape[1])
 
-    for x, y in zip(xs, ys):
-        if not img[x, y]:
-            continue
+    def mark(x, y):
         for i in range(-s, s + 1, 1):
             for j in range(-s, s + 1, 1):
-                if inbox(x + i, y + j):
-                    res[x + i, y + j] = True
+                if inbox(x + i, y + j) and img[x + i, y + j]:
+                    res[x, y] = True
+                    return x + i, y + i
+        return False
+
+    for x, y in zip(xs, ys):
+        if res[x, y]:
+            continue
+
+        flag = mark(x, y)
+
+        if flag:
+            x, y = flag
+            stx = max(0, x - s)
+            edx = min(img.shape[0], x + s + 1)
+            sty = max(0, y - s)
+            edy = min(img.shape[1], y + s + 1)
+            res[stx:edx, sty:edy] = True
+
     return res
 
     
