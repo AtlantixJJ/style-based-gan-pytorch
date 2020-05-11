@@ -43,10 +43,16 @@ stage = [s for i, s in enumerate(stage) if i in cfg.layers]
 dims = [s.shape[1] for s in stage]
 sep_model = get_semantic_extractor(cfg.semantic_extractor)(
     n_class=n_class,
+    optim_type=f"{cfg.optim}-{cfg.lr}",
     dims=dims,
     mapid=None,
     use_bias=cfg.use_bias,
     category_groups=category_groups).to(cfg.device)
+
+lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
+    sep_model.optim, # 0.01, 2e-3, 4e-4, 8e-5, 1e-5
+    [int(x * cfg.n_iter) for x in [0.1, 0.2, 0.7, 0.9]],
+    0.2)
 
 is_resize = cfg.semantic_extractor != "spherical"
 record = cfg.record
@@ -118,6 +124,7 @@ for ind in tqdm(range(cfg.n_iter)):
     if ind % cfg.vbs == 0:
         sep_model.optim.step()
         sep_model.optim.zero_grad()
+        lr_scheduler.step()
         if hasattr(sep_model, "weight"):
             trace[ind // cfg.vbs - 1] = utils.torch2numpy(sep_model.weight[:, :, 0, 0])
         elif cfg.semantic_extractor not in ["nonlinear", "generative"]:

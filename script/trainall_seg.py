@@ -12,7 +12,7 @@ class SECore(object):
             "unit",
             "unitnorm"
         ]
-        self.basecmd = "python train/extract_semantics.py --task celebahq --model-name stylegan --extractor %s --gpu %s --batch-size 1 --iter-num 10000 --last-only 1 --expr record/bce"
+        self.basecmd = "python train/extract_semantics.py --task celebahq --model-name stylegan --extractor %s --gpu %s --expr record/celebahq1"
 
     def args_gen(self, gpus):
         l = []
@@ -33,8 +33,8 @@ class SECore(object):
 class SEBias(object):
     def __init__(self):
         self.layers = ["0,1,2,3,4,5,6,7,8", "3,4,5,6,7"]
-        self.cmd1 = "python train/extract_semantics.py --task celebahq --model-name stylegan --extractor linear --use-bias 1 --layers %s --gpu %s --batch-size 1 --iter-num 10000 --expr record/bias"
-        self.cmd2 = "python train/extract_semantics.py --task ffhq --model-name stylegan2 --extractor linear --layers %s --gpu %s --batch-size 1 --iter-num 10000 --use-bias 1 --expr record/bias --load checkpoint/face_ffhq_1024x1024_stylegan2.pth"
+        self.cmd1 = "python train/extract_semantics.py --task celebahq --model-name stylegan --extractor linear --use-bias 1 --layers %s --gpu %s --expr record/bias"
+        self.cmd2 = "python train/extract_semantics.py --task ffhq --model-name stylegan2 --extractor linear --layers %s --gpu %s --use-bias 1 --expr record/bias --load checkpoint/face_ffhq_1024x1024_stylegan2.pth"
     
     def command(self, gpus):
         l = []
@@ -53,7 +53,7 @@ class SEMix(SECore):
             "linear",
             "nonlinear",
             "unit"]
-        self.basecmd = "python train/es_mix.py --task celebahq --model-name stylegan --extractor %s --gpu %s --batch-size 1 --iter-num 10000 --last-only 1 --l1-pos-reg %f --expr record/bce_kl"
+        self.basecmd = "python train/es_mix.py --task celebahq --model-name stylegan --extractor %s --gpu %s --last-only 1 --l1-pos-reg %f --expr record/bce_kl"
 
     def args_gen(self, gpus):
         l = []
@@ -69,22 +69,21 @@ class SEMix(SECore):
 
 class SECore2(SECore):
     def __init__(self):
-        self.last_only = [1]
         self.extractors = [
-            #"linear",
-            #"nonlinear",
-            #"generative",
-            #"spherical",
+            "linear",
+            "nonlinear",
+            "generative",
+            "spherical",
             "unit",
             "unitnorm"
         ]
-        self.basecmd = "python train/extract_semantics.py --task ffhq --model-name stylegan2 --extractor %s --gpu %s --batch-size 1 --iter-num 10000 --last-only %d --expr record/ffhq%d --load checkpoint/face_ffhq_1024x1024_stylegan2.pth"
+        self.basecmd = "python train/extract_semantics.py --task ffhq --model-name stylegan2 --extractor %s --gpu %s --expr record/ffhq%d --load checkpoint/face_ffhq_1024x1024_stylegan2.pth"
 
 
 class SEBCE(SECore):
     def __init__(self, extractors):
         self.extractors = extractors
-        self.basecmd = "python train/extract_semantics.py --task celebahq --model-name stylegan --extractor %s --gpu %s --batch-size 1 --vbs 16 --iter-num 16000 --disp-iter 1000 --loss BCE --last-only 1 --expr record/bce"
+        self.basecmd = "python train/extract_semantics.py --task celebahq --model-name stylegan --extractor %s --gpu %s --loss BCE --expr record/bce"
 
     def args_gen(self, gpus):
         l = []
@@ -101,28 +100,7 @@ class SEVBS2(SECore):
     def __init__(self, extractors):
         self.vbs = [1, 4, 16, 32, 64]
         self.extractors = extractors
-        self.basecmd = "python train/extract_semantics.py --task ffhq --model-name stylegan2 --disp-iter 1000 --extractor %s --gpu %s --batch-size 1 --iter-num %d --vbs %d --load checkpoint/face_ffhq_1024x1024_stylegan2.pth --expr record/vbs"
-
-    def args_gen(self, gpus):
-        l = []
-        count = 0
-        for j in self.vbs:
-            for i in range(len(self.extractors)):
-                extractor = self.extractors[i]
-                gpu = gpus[count]
-                l.append((count, (extractor, gpu, 32000, j)))
-                count = (count + 1) % len(gpus)
-        return l
-
-
-class SEVBS2Continuous(SECore):
-    def __init__(self):
-        self.vbs = [4, 16, 32, 64]
-        self.extractors = [
-            "linear",
-            "unit"
-        ]
-        self.basecmd = "python train/extract_semantics_continuous.py --task ffhq --model-name stylegan2 --disp-iter 1000 --extractor %s --gpu %s --batch-size 1 --iter-num %d --vbs %d --load checkpoint/face_ffhq_1024x1024_stylegan2.pth --expr record/vbs_conti"
+        self.basecmd = "python train/extract_semantics.py --task ffhq --model-name stylegan2 --extractor %s --gpu %s --iter-num %d --vbs %d --load checkpoint/face_ffhq_1024x1024_stylegan2.pth --expr record/vbs"
 
     def args_gen(self, gpus):
         l = []
@@ -144,7 +122,7 @@ class SEL1Reg(SECore):
             #"0.005","0.004", "0.003", "0.002",
             #"0.0008", "0.0006", "0.0004", "0.0002"
             ]
-        self.basecmd = "CUDA_VISIBLE_DEVICES=%s python train/extract_semantics.py --task celebahq --model-name stylegan --extractor linear --l1-reg %s --gpu %s --batch-size 1 --vbs 1 --iter-num 10000 --disp-iter 1000 --loss BCE --last-only 1 --expr record/l1_bce/"
+        self.basecmd = "CUDA_VISIBLE_DEVICES=%s python train/extract_semantics.py --task celebahq --model-name stylegan --extractor linear --l1-reg %s --gpu %s --loss BCE --expr record/l1_bce/"
 
     def args_gen(self, gpus):
         l = []
@@ -166,7 +144,7 @@ class SEL1PosReg(SEL1Reg):
             #"0.005","0.004", "0.003", "0.002",
             #"0.0008", "0.0006", "0.0004", "0.0002"
             ]
-        self.basecmd = "CUDA_VISIBLE_DEVICES=%s python train/extract_semantics.py --task celebahq --model-name stylegan --extractor linear --l1-pos-reg %s --gpu %s --batch-size 1 --vbs 1 --iter-num 10000 --disp-iter 1000 --loss BCE --last-only 1 --expr record/l1_pos_bce/"
+        self.basecmd = "CUDA_VISIBLE_DEVICES=%s python train/extract_semantics.py --task celebahq --model-name stylegan --extractor linear --l1-pos-reg %s --gpu %s --loss BCE --expr record/l1_pos_bce/"
 
 
 class SEL1DEV(SEL1Reg):
@@ -178,24 +156,13 @@ class SEL1DEV(SEL1Reg):
             #"0.005","0.004", "0.003", "0.002",
             #"0.0008", "0.0006", "0.0004", "0.0002"
             ]
-        self.basecmd = "CUDA_VISIBLE_DEVICES=%s python train/extract_semantics.py --task celebahq --model-name stylegan --extractor linear --l1-stddev %s --gpu %s --batch-size 1 --vbs 1 --iter-num 10000 --disp-iter 1000 --loss BCE --last-only 1 --expr record/l1_bce_stddev/"
-
-
-class SEL1Unit(SEL1Reg):
-    def __init__(self):
-        self.l1_reg = [
-            "0.01", "0.001", "0.0001", "0.00001",
-            #"0.009","0.008", "0.007", "0.006",
-            #"0.005","0.004", "0.003", "0.002",
-            #"0.0008", "0.0006", "0.0004", "0.0002"
-            ]
-        self.basecmd = "CUDA_VISIBLE_DEVICES=%s python train/extract_semantics.py --task celebahq --model-name stylegan --extractor linear --l1-unit %s --gpu %s --batch-size 1 --vbs 1 --iter-num 10000 --disp-iter 1000 --loss BCE --last-only 1 --expr record/l1_unit_bce/"
+        self.basecmd = "CUDA_VISIBLE_DEVICES=%s python train/extract_semantics.py --task celebahq --model-name stylegan --extractor linear --l1-stddev %s --gpu %s --loss BCE --expr record/l1_bce_stddev/"
 
 
 class SELayers(SECore):
     def __init__(self):
         self.all_layers = ["0,1,2,3,4,5,6,7,8", "1,2,3,4,5,6,7,8", "2,3,4,5,6,7,8", "3,4,5,6,7,8", "3,4,5,6,7"]
-        self.basecmd = "CUDA_VISIBLE_DEVICES=%s python train/extract_semantics.py --task celebahq --model-name stylegan --extractor linear --layers %s --gpu %s --batch-size 1 --iter-num 10000 --disp-iter 5000 --expr record/layers/"
+        self.basecmd = "CUDA_VISIBLE_DEVICES=%s python train/extract_semantics.py --task celebahq --model-name stylegan --extractor linear --layers %s --gpu %s --expr record/layers/"
 
     def args_gen(self, gpus):
         l = []
@@ -212,7 +179,7 @@ class SEDiscLayers(SECore):
     def __init__(self):
         self.all_layers = "0,1,2,3,4,5,6,7"
         self.layer_num = 8
-        self.basecmd = "CUDA_VISIBLE_DEVICES=%s python train/extract_semantics_disc.py --task celebahq --model-name stylegandisc --extractor linear --layers %s --gpu %s --batch-size 1 --iter-num 10000 --disp-iter 5000 --last-only 1 --expr record/disc_layers/ --imsize 1024 --load checkpoint/karras2019stylegan-celebahq-1024x1024.for_d_basic.pt"
+        self.basecmd = "CUDA_VISIBLE_DEVICES=%s python train/extract_semantics_disc.py --task celebahq --model-name stylegandisc --extractor linear --layers %s --gpu %s --last-only 1 --expr record/disc_layers/ --imsize 1024 --load checkpoint/karras2019stylegan-celebahq-1024x1024.for_d_basic.pt"
 
     # python script/monitor.py --task fast-celeba-agreement --model record/disc_layers --recursive 1
 
@@ -235,17 +202,10 @@ class SEDiscLayers(SECore):
         return l
 
 
-class SESpherical(SECore):
+class SESGD(SECore):
     def __init__(self):
-        self.basecmd = "python train/extract_semantics.py --task celebahq --model-name stylegan --extractor spherical --gpu %s --batch-size 1 --iter-num 10000 --last-only 1 --expr record/celebahq1"
-
-    def args_gen(self, gpus):
-        l = []
-        count = 0
-        gpu = gpus[count]
-        l.append((count, (gpu,)))
-        count = (count + 1) % len(gpus)
-        return l
+        self.extractors = ["linear", "unit", "nonlinear"]
+        self.basecmd = "python train/extract_semantics.py --task celebahq --model-name stylegan --extractor %s --optim sgd --lr 0.01 --gpu %s --loss BCE --expr record/sgd_bce/"
 
 
 def assign_run(command_generator, gpus, false_exec=False):
@@ -261,21 +221,21 @@ def assign_run(command_generator, gpus, false_exec=False):
 def direct_run(gpus):
     commands = [
         ## unit
-        #"python train/extract_semantics.py --task celebahq --model-name stylegan --extractor unit --gpu %s --batch-size 1 --iter-num 10000 --last-only 1",
+        #"python train/extract_semantics.py --task celebahq --model-name stylegan --extractor unit --gpu %s --last-only 1",
         ## unit normalized
-        #"python train/extract_semantics.py --task celebahq --model-name stylegan --extractor unitnorm --gpu %s --batch-size 1 --iter-num 10000 --last-only 1",
+        #"python train/extract_semantics.py --task celebahq --model-name stylegan --extractor unitnorm --gpu %s --last-only 1",
         ## continuous,
-        #"python train/extract_semantics_continuous.py --task celebahq --model-name stylegan --extractor unit --gpu %s --batch-size 1 --iter-num 32000 --last-only 1",
+        #"python train/extract_semantics_continuous.py --task celebahq --model-name stylegan --extractor unit --gpu %s --iter-num 32000 --last-only 1",
         ## face stylegan2
-        "python train/extract_semantics_continuous.py --load checkpoint/face_ffhq_1024x1024_stylegan2.pth --model-name stylegan2 --batch-size 1 --iter-num 32000 --last-only 0 --task ffhq --gpu %s",
+        "python train/extract_semantics_continuous.py --load checkpoint/face_ffhq_1024x1024_stylegan2.pth --model-name stylegan2 --iter-num 32000 --last-only 0 --task ffhq --gpu %s",
         ## church stylegan2
-        #"python train/extract_semantics.py --load checkpoint/church_lsun_256x256_stylegan2.pth --model-name stylegan2 --batch-size 1 --iter-num 30000 --last-only 0 --task church --gpu %s",
+        #"python train/extract_semantics.py --load checkpoint/church_lsun_256x256_stylegan2.pth --model-name stylegan2 --iter-num 30000 --last-only 0 --task church --gpu %s",
         ## church prog
-        #"python train/extract_semantics.py --load checkpoint/church_lsun_256x256_proggan.pth --model-name proggan --batch-size 1 --iter-num 30000 --last-only 0 --task church --gpu %s",
+        #"python train/extract_semantics.py --load checkpoint/church_lsun_256x256_proggan.pth --model-name proggan --iter-num 30000 --last-only 0 --task church --gpu %s",
         ## bedroom prog
-        #"python train/extract_semantics.py --load checkpoint/bedroom_lsun_256x256_proggan.pth --model-name proggan --batch-size 1 --iter-num 30000 --last-only 0 --task bedroom --gpu %s",
+        #"python train/extract_semantics.py --load checkpoint/bedroom_lsun_256x256_proggan.pth --model-name proggan --iter-num 30000 --last-only 0 --task bedroom --gpu %s",
         ## bedroom stylegan
-        #"python train/extract_semantics.py --load checkpoint/bedroom_lsun_256x256_stylegan.pth --model-name stylegan --batch-size 1 --iter-num 30000 --last-only 0 --task bedroom --gpu %s"
+        #"python train/extract_semantics.py --load checkpoint/bedroom_lsun_256x256_stylegan.pth --model-name stylegan --iter-num 30000 --last-only 0 --task bedroom --gpu %s"
         ]
     for i in range(len(commands)):
         index = i % len(gpus)
@@ -287,15 +247,15 @@ def direct_run(gpus):
 uname = subprocess.run(["uname", "-a"], capture_output=True)
 uname = uname.stdout.decode("ascii")
 if "jericho" in uname:
-    #gpus = ["0"]; assign_run(SECore().command, gpus)
+    gpus = ["0"]; assign_run(SESGD().command, gpus)
     #gpus = ["0"]; assign_run(SECore2().command, gpus)
     #gpus = ["0"]; assign_run(direct_run, gpus)
     #gpus = ["0"]; assign_run(SEL1PosReg().command, gpus)
-    gpus = ["0"]; assign_run(SEBias().command, gpus)
+    #gpus = ["0"]; assign_run(SEBias().command, gpus)
     #gpus = ["0"]; assign_run(SEL1DEV().command, gpus)
     #gpus = ["0"]; assign_run(SEBCE(["linear"]).command, gpus)
     #gpus = ["0"]; assign_run(SEBCE(["unit"]).command, gpus)
 elif "instance" in uname:
-    gpus = ["0"]; assign_run(SESpherical().command, gpus)
+    gpus = ["4", "5", "6", "7"]; assign_run(SESGD().command, gpus)
 else:
-    gpus = ["0", "1", "2", "3", "4", "5", "6", "7"]; assign_run(SELayers().command, gpus)
+    gpus = ["4", "5", "6", "7"]; assign_run(SESGD().command, gpus)

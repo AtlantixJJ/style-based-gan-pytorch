@@ -39,8 +39,6 @@ class BaseConfig(object):
         self.parser.add_argument(
             "--task", default="fixseg", help="fixseg")
         self.parser.add_argument(
-            "--arch", default="tfseg", help="Network definition file")
-        self.parser.add_argument(
             "--model-name", default="", help="Name of model, used as identifier.")
         self.parser.add_argument(
             "--imsize", default=512, type=int, help="Train image size")
@@ -58,12 +56,14 @@ class BaseConfig(object):
         self.parser.add_argument(
             "--lr", default=1e-3, type=float, help="default lr")
         self.parser.add_argument(
+            "--optim", default="adam", help="adam | sgd")
+        self.parser.add_argument(
             "--load", default=CELEBA_STYLEGAN_PATH, help="load weight from model")
         # Train data options
         self.parser.add_argument(
             "--batch-size", type=int, default=1)
         self.parser.add_argument(
-            "--disp-iter", type=int, default=100)
+            "--disp-iter", type=int, default=1000)
         self.parser.add_argument(
             "--save-iter", type=int, default=1000)
         # Loss options
@@ -76,7 +76,6 @@ class BaseConfig(object):
         self.disp_iter = self.args.disp_iter
         self.save_iter = self.args.save_iter
         self.imsize = self.args.imsize
-        self.arch = self.args.arch
         self.lr = self.args.lr
         self.model_name = self.args.model_name
         self.load = self.args.load
@@ -119,12 +118,12 @@ class BaseConfig(object):
         strs = []
         strs.append("=> Task : %s" % self.task)
         strs.append("=> Name : %s" % self.name)
-        strs.append("=> Arch : model.%s" % self.arch)
         strs.append("=> Experiment directory %s" % self.expr_dir)
         if self.load:
             strs.append("=> Load from %s" % self.load_path)
         else:
             strs.append("=> Train from scratch")
+        strs.append("=> Optimizer: %s" % self.optim)
         strs.append("=> LR: %.4f" % self.lr)
         strs.append("=> Batch size : %d " % self.batch_size)
         return "\n".join(strs)
@@ -154,17 +153,13 @@ class SemanticExtractorConfig(BaseConfig):
             "--vbs", type=int, default=1, help="Virtual batch size")
         #  reg
         self.parser.add_argument(
-            "--ortho-reg", type=float, default=-1, help="The coef of using ortho reg. < 0 means not to use.")
-        self.parser.add_argument(
-            "--positive-reg", type=float, default=-1, help="The coef of using positive regularization.")
+            "--ortho-reg", type=float, default=-1, help="The coef of using ortho reg.")
         self.parser.add_argument(
             "--l1-reg", type=float, default=-1, help="L1 regularization")
         self.parser.add_argument(
             "--l1-pos-reg", type=float, default=-1, help="Only do L1 regularization on positive weight.")
         self.parser.add_argument(
             "--l1-stddev", type=float, default=-1, help="L1 standard deviation regularization")
-        self.parser.add_argument(
-            "--l1-unit", type=float, default=-1, help="L1 reg on L2 unit")
         self.parser.add_argument(
             "--norm-reg", type=float, default=-1, help="L1 norm regularization")
 
@@ -176,9 +171,7 @@ class SemanticExtractorConfig(BaseConfig):
         self.vbs = self.args.vbs
         self.use_bias = self.args.use_bias
         self.ortho_reg = self.args.ortho_reg
-        self.positive_reg = self.args.positive_reg
         self.l1_reg = self.args.l1_reg
-        self.l1_unit = self.args.l1_unit
         self.l1_pos_reg = self.args.l1_pos_reg
         self.l1_stddev = self.args.l1_stddev
         self.norm_reg = self.args.norm_reg
@@ -188,7 +181,17 @@ class SemanticExtractorConfig(BaseConfig):
         self.seg_net_path = self.args.seg_net
         self.semantic_extractor = self.args.extractor
         self.record = {'loss': [], 'segloss': [], 'regloss': []}
-        self.name = f"{self.task}_{self.model_name}_{self.semantic_extractor}_layer{self.args.layers}_bias{self.use_bias}_l1{self.l1_reg}_l1pos{self.l1_pos_reg}_l1dev{self.l1_stddev}_l1unit{self.l1_unit}"
+        self.name = f"{self.task}_{self.model_name}_{self.semantic_extractor}_layer{self.args.layers}"
+
+        if self.use_bias > 0:
+            self.name += f"_bias{self.use_bias}"
+        if self.l1_reg > 0:
+            self.name += f"_l1{self.l1_reg}"
+        if self.l1_pos_reg > 0:
+            self.name += f"_l1pos{self.l1_pos_reg}"
+        if self.l1_stddev > 0:
+            self.name += f"_l1dev{self.l1_stddev}"
+            
         self.expr_dir = osj(self.args.expr, self.name)
 
     def __str__(self):
@@ -196,6 +199,7 @@ class SemanticExtractorConfig(BaseConfig):
         strs = [prev_str]
         strs.append("=> Extracting from layers: %s" % self.args.layers)
         strs.append("=> Loss type: %s" % self.loss_type)
+        
         strs.append("=> Segmentation network: %s" % self.seg_net_path)
         strs.append("=> Segmentation configure: %s" % self.semantic_extractor)
         strs.append("=> Orthogonal regularization: %f" % self.ortho_reg)
@@ -400,7 +404,6 @@ class TSSegConfig(BaseConfig):
     def parse(self):
         super(TSSegConfig, self).parse()
         self.task = "tsseg"
-        self.arch = "tfseg"
         self.mse_coef = self.args.mse
         self.seg_coef = self.args.seg
         self.semantic_config = self.args.seg_cfg

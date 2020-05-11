@@ -99,7 +99,7 @@ def evaluate(w, b, layer_index, name, w0=None):
         k = (w0/(w_ + 1e-7)).mean()
         w_ *= k
     minimum, maximum = w.min(), w.max()
-    plot_weight_concat(w, minimum, maximum, f"{name}_weight.png")
+    plot_weight_concat(w, minimum, maximum, name)
 
     with torch.no_grad():
         images, stage = generator.get_stage(latent)
@@ -169,8 +169,8 @@ for layer_index in [4]:
     #w0_path = f"results/liblinear/svm_train_0_c%d_l{layer_index}_b16.model"
     #w, b = load(w0_path)
     #w0 = torch.from_numpy(w).float().unsqueeze(2).unsqueeze(2)
-    
-    for train_size in [16, 256]:
+
+    for train_size in [256]:
         print(f"=> Layer {layer_index} Size {train_size}")
         name = f"l2solver_l{layer_index}_b{train_size}"
         w, b = np.load(f"results/{name}.model.npy", allow_pickle=True)

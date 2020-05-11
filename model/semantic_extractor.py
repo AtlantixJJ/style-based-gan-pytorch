@@ -27,7 +27,7 @@ def get_extractor_name(model_path):
             return k
 
 class BaseSemanticExtractor(nn.Module):
-    def __init__(self, n_class, dims=[], mapid=None, category_groups=None, **kwargs):
+    def __init__(self, n_class, dims=[], mapid=None, category_groups=None, optim_args="adam-0.001", **kwargs):
         super().__init__()
         self.mapid = mapid
         self.n_class = n_class
@@ -36,6 +36,8 @@ class BaseSemanticExtractor(nn.Module):
             category_groups = [[0, self.n_class]]
         self.category_groups = category_groups
         self.segments = [0] + list(np.cumsum(self.dims))
+        self.optim_type, lr = optim_args.split("-")
+        self.lr = float(lr)
         
     def predict(self, stage):
         res = self.forward(stage, True)[0].argmax(1)
@@ -80,7 +82,11 @@ class GenerativeSemanticExtractor(BaseSemanticExtractor):
             semantic_extractor,
             semantic_reviser,
             semantic_visualizer])
-        self.optim = torch.optim.Adam(self.semantic_branch.parameters(), lr=1e-3)
+            
+        if self.optim_type == "adam":
+            self.optim = torch.optim.Adam(self.semantic_branch.parameters(), lr=self.lr)
+        else:
+            self.optim = torch.optim.SGD(self.semantic_branch.parameters(), lr=self.lr)
 
     def forward(self, stage, last_only=True):
         extractor, reviser, visualizer = self.semantic_branch
@@ -137,7 +143,10 @@ class LinearSemanticExtractor(BaseSemanticExtractor):
             conv_block(dim, self.n_class, 1)
                 for dim in self.dims])
         
-        self.optim = torch.optim.Adam(self.semantic_extractor.parameters(), lr=1e-3)
+        if self.optim_type == "adam":
+            self.optim = torch.optim.Adam(self.semantic_extractor.parameters(), lr=self.lr)
+        else:
+            self.optim = torch.optim.SGD(self.semantic_extractor.parameters(), lr=self.lr)
 
     def forward_category_group(self, stage, last_only=True):
         outputs = [[] for _ in range(len(self.category_groups))]
@@ -229,7 +238,10 @@ class NonLinearSemanticExtractor(LinearSemanticExtractor):
             conv_block(dim, self.n_class, 1)
                 for dim in self.dims])
         
-        self.optim = torch.optim.Adam(self.semantic_extractor.parameters(), lr=1e-3)
+        if self.optim_type == "adam":
+            self.optim = torch.optim.Adam(self.semantic_extractor.parameters(), lr=self.lr)
+        else:
+            self.optim = torch.optim.SGD(self.semantic_extractor.parameters(), lr=self.lr)
 
 
 class ProjectiveLinearSemanticExtractor(LinearSemanticExtractor):
@@ -291,8 +303,11 @@ class NormalizedLinearSemanticExtractor(BaseSemanticExtractor):
         self.weight = nn.Parameter(torch.zeros(self.n_class, sum(self.dims), 1, 1))
         torch.nn.init.kaiming_normal_(self.weight)
 
-        self.optim = torch.optim.Adam(self.parameters(), lr=1e-3)
-       
+        if self.optim_type == "adam":
+            self.optim = torch.optim.Adam(self.parameters(), lr=self.lr)
+        else:
+            self.optim = torch.optim.SGD(self.parameters(), lr=self.lr)
+
     def forward(self, stage, last_only=True):
         maxsize = stage[-1].shape[2] // 2
         with torch.no_grad():
@@ -355,8 +370,11 @@ class UnitLinearSemanticExtractor(BaseSemanticExtractor):
         self.weight = nn.Parameter(torch.zeros(self.n_class, sum(self.dims), 1, 1))
         torch.nn.init.kaiming_normal_(self.weight)
 
-        self.optim = torch.optim.Adam(self.parameters(), lr=1e-3)
-        
+        if self.optim_type == "adam":
+            self.optim = torch.optim.Adam(self.parameters(), lr=self.lr)
+        else:
+            self.optim = torch.optim.SGD(self.parameters(), lr=self.lr)
+            
     def forward(self, stage, last_only=True):
         w = F.normalize(self.weight[:, :, 0, 0], 2, 1)
         w = w.view(-1, w.shape[1], 1, 1)
