@@ -29,7 +29,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument(
     "--model", default="results/l2solver_l4_b245.model.npy")
 args = parser.parse_args()
-
+name = args.model[args.model.rfind("/") + 1:args.model.find(".")]
 
 print("=> Setup generator")
 extractor_path = "record/celebahq1/celebahq_stylegan_unit_layer0,1,2,3,4,5,6,7,8_vbs1_l1-1_l1pos-1_l1dev-1_l1unit-1/stylegan_unit_extractor.model"
@@ -73,27 +73,10 @@ svm_model = get_semantic_extractor("linear")(
 svm_model.to(device).eval()
 
 
-def load(svm_path):
-    if "%d" in svm_path:
-        w = []
-        for i in range(total_class):
-
-            model = svm.load_model(svm_path % i)
-            v = np.array(model.get_decfun()[0])
-            if model.get_labels() == [0, 1]:
-                v = -v
-
-            #v, b = np.load(svm_path % i, allow_pickle=True)
-            w.append(v)
-        return np.stack(w), None
-    else:
-        w, b, sv, segs = np.load(svm_path, allow_pickle=True)
-        return w, b
-
-
 latent = torch.randn(8, 512, device=device)
 
-def evaluate(w, b, layer_index, name, w0=None):
+
+def evaluate_single_layer(w, b, layer_index, name, w0=None):
     w_ = torch.from_numpy(w).float().unsqueeze(2).unsqueeze(2)
     if w0 is not None:
         k = (w0/(w_ + 1e-7)).mean()
@@ -125,10 +108,8 @@ def evaluate(w, b, layer_index, name, w0=None):
     res = [images[0:1], label_viz[0:1], estl_viz[0:1]] + maps
     vutils.save_image(torch.cat(res), f"{name}_score.png", nrow=4)
 
-def evaluate_comb():
-    # for libliner
-    #svm_path = f"results/sv_liblinear_c%d.model.npy"; w, b = load(svm_path); w[1:] *= -1
-    # for l2solver
+
+def evaluate_multiple_layer():
     w, b = np.load(args.model, allow_pickle=True)
     w_ = torch.from_numpy(w).float().unsqueeze(2).unsqueeze(2)
 
@@ -162,9 +143,9 @@ def evaluate_comb():
     res = [images, label_viz, estl_viz] + maps
     vutils.save_image(torch.cat(res), f"{name}_svm_raw_score.png", nrow=4)
 
-#evaluate_comb()
+evaluate_multiple_layer()
 
-
+"""
 for layer_index in [4]:
     #w0_path = f"results/liblinear/svm_train_0_c%d_l{layer_index}_b16.model"
     #w, b = load(w0_path)
@@ -175,3 +156,4 @@ for layer_index in [4]:
         name = f"l2solver_l{layer_index}_b{train_size}"
         w, b = np.load(f"results/{name}.model.npy", allow_pickle=True)
         evaluate(w, b, layer_index, name)
+"""

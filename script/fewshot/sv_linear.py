@@ -52,6 +52,8 @@ labels = np.concatenate([np.load(f) for f in label_files])
 print(f"=> Label shape: {labels.shape}")
 print(f"=> Feature for SVM shape: {feats.shape}")
 
+model_path = f"results/sv_linear.model"
+
 coefs = []
 intercepts = []
 segs = []
@@ -69,7 +71,7 @@ for C in Cs:
     print(f"=> Class {C} On: {ones_size} Off: {others_size}")
     
     svm_model = svm.train(labels_C, feats, "-n 32 -s 2 -B -1 -q")
-    if args.single_class > 0:
+    if args.single_class > -1:
         model_path = f"results/sv_linear_c{args.single_class}.model"
     svm.save_model(model_path, svm_model)
     coef = np.array(svm_model.get_decfun()[0])
@@ -77,7 +79,6 @@ for C in Cs:
     intercepts.append(0)
 
 
-model_path = f"results/sv_linear.model"
 if args.single_class > -1:
     model_path = f"results/sv_linear_c{args.single_class}"
 coefs = np.concatenate(coefs)
