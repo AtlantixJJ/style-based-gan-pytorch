@@ -2,12 +2,12 @@ import model.tf
 import model.inception
 import model.simple
 import model.semantic_extractor
-try:
-    #raise KeyboardInterrupt
+import subprocess
+uname = subprocess.run(["uname", "-a"], capture_output=True)
+uname = uname.stdout.decode("ascii")
+if "jericho" in uname:
     import model.stylegan2
     from model.stylegan2 import from_pth_file as load_stylegan2
-except:
-    pass
 #from model.simple import from_pth_file as load_dcgan
 from model.tf import from_pth_file as load_stylegan
 from lib.netdissect.proggan import from_pth_file as load_proggan

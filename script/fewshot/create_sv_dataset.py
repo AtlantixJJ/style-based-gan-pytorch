@@ -66,7 +66,6 @@ for ind in tqdm(range(args.number)):
         image = generator(latent)
         image, stage = generator.get_stage(latent)
         image = image.clamp(-1, 1)
-        noise = generator.get_noise()
         label = external_model.segment_batch(image, resize=False)[0]
         #label = sep_model(stage)[0].argmax(1)
         stage = stage[3:8] # layers 3~7 is useful

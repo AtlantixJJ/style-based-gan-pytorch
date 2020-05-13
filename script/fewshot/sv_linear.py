@@ -13,7 +13,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument(
     "--model", default="checkpoint/face_celebahq_1024x1024_stylegan.pth")
 parser.add_argument(
-    "--data-dir", default="datasets/Synthesized")
+    "--data-dir", default="datasets/SV_full")
 parser.add_argument(
     "--gpu", default="0")
 parser.add_argument(
@@ -42,7 +42,7 @@ device = "cuda" if int(args.gpu) > -1 else "cpu"
 print("=> Use liblinear (multicore)")
 import lib.liblinear.liblinearutil as svm
 
-data_dir = "datasets/SV"
+data_dir = args.data_dir
 feat_files = glob.glob(f"{data_dir}/sv_feat*.npy")
 feat_files.sort()
 label_files = glob.glob(f"{data_dir}/sv_label*.npy")
