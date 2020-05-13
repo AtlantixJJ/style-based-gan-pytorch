@@ -18,14 +18,19 @@ parser = argparse.ArgumentParser()
 parser.add_argument(
     "--number", default=32, type=int)
 parser.add_argument(
+    "--full", default=0, type=int)
+parser.add_argument(
     "--seed", default=65537, type=int) # 1314 for test
 args = parser.parse_args()
 
 
 device = 'cuda'
 
-extractor_path = "record/vbs_conti/celebahq_stylegan_unit_layer0,1,2,3,4,5,6,7,8_vbs8_l10.0001/stylegan_unit_extractor.model"
+extractor_path = "checkpoint/ffhq_stylegan2_linear_extractor.model"
 model_path = "checkpoint/face_celebahq_1024x1024_stylegan.pth" if "celebahq" in extractor_path else "checkpoint/face_ffhq_1024x1024_stylegan2.pth"
+t = "SV"
+if "ffhq" in model_path:
+    t = "SV2"
 
 generator = model.load_model(model_path)
 generator.to(device).eval()
@@ -69,40 +74,47 @@ for ind in tqdm(range(args.number)):
         feat = torch.cat([utils.bu(s, maxsize)[0] for s in stage])
 
     # get the (approximated) support vectors
-    mask = torch.Tensor(maxsize, maxsize).to(device)
-    try:
-        mask = mask.bool()
-    except:
-        mask = mask.byte()
+    if args.full == 0:
+        mask = torch.Tensor(maxsize, maxsize).to(device)
+        try:
+            mask = mask.bool()
+        except:
+            mask = mask.byte()
 
-    mask[:-1] = label[:-1] != label[1:] # left - right
-    mask[:, :-1] |= label[:, :-1] != label[:, 1:] # top - bottom
-    mask[1:] |= mask[:-1] # right - left
-    mask[:, 1:] |= mask[:, :-1] # bottom - top
-    for C in range(15):
-        # every hard class is fully sampled
-        if C not in [0, 1, 2, 6, 10, 12]: 
-            mask |= label == C
-    mask = utils.simple_dilate(mask, 3)
-    #mask_viz = mask.float().unsqueeze(0).unsqueeze(0)
-    #vutils.save_image(mask_viz, "viz.png")
-    #print(mask.sum())
+        mask[:-1] = label[:-1] != label[1:] # left - right
+        mask[:, :-1] |= label[:, :-1] != label[:, 1:] # top - bottom
+        mask[1:] |= mask[:-1] # right - left
+        mask[:, 1:] |= mask[:, :-1] # bottom - top
+        for C in range(15):
+            # every hard class is fully sampled
+            if C not in [0, 1, 2, 6, 10, 12]: 
+                mask |= label == C
+        mask = utils.simple_dilate(mask, 3)
+        #mask_viz = mask.float().unsqueeze(0).unsqueeze(0)
+        #vutils.save_image(mask_viz, "viz.png")
+        #print(mask.sum())
 
-    """
-    areas = []
-    for C in range(15):
-        m = label == C
-        m = m & ~mask
-        if m.sum() == 0:
-            continue
-        areas.append([C, 1. / m.sum()])
-    s = sum([a[1] for a in areas])
-    areas = [[c, a/s] for c, a in areas]
-    areas.sort(key=lambda x : x[1])
-    """
-    data = utils.torch2numpy(feat[:, mask].transpose(1, 0))
-    labels = utils.torch2numpy(label[mask])
+        """
+        areas = []
+        for C in range(15):
+            m = label == C
+            m = m & ~mask
+            if m.sum() == 0:
+                continue
+            areas.append([C, 1. / m.sum()])
+        s = sum([a[1] for a in areas])
+        areas = [[c, a/s] for c, a in areas]
+        areas.sort(key=lambda x : x[1])
+        """
+        data = utils.torch2numpy(feat[:, mask].transpose(1, 0))
+        labels = utils.torch2numpy(label[mask])
 
-    np.save(f"datasets/SV/sv_feat{ind}", data)
-    np.save(f"datasets/SV/sv_label{ind}", labels)
+        np.save(f"datasets/{t}/sv_feat{ind}", data)
+        np.save(f"datasets/{t}/sv_label{ind}", labels)
+    else:
+        data = utils.torch2numpy(feat.transpose(1, 0))
+        labels = utils.torch2numpy(label)
+
+        np.save(f"datasets/{t}_full/sv_feat{ind}", data)
+        np.save(f"datasets/{t}_full/sv_label{ind}", labels)
     

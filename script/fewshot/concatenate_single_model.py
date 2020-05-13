@@ -33,7 +33,7 @@ total_class = 15
 def load(svm_path):
     if "%d" in svm_path:
         w = []
-        for i in range(1, total_class):
+        for i in range(total_class):
             model = svm.load_model(svm_path % i)
             v = np.array(model.get_decfun()[0])
             if model.get_labels() == [0, 1]:
@@ -48,5 +48,5 @@ def load(svm_path):
 
 svm_path = "results/sv_linear_c%d.model"
 w, b = load(svm_path)
-w = np.concatenate([np.zeros((1, w.shape[1])), w])
+#w = np.concatenate([np.zeros((1, w.shape[1])), w])
 np.save("results/sv_linear", [w, b])
