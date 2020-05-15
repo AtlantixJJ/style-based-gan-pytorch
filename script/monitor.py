@@ -502,7 +502,7 @@ if "weight" in args.task and "nonlinear" not in model_files[-1] and "generative"
         ax.scatter(x, ws[j], s=2)
         ax.axes.get_xaxis().set_visible(False)
     plt.tight_layout()
-    fig.savefig(f"{savepath}_class.png", bbox_inches='tight')
+    fig.savefig(f"{savepath}_weight_class.png", bbox_inches='tight')
     plt.close()
     
     if "spherical" in model_file or "_unit_extractor" in model_file or "unitnorm" in model_file:
@@ -512,12 +512,12 @@ if "weight" in args.task and "nonlinear" not in model_files[-1] and "generative"
     else:
         plot_weight_layerwise(
             sep_model.semantic_extractor,
-            maximum, minimum)
+            maximum, minimum,
+            f"{savepath}_weight_layer")
     s = model_file[model_file.rfind("/")+1:]
     threshold = s + "/threshold.txt"
     if os.path.exists(threshold):
         threshold = open(threshold, "r").read()
-        threshold
 
     """
     # orthogonal status

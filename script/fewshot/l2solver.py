@@ -58,7 +58,7 @@ with torch.no_grad():
 dims = [s.shape[1] for s in stage]
 cumdims = np.cumsum([0] + dims)
 
-data_dir = "datasets/SV"
+data_dir = "datasets/SV_full"
 feat_files = glob.glob(f"{data_dir}/sv_feat*.npy")
 feat_files.sort()
 label_files = glob.glob(f"{data_dir}/sv_label*.npy")

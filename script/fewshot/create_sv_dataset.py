@@ -20,14 +20,18 @@ parser.add_argument(
 parser.add_argument(
     "--full", default=0, type=int)
 parser.add_argument(
+    "--model", default="checkpoint/face_celebahq_1024x1024_stylegan.pth")
+parser.add_argument(
     "--seed", default=65537, type=int) # 1314 for test
 args = parser.parse_args()
 
 
 device = 'cuda'
 
-extractor_path = "checkpoint/ffhq_stylegan2_linear_extractor.model"
-model_path = "checkpoint/face_celebahq_1024x1024_stylegan.pth" if "celebahq" in extractor_path else "checkpoint/face_ffhq_1024x1024_stylegan2.pth"
+#extractor_path = "checkpoint/ffhq_stylegan2_linear_extractor.model"
+#model_path = "checkpoint/face_celebahq_1024x1024_stylegan.pth" if "celebahq" in extractor_path else "checkpoint/face_ffhq_1024x1024_stylegan2.pth"
+model_path = args.model
+
 t = "SV"
 if "ffhq" in model_path:
     t = "SV2"
@@ -111,8 +115,8 @@ for ind in tqdm(range(args.number)):
         np.save(f"datasets/{t}/sv_feat{ind}", data)
         np.save(f"datasets/{t}/sv_label{ind}", labels)
     else:
-        data = utils.torch2numpy(feat.transpose(1, 0))
-        labels = utils.torch2numpy(label)
+        data = utils.torch2numpy(feat.view(feat.shape[0], -1)).transpose(1, 0)
+        labels = utils.torch2numpy(label.view(-1))
 
         np.save(f"datasets/{t}_full/sv_feat{ind}", data)
         np.save(f"datasets/{t}_full/sv_label{ind}", labels)

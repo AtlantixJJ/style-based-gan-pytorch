@@ -183,6 +183,7 @@ for C in [1, 4]:
     vutils.save_image(imgs, f"{fpath}_{cname}_stage.png", nrow=1)
 
 
+""" # not informative
 print("=> Weight distribution")
 wsorted = w.copy()
 for i in range(wsorted.shape[0]):
@@ -197,6 +198,7 @@ for i in range(wsorted.shape[0]):
     ax.axvline(x=PT)
     plt.savefig(f"{fpath}_weight_distribution_{i}.png")
     plt.close()
+"""
 
 
 print("=> Segments of weight")
