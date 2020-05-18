@@ -41,7 +41,7 @@ os.system("rm video/*.png")
 for i in tqdm(range(trace.shape[0])):
     sep_model.weight.copy_(torch.from_numpy(trace[i]).unsqueeze(2).unsqueeze(2))
     seg = sep_model(stage)[0]
-    label_viz = colorizer(seg.argmax(1)).unsqueeze(0) / 255.
+    label_viz = colorizer(seg.argmax(1)) / 255.
     label_viz = F.interpolate(label_viz, size=256, mode="bilinear", align_corners=True)
     vutils.save_image(torch.cat([img, label_viz]), "video/%04d.png" % i)
 os.system("ffmpeg -y -f image2 -r 12 -i video/%04d.png -pix_fmt yuv420p -b:v 16000k demo.mp4")
