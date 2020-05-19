@@ -5,6 +5,21 @@ import os
 train_size = [1, 2, 3, 4, 6, 8, 10, 12, 16, 20, 24, 28, 32, 36, 40, 48, 64, 80, 96, 128, 256, 384, 512, 768, 1024]; gpus = [0, 1, 2, 3, 4, 5, 6, 7]
 #train_size = list(range(72, 97, 8)); gpus = [0, 1]
 
+def command_svm_pca(gpus):
+    count = 0
+    basecmd = "python script/fewshot/svm_pca.py --train-size %d --pca-size 64"
+    for ts in [1, 2, 4, 8, 16, 32]:
+        idx = count % len(gpus)
+        yield idx, basecmd % ts
+        count += 1
+
+def test_svm_pca(gpus):
+    count = 0
+    basecmd = "python script/fewshot/test_svm_model.py --model results/svm_pca_t%d_p32.model.npy --gpu %d"
+    for ts in [1, 2, 4, 8, 16, 32]:
+        idx = count % len(gpus)
+        yield idx, basecmd % (ts, gpus[idx])
+        count += 1
 
 def command_linear_multiple(gpus):
     count = 0
@@ -35,7 +50,7 @@ gpus = [0, 1, 2, 3, 4, 5, 6, 7]
 
 
 slots = [[] for _ in gpus]
-for i, c in command_eval_trace(gpus):
+for i, c in test_svm_pca(gpus):
     slots[i].append(c)
 
 for slot in slots:

@@ -11,6 +11,14 @@ import argparse, glob
 from thundersvm import SVC
 import lib.liblinear.liblinearutil as svm
 
+import torch
+import torch.nn.functional as F
+from torchvision import utils as vutils
+from lib.face_parsing import unet
+import evaluate, utils, dataset, model
+from model.semantic_extractor import get_semantic_extractor, get_extractor_name 
+from weight_visualization import plot_weight_concat
+
 import matplotlib
 import matplotlib.style as style
 style.use('seaborn-poster') #sets the size of the charts
@@ -20,20 +28,8 @@ colors = list(matplotlib.colors.cnames.keys())
 parser = argparse.ArgumentParser()
 parser.add_argument(
     "--model", default="results/l2solver_l4_b245.model.npy")
-parser.add_argument(
-    "--gpu", default="0")
 args = parser.parse_args()
 name = args.model[args.model.rfind("/") + 1:args.model.find(".")]
-os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
-
-import torch
-import torch.nn.functional as F
-from torchvision import utils as vutils
-from lib.face_parsing import unet
-import evaluate, utils, dataset, model
-from model.semantic_extractor import get_semantic_extractor, get_extractor_name 
-from weight_visualization import plot_weight_concat
-
 
 print("=> Setup generator")
 extractor_path = "record/celebahq1/celebahq_stylegan_unit_layer0,1,2,3,4,5,6,7,8_vbs1_l1-1_l1pos-1_l1dev-1_l1unit-1/stylegan_unit_extractor.model"
@@ -80,48 +76,14 @@ svm_model.to(device).eval()
 latent = torch.randn(8, 512, device=device)
 
 
-def evaluate_single_layer(w, b, layer_index, name, w0=None):
-    w_ = torch.from_numpy(w).float().unsqueeze(2).unsqueeze(2)
-    if w0 is not None:
-        k = (w0/(w_ + 1e-7)).mean()
-        w_ *= k
-    minimum, maximum = w.min(), w.max()
-    plot_weight_concat(w, minimum, maximum, name)
-
-    with torch.no_grad():
-        images, stage = generator.get_stage(latent)
-    images = utils.bu((images.clamp(-1, 1) + 1) / 2, 256).cpu()
-    feats = stage[layer_index].detach().cpu()
-
-    seg = sep_model(stage)[0].cpu()
-    label = utils.bu(seg, 256).argmax(1)
-    label_viz = colorizer(label).float() / 255.
-    est_seg = F.conv2d(feats, w_)
-    estl = utils.bu(est_seg, 256).argmax(1)
-    estl_viz = colorizer(estl).float() / 255.
-
-    res = []
-    for img, lbl, pred in zip(images, label_viz, estl_viz):
-        res.extend([img, lbl, pred])
-    res = torch.stack(res)
-    vutils.save_image(res, f"{name}_raw.png", nrow=3)
-
-    scores = [utils.bu(est_seg[0:1, i:i+1], 256) for i in range(est_seg.shape[1])]
-    scores = [s / max(-s.min(), s.max()) for s in scores]
-    maps = [utils.heatmap_torch(s) for s in scores]
-    res = [images[0:1], label_viz[0:1], estl_viz[0:1]] + maps
-    vutils.save_image(torch.cat(res), f"{name}_score.png", nrow=4)
-
-
 def evaluate_multiple_layer():
-    print(f"=> Loading {args.model}")
-    w, b = np.load(args.model, allow_pickle=True)
-    print("=> Complete")
+    w = np.load(args.model, allow_pickle=True)
+    w = w[:15]
     w_ = torch.from_numpy(w).float().unsqueeze(2).unsqueeze(2)
 
     res = []
     #minimum, maximum = w.min(), w.max()
-    plot_weight_concat(w, -1, 1, f"{name}_svm_weight.png")
+    plot_weight_concat(w, -1, 1, f"{name}_pca_weight.png")
 
     for i in range(latent.shape[0]):
         with torch.no_grad():
@@ -141,26 +103,12 @@ def evaluate_multiple_layer():
 
         res.extend([images, label_viz, estl_viz])
     res = torch.cat(res)
-    print("=> Calculation complete")
-    vutils.save_image(res, f"{name}_svm_raw_all.png", nrow=3)
+    vutils.save_image(res, f"{name}_pca_raw_all.png", nrow=3)
 
     scores = [utils.bu(est_seg[0:1, i:i+1], 256) for i in range(est_seg.shape[1])]
     scores = [s / max(-s.min(), s.max()) for s in scores]
     maps = [utils.heatmap_torch(s) for s in scores]
     res = [images, label_viz, estl_viz] + maps
-    vutils.save_image(torch.cat(res), f"{name}_svm_raw_score.png", nrow=4)
+    vutils.save_image(torch.cat(res), f"{name}_pca_raw_score.png", nrow=4)
 
 evaluate_multiple_layer()
-
-"""
-for layer_index in [4]:
-    #w0_path = f"results/liblinear/svm_train_0_c%d_l{layer_index}_b16.model"
-    #w, b = load(w0_path)
-    #w0 = torch.from_numpy(w).float().unsqueeze(2).unsqueeze(2)
-
-    for train_size in [256]:
-        print(f"=> Layer {layer_index} Size {train_size}")
-        name = f"l2solver_l{layer_index}_b{train_size}"
-        w, b = np.load(f"results/{name}.model.npy", allow_pickle=True)
-        evaluate(w, b, layer_index, name)
-"""
