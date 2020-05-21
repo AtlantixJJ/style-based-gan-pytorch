@@ -70,7 +70,7 @@ res = [(gen + 1) / 2, label_viz]
 files = glob.glob(f"{args.indir}/adam_s{args.seed}_*latents.npy")
 files.sort()
 
-for f in files:
+for f in tqdm(files):
     snapshot = torch.from_numpy(np.load(f))
     f = f.replace("_latents.npy", "")
     noises = generator.generate_noise(device)
@@ -95,7 +95,7 @@ for f in files:
     snaps = torch.cat([utils.bu(r, 256) for r in snaps])
     vutils.save_image(snaps, f"{f}_snapshot.png", nrow=4)
 
-res = torch.cat([utils.bu(r, 256) for r in res])
+res = torch.cat([utils.bu(r, 256) for r in res[:16*2]])
 vutils.save_image(
     res,
     f"results/mask_sample/adam_s{args.seed}_n1600_k0.0_res.png",
