@@ -68,6 +68,8 @@ def edit_label_stroke(model, latent, noises, label_stroke, label_mask,
     orig_image, orig_seg = get_image_seg_celeba(model, el, sep_model, method)
     orig_image = orig_image.detach().clone()
     orig_label = orig_seg.argmax(1)
+    label_stroke = label_stroke.float()
+    label_mask = label_mask.float()
     target_label = orig_label.float() * (1 - label_mask) + label_stroke * label_mask
     target_label = target_label.long()
 
@@ -100,6 +102,7 @@ def edit_label_stroke(model, latent, noises, label_stroke, label_mask,
         record["gradnorm"].append(utils.torch2numpy(grad_norm))
 
         # celoss regularization
+        """
         for _ in range(n_reg):
             el = get_el_from_latent(latent, mapping_network, method)
             image, seg = get_image_seg_celeba(model, el, sep_model, method)
@@ -116,6 +119,7 @@ def edit_label_stroke(model, latent, noises, label_stroke, label_mask,
             record["mseloss"].append(utils.torch2numpy(mseloss))
             record["segdiff"].append(total_diff)
             record["gradnorm"].append(utils.torch2numpy(grad_norm))
+        """
 
     with torch.no_grad():
         el = get_el_from_latent(latent, mapping_network, method)
@@ -124,6 +128,60 @@ def edit_label_stroke(model, latent, noises, label_stroke, label_mask,
         label = seg.argmax(1)
     return image, label, latent, noises, record
 
+
+def sample_given_mask(model, latent, noises, label_stroke, label_mask,
+    n_iter=5, kl_coef=0, sep_model=None, mapping_network=None):
+    method = "latent-LL-internal"
+    latent = latent.detach().clone()
+    latent.requires_grad = True
+    optim = torch.optim.Adam([latent], lr=1e-3)
+    #optim = torch.optim.LBFGS([latent], max_iter=n_iter)
+    model.set_noise(noises)
+    record = {"regloss": [], "gradnorm": [], "celoss": [], "segdiff": []}
+    snapshot = torch.Tensor(n_iter, latent.shape[1]) # only for LL
+    el = get_el_from_latent(latent, mapping_network, method)
+    orig_image, orig_seg = get_image_seg_celeba(model, el, sep_model, method)
+    orig_image = orig_image.detach().clone()
+    orig_label = orig_seg.argmax(1)
+    label_stroke = label_stroke.float()
+    label_mask = label_mask.float()
+    target_label = orig_label.float() * (1 - label_mask) + label_stroke * label_mask
+    target_label = target_label.long()
+    for ind in tqdm(range(n_iter)):
+        el = get_el_from_latent(latent, mapping_network, method)
+        image, seg = get_image_seg_celeba(model, el, sep_model, method)
+
+        current_label = seg.argmax(1)
+        diff_mask = (current_label != target_label).float()
+        total_diff = diff_mask.sum()
+        # editing area has 4 times lager loss
+        # diff_mask = 3 * label_mask + diff_mask 
+        #if total_diff < 1:
+        #    celoss = 0
+        #else:
+        #    celoss = mask_cross_entropy_loss(diff_mask, seg, target_label)
+        celoss = F.cross_entropy(seg, target_label)
+
+        # only works for LL
+        regloss = kl_coef * (latent ** 2).sum()
+        loss = regloss + celoss
+        grad = torch.autograd.grad(loss, latent)[0]
+        grad_norm = torch.norm(grad.view(-1), 2)
+        latent.grad = grad
+        optim.step(lambda : celoss)
+
+        record["segdiff"].append(utils.torch2numpy(total_diff))
+        record["celoss"].append(utils.torch2numpy(celoss))
+        record["regloss"].append(utils.torch2numpy(regloss))
+        record["gradnorm"].append(utils.torch2numpy(grad_norm))
+        snapshot[ind] = latent[0].clone().detach()
+
+    with torch.no_grad():
+        el = get_el_from_latent(latent, mapping_network, method)
+        image, seg = get_image_seg_celeba(model, el, sep_model, method)
+        image = (1 + image.clamp(-1, 1)) / 2
+        label = seg.argmax(1)
+    return image, label, latent, noises, record, snapshot
 
 def edit_image_stroke(model, latent, noises, image_stroke, image_mask,
     n_iter=5, n_reg=0, lr=1e-2, method="celossreg-label-ML-internal", sep_model=None, mapping_network=None):

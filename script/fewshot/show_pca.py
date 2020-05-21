@@ -78,12 +78,12 @@ latent = torch.randn(8, 512, device=device)
 
 def evaluate_multiple_layer():
     w = np.load(args.model, allow_pickle=True)
-    w = w[:15]
+    w = w[:36]
     w_ = torch.from_numpy(w).float().unsqueeze(2).unsqueeze(2)
 
     res = []
     #minimum, maximum = w.min(), w.max()
-    plot_weight_concat(w, -1, 1, f"{name}_pca_weight.png")
+    plot_weight_concat(w[:16], -1, 1, f"{name}_pca_weight.png")
 
     for i in range(latent.shape[0]):
         with torch.no_grad():
@@ -103,12 +103,12 @@ def evaluate_multiple_layer():
 
         res.extend([images, label_viz, estl_viz])
     res = torch.cat(res)
-    vutils.save_image(res, f"{name}_pca_raw_all.png", nrow=3)
+    #vutils.save_image(res, f"{name}_pca_raw_all.png", nrow=3)
 
     scores = [utils.bu(est_seg[0:1, i:i+1], 256) for i in range(est_seg.shape[1])]
     scores = [s / max(-s.min(), s.max()) for s in scores]
     maps = [utils.heatmap_torch(s) for s in scores]
     res = [images, label_viz, estl_viz] + maps
-    vutils.save_image(torch.cat(res), f"{name}_pca_raw_score.png", nrow=4)
+    vutils.save_image(torch.cat(res), f"{name}_pca_raw_score.png", nrow=6)
 
 evaluate_multiple_layer()

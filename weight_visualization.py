@@ -1,6 +1,7 @@
 import torch
 import utils
 import matplotlib.pyplot as plt
+import numpy
 
 def find_min_max_weight(module):
     vals = []
@@ -21,6 +22,8 @@ def concat_weight(module):
 
 def assign_weight(module, weight):
     prev, cur = 0, 0
+    if isinstance(weight, numpy.ndarray):
+        weight = torch.from_numpy(weight).float()
     for i, conv in enumerate(module):
         cur += conv[0].weight.shape[1]
         conv[0].weight.requires_grad = False

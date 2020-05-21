@@ -15,6 +15,8 @@ parser.add_argument(
 parser.add_argument(
     "--data-dir", default="datasets/SV_full")
 parser.add_argument(
+    "--train-size", default=1, type=int)
+parser.add_argument(
     "--gpu", default="0")
 parser.add_argument(
     "--total-class", default=15, type=int)
@@ -31,6 +33,7 @@ from torchvision import utils as vutils
 from lib.face_parsing import unet
 import evaluate, utils, dataset, model
 from model.semantic_extractor import get_semantic_extractor, get_extractor_name 
+from weight_visualization import assign_weight
 
 USE_THUNDER = False
 
@@ -47,12 +50,19 @@ feat_files = glob.glob(f"{data_dir}/sv_feat*.npy")
 feat_files.sort()
 label_files = glob.glob(f"{data_dir}/sv_label*.npy")
 label_files.sort()
+feat_files = feat_files[:args.train_size]
+label_files = label_files[:args.train_size]
 feats = np.concatenate([np.load(f) for f in feat_files])
 labels = np.concatenate([np.load(f) for f in label_files])
+#idx = np.random.choice(range(feats.shape[0]), 2000, replace=False)
+#feats = feats[idx]
+#labels = labels[idx]
 print(f"=> Label shape: {labels.shape}")
 print(f"=> Feature for SVM shape: {feats.shape}")
 
-model_path = f"results/sv_linear.model"
+subfix = ""
+model_path = f"results/sv_linear_t{args.train_size}"
+model_path += "{subfix}.model"
 
 coefs = []
 intercepts = []
@@ -61,6 +71,8 @@ cur = 0
 Cs = [args.single_class]
 if args.single_class < 0:
     Cs = list(range(args.total_class))
+
+""" # manual one v.s. rest
 for C in Cs:
     labels_C = labels.copy().reshape(-1)
     mask1 = labels_C == C
@@ -72,15 +84,34 @@ for C in Cs:
     
     svm_model = svm.train(labels_C, feats, "-n 32 -s 2 -B -1 -q")
     if args.single_class > -1:
-        model_path = f"results/sv_linear_c{args.single_class}.model"
-    svm.save_model(model_path, svm_model)
+        subfix = f"_c{args.single_class}"
+    svm.save_model(model_path.format(subfix=subfix), svm_model)
     coef = np.array(svm_model.get_decfun()[0])
     coefs.append(coef)
     intercepts.append(0)
 
-
 if args.single_class > -1:
-    model_path = f"results/sv_linear_c{args.single_class}"
+    subfix = f"_c{args.single_class}"
 coefs = np.concatenate(coefs)
 intercepts = np.array(intercepts)
-np.save(model_path, [coefs, intercepts])
+np.save(model_path.format(subfix=subfix), [coefs, intercepts])
+"""
+
+# liblinear multiclass one v.s. rest
+svm_model = svm.train(labels, feats, "-n 32 -s 2 -B -1 -q")
+svm.save_model(
+    model_path.format(subfix=subfix).replace(".model", ".ll"),
+    svm_model)
+n_class = svm_model.get_nr_class()
+labels = svm_model.get_labels()
+coef = np.zeros((args.total_class, feats.shape[1]))
+for i in range(n_class):
+    coef[labels[i]] = np.array(svm_model.get_decfun(i)[0])
+dims = [512, 256, 128, 64, 32]
+sep_model = get_semantic_extractor("linear")(
+    n_class=args.total_class,
+    dims=dims).to(device)
+assign_weight(sep_model.semantic_extractor, coef)
+torch.save(
+    sep_model.state_dict(),
+    f"results/svm_t{args.train_size}_stylegan_linear_extractor_layer3,4,5,6,7.model")

@@ -60,7 +60,7 @@ cfg = 0
 batch_size = 0
 model_path = ""
 task = ""
-colorizer = utils.Colorize(16) #label to rgb
+colorizer = utils.Colorize(15) #label to rgb
 if "simpleseg" in args.model:
     from model.simple import Generator
     generator = Generator(upsample=4, out_act="none", out_dim=16).to(device)

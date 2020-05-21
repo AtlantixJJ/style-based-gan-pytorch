@@ -733,7 +733,7 @@ def str_csv_table(strs):
 
 
 def format_test_result(dic,
-    global_metrics=["pixelacc", "mAP", "mAR", "mIoU"],
+    global_metrics=["pixelacc", "mAP", "mAR", "mIoU", "mIoU_face", "mIoU_other"],
     class_metrics=["AP", "AR", "IoU"],
     label_list=CELEBA_CATEGORY):
     class_metrics = ["AP", "AR", "IoU"]
