@@ -26,7 +26,7 @@ from model.semantic_extractor import get_semantic_extractor, get_extractor_name
 
 WINDOW_SIZE = 100
 n_class = 15
-device = "cuda"
+device = "cpu"
 extractor_path = args.model
 colorizer = utils.Colorize(15)
 outdir = args.outdir
@@ -40,6 +40,10 @@ generator.to(device).eval()
 # target image is controled by seed
 torch.manual_seed(args.seed)
 latent = torch.randn(1, 512, device=device)
+np.save(
+    f"{outdir}/s{args.seed}_target.npy",
+    utils.torch2numpy(latent))
+exit(0)
 original_latents = torch.randn(args.n_total, 512)
 with torch.no_grad():
     image, stage = generator.get_stage(latent)

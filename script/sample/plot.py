@@ -38,7 +38,9 @@ generator = model.load_model(model_path)
 generator.to(device).eval()
 # target image is controled by seed
 torch.manual_seed(args.seed)
-latent = torch.randn(1, 512, device=device)
+#latent = torch.randn(1, 512, device=device)
+latent = np.load(f"{args.indir}/s{args.seed}_target.npy")
+latent = torch.from_numpy(latent).float().to(device)
 original_latents = torch.randn(100, 512)
 with torch.no_grad():
     image, stage = generator.get_stage(latent)
