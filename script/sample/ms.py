@@ -53,6 +53,8 @@ layers = list(range(9))
 if "layer" in extractor_path:
     ind = extractor_path.rfind("layer") + len("layer")
     s = extractor_path[ind:].split("_")[0]
+    if ".model" in s:
+        s = s.split(".")[0]
     layers = [int(i) for i in s.split(",")]
     dims = np.array(dims)[layers].tolist()
 
