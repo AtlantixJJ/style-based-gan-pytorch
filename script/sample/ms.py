@@ -11,10 +11,10 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--gpu", default="0")
 parser.add_argument("--model", default="checkpoint/celebahq_stylegan_unit_extractor.model", type=str)
 parser.add_argument("--outdir", default="results/mask_sample", type=str)
-parser.add_argument("--n-iter", default=100, type=int)
-parser.add_argument("--n-total", default=100, type=int)
-parser.add_argument("--kl-coef", default=1e-3, type=float)
-parser.add_argument("--seed", default=1, type=int)
+parser.add_argument("--n-iter", default=1000, type=int)
+parser.add_argument("--n-total", default=7, type=int)
+parser.add_argument("--kl-coef", default=0, type=float)
+parser.add_argument("--seed", default=65537, type=int)
 args = parser.parse_args()
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 
@@ -67,14 +67,14 @@ if "layer" in extractor_path:
     sep_model.eval()
 
 with torch.no_grad():
-    gen, stage = generator.get_stage(latent)
+    orig_image, stage = generator.get_stage(latent)
     stage = [s for i, s in enumerate(stage) if i in layers]
-    gen = gen.clamp(-1, 1)
+    orig_image = (1 + orig_image.clamp(-1, 1)) / 2
     segs = sep_model(stage)[0]
-    label = segs.argmax(1)
-    label_viz = colorizer(label) / 255.
+    orig_label = segs.argmax(1)
+    orig_label_viz = colorizer(orig_label) / 255.
 
-res = [(gen + 1) / 2, label_viz]
+res = [orig_image, orig_label_viz]
 for ind in range(args.n_total):
     latent.requires_grad = False
     latent.copy_(original_latents[ind])
@@ -101,13 +101,13 @@ for ind in range(args.n_total):
     for i in np.linspace(0, snapshot.shape[0] - 1, 8):
         i = int(i)
         with torch.no_grad():
-            image, stage = generator.get_stage(snapshot[i:i+1].cuda())
+            image, stage = generator.get_stage(snapshot[i:i+1].cuda(), layers)
             image = (1 + image.clamp(-1, 1)) / 2
             label = sep_model(stage)[0].argmax(1)
             label_viz = colorizer(label) / 255.
             snaps.extend([image, label_viz])
     snaps = torch.cat([utils.bu(r, 256) for r in snaps])
-    vutils.save_image(snaps, f"{outdir}/{optimizer}_n{args.n_iter}_k{args.kl_coef}_{ind:02d}_snapshot.png", nrow=4)
+    vutils.save_image(snaps, f"{outdir}/{optimizer}_s{args.seed}_n{args.n_iter}_k{args.kl_coef}_{ind:02d}_snapshot.png", nrow=4)
 
     # save optimization process
     np.save(
