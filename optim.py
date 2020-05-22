@@ -129,7 +129,7 @@ def edit_label_stroke(model, latent, noises, label_stroke, label_mask,
     return image, label, latent, noises, record
 
 
-def sample_given_mask(model, latent, noises, label_stroke, label_mask,
+def sample_given_mask(model, layers, latent, noises, label_stroke, label_mask,
     n_iter=5, kl_coef=0, sep_model=None, mapping_network=None):
     method = "latent-LL-internal"
     latent = latent.detach().clone()
@@ -140,7 +140,8 @@ def sample_given_mask(model, latent, noises, label_stroke, label_mask,
     record = {"regloss": [], "gradnorm": [], "celoss": [], "segdiff": []}
     snapshot = torch.Tensor(n_iter, latent.shape[1]) # only for LL
     el = get_el_from_latent(latent, mapping_network, method)
-    orig_image, orig_seg = get_image_seg_celeba(model, el, sep_model, method)
+    orig_image, stage = model.get_stage(el, layers)
+    orig_seg = sep_model(stage)[0]
     orig_image = orig_image.detach().clone()
     orig_label = orig_seg.argmax(1)
     label_stroke = label_stroke.float()

@@ -33,7 +33,7 @@ outdir = args.outdir
 optimizer = "adam"
 
 # generator
-model_path = "checkpoint/face_celebahq_1024x1024_stylegan.pth" if "celebahq" in extractor_path else "checkpoint/face_ffhq_1024x1024_stylegan2.pth"
+model_path = "checkpoint/face_ffhq_1024x1024_stylegan2.pth" if "ffhq" in extractor_path else "checkpoint/face_celebahq_1024x1024_stylegan.pth"
 
 generator = model.load_model(model_path)
 generator.to(device).eval()
@@ -50,19 +50,21 @@ image = (1 + image) / 2
 dims = [s.shape[1] for s in stage]
 
 layers = list(range(9))
+sep_model = 0
 if "layer" in extractor_path:
     ind = extractor_path.rfind("layer") + len("layer")
     s = extractor_path[ind:].split("_")[0]
     if ".model" in s:
         s = s.split(".")[0]
     layers = [int(i) for i in s.split(",")]
+    print(dims)
     dims = np.array(dims)[layers].tolist()
-
-sep_model = get_semantic_extractor(get_extractor_name(extractor_path))(
-    n_class=n_class,
-    dims=dims).to(device)
-sep_model.load_state_dict(torch.load(extractor_path))
-sep_model.eval()
+    print(layers, dims)
+    sep_model = get_semantic_extractor(get_extractor_name(extractor_path))(
+        n_class=n_class,
+        dims=dims).to(device)
+    sep_model.load_state_dict(torch.load(extractor_path))
+    sep_model.eval()
 
 with torch.no_grad():
     gen, stage = generator.get_stage(latent)
@@ -80,6 +82,7 @@ for ind in range(args.n_total):
     noises = generator.generate_noise()
     image, new_label, latent, noises, record, snapshot = optim.sample_given_mask(
         model=generator,
+        layers=layers,
         latent=latent,
         noises=noises,
         label_stroke=label,
