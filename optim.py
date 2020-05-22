@@ -150,8 +150,8 @@ def sample_given_mask(model, layers, latent, noises, label_stroke, label_mask,
     target_label = target_label.long()
     for ind in tqdm(range(n_iter)):
         el = get_el_from_latent(latent, mapping_network, method)
-        image, seg = get_image_seg_celeba(model, el, sep_model, method)
-
+        image, stage = model.get_stage(el, layers)
+        seg = sep_model(stage)[0]
         current_label = seg.argmax(1)
         diff_mask = (current_label != target_label).float()
         total_diff = diff_mask.sum()
