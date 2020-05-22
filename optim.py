@@ -179,7 +179,8 @@ def sample_given_mask(model, layers, latent, noises, label_stroke, label_mask,
 
     with torch.no_grad():
         el = get_el_from_latent(latent, mapping_network, method)
-        image, seg = get_image_seg_celeba(model, el, sep_model, method)
+        image, stage = model.get_stage(el, layers)
+        seg = sep_model(stage)[0]
         image = (1 + image.clamp(-1, 1)) / 2
         label = seg.argmax(1)
     return image, label, latent, noises, record, snapshot
