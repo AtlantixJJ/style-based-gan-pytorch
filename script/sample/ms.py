@@ -57,14 +57,13 @@ if "layer" in extractor_path:
     if ".model" in s:
         s = s.split(".")[0]
     layers = [int(i) for i in s.split(",")]
-    print(dims)
     dims = np.array(dims)[layers].tolist()
-    print(layers, dims)
-    sep_model = get_semantic_extractor(get_extractor_name(extractor_path))(
-        n_class=n_class,
-        dims=dims).to(device)
-    sep_model.load_state_dict(torch.load(extractor_path))
-    sep_model.eval()
+
+sep_model = get_semantic_extractor(get_extractor_name(extractor_path))(
+    n_class=n_class,
+    dims=dims).to(device)
+sep_model.load_state_dict(torch.load(extractor_path))
+sep_model.eval()
 
 with torch.no_grad():
     orig_image, stage = generator.get_stage(latent)
