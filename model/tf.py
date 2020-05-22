@@ -424,10 +424,10 @@ class StyledGenerator(nn.Module):
         if x.shape[1] != 18:
             # able to take EL as input
             x = self.g_mapping(x)
-        stage = self.g_synthesis.get_stage(x, detach)
+        image, stage = self.g_synthesis.get_stage(x, detach)
         if layers is None:
             return stage
-        return [s for i, s in enumerate(stage) if i in layers]
+        return image, [s for i, s in enumerate(stage) if i in layers]
 
     def generate_noise(self, device='cuda'):
         if not hasattr(self, "noise_layers"):
