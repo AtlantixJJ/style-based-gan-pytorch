@@ -72,6 +72,7 @@ with torch.no_grad():
     segs = sep_model(stage)[0]
     orig_label = segs.argmax(1)
     orig_label_viz = colorizer(orig_label) / 255.
+    orig_mask = torch.ones_like(orig_label)
 
 res = [orig_image, orig_label_viz]
 for ind in range(args.n_total):
@@ -84,8 +85,8 @@ for ind in range(args.n_total):
         layers=layers,
         latent=latent,
         noises=noises,
-        label_stroke=label,
-        label_mask=torch.ones_like(label),
+        label_stroke=orig_label,
+        label_mask=orig_mask,
         n_iter=args.n_iter,
         kl_coef=args.kl_coef,
         sep_model=sep_model,
