@@ -60,8 +60,6 @@ sep_model = get_semantic_extractor(get_extractor_name(extractor_path))(
 sep_model.load_state_dict(torch.load(extractor_path, map_location="cpu"))
 sep_model.eval()
 
-with torch.no_grad():
-    gen, stage = generator.get_stage(latent)
 stage = [s for i, s in enumerate(stage) if i in layers]
 gen = gen.clamp(-1, 1)
 segs = sep_model(stage)[0]

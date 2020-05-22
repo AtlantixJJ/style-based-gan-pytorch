@@ -26,7 +26,7 @@ from model.semantic_extractor import get_semantic_extractor, get_extractor_name
 
 WINDOW_SIZE = 100
 n_class = 15
-device = "cpu"
+device = "cuda"
 extractor_path = args.model
 colorizer = utils.Colorize(15)
 outdir = args.outdir
@@ -43,7 +43,6 @@ latent = torch.randn(1, 512, device=device)
 np.save(
     f"{outdir}/s{args.seed}_target.npy",
     utils.torch2numpy(latent))
-exit(0)
 original_latents = torch.randn(args.n_total, 512)
 with torch.no_grad():
     image, stage = generator.get_stage(latent)
@@ -65,11 +64,11 @@ sep_model.eval()
 
 with torch.no_grad():
     gen, stage = generator.get_stage(latent)
-stage = [s for i, s in enumerate(stage) if i in layers]
-gen = gen.clamp(-1, 1)
-segs = sep_model(stage)[0]
-label = segs.argmax(1)
-label_viz = colorizer(label) / 255.
+    stage = [s for i, s in enumerate(stage) if i in layers]
+    gen = gen.clamp(-1, 1)
+    segs = sep_model(stage)[0]
+    label = segs.argmax(1)
+    label_viz = colorizer(label) / 255.
 
 res = [(gen + 1) / 2, label_viz]
 for ind in range(args.n_total):
@@ -88,7 +87,7 @@ for ind in range(args.n_total):
         sep_model=sep_model,
         mapping_network=generator.g_mapping.simple_forward)
     new_label_viz = colorizer(new_label) / 255.
-    res.extend([image, new_label_viz])
+    res.extend([utils.bu(image, 256), utils.bu(new_label_viz, 256)])
 
     utils.plot_dic(record, "label edit loss", f"{outdir}/{optimizer}_s{args.seed}_n{args.n_iter}_k{args.kl_coef}_{ind:02d}_loss.png")
 
