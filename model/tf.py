@@ -427,7 +427,7 @@ class StyledGenerator(nn.Module):
         stage = self.g_synthesis.get_stage(x, detach)
         if layers is None:
             return stage
-        return stage[layers]
+        return [s for i, s in enumerate(stage) if i in layers]
 
     def generate_noise(self, device='cuda'):
         if not hasattr(self, "noise_layers"):
