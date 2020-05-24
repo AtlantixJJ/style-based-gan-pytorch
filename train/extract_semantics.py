@@ -75,6 +75,8 @@ for ind in tqdm(range(cfg.n_iter)):
 
     with torch.no_grad(): # fix main network
         gen, stage = generator.get_stage(latent, detach=True)
+        print(gen.shape)
+        for s in stage: print(s.shape)
         stage = [s for i, s in enumerate(stage) if i in cfg.layers]
         gen = gen.clamp(-1, 1)
         label = 0

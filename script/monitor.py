@@ -118,6 +118,9 @@ elif "proggan" in args.model:
         colorizer = lambda x: segment_visualization_single(x, 256)
         task = "church"
         model_path = "checkpoint/church_lsun_256x256_proggan.pth"
+    if "celebahq" in args.model:
+        task = "celebahq"
+        model_path = "checkpoint/face_celebahq_1024x1024_proggan.pth"
     generator = model.load_proggan(model_path).to(device)
     model_path = "checkpoint/faceparse_unet_512.pth"
     batch_size = 2

@@ -106,9 +106,9 @@ class ProgressiveGenerator(nn.Sequential):
             if i + 1 == len(self.sequence):
                 break
 
-            if detach == True:
+            if i % 2 == 1 and detach == True:
                 stage.append(x.detach())
-            else:
+            elif i % 2 == 1:
                 stage.append(x)
 
         return x, stage

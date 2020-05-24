@@ -77,7 +77,19 @@ class SECore2(SECore):
             "unit",
             "unitnorm"
         ]
-        self.basecmd = "python train/extract_semantics.py --task ffhq --model-name stylegan2 --extractor %s --gpu %s --expr record/ffhq%d --load checkpoint/face_ffhq_1024x1024_stylegan2.pth"
+        self.basecmd = "python train/extract_semantics.py --task ffhq --model-name stylegan2 --extractor %s --gpu %s --expr record/ffhq --load checkpoint/face_ffhq_1024x1024_stylegan2.pth"
+
+class SEPGAN(SECore):
+    def __init__(self):
+        self.extractors = [
+            "linear",
+            "unit",
+            "nonlinear",
+            "generative",
+            "spherical",
+            "unitnorm"
+        ]
+        self.basecmd = "python train/extract_semantics.py --task celebahq --model-name proggan --extractor %s --gpu %s --expr record/proggan --load checkpoint/face_celebahq_1024x1024_proggan.pth"
 
 
 class SEBCE(SECore):
@@ -251,7 +263,7 @@ def direct_run(gpus):
 uname = subprocess.run(["uname", "-a"], capture_output=True)
 uname = uname.stdout.decode("ascii")
 if "jericho" in uname:
-    gpus = ["0"]; assign_run(SESGD2().command, gpus)
+    gpus = ["0"]; assign_run(SEPGAN().command, gpus)
     #gpus = ["0"]; assign_run(SECore2().command, gpus)
     #gpus = ["0"]; assign_run(direct_run, gpus)
     #gpus = ["0"]; assign_run(SEL1PosReg().command, gpus)

@@ -48,7 +48,7 @@ gpus = [0, 1, 2, 3]
 
 def command_sample_fewshot_real(gpus):
     count = 0
-    basecmd = "python script/sample/msreal.py --outdir results/mask_sample_fewshot_real_%d --n-iter 1600 --n-total 8 --image ../datasets/CelebAMask-HQ/CelebA-HQ-img/%d.jpg --label ../datasets/CelebAMask-HQ/CelebAMask-HQ-mask-15/%d.png --model results/svm_t%d_stylegan_linear_extractor_layer3,4,5,6,7.model --resolution 512 --gpu %d"
+    basecmd = "python script/sample/msreal.py --outdir results/mask_sample_fewshot_real_%d --n-iter 1600 --n-total 8 --image ../data/CelebAMask-HQ/CelebA-HQ-img/%d.jpg --label ../data/CelebAMask-HQ/CelebAMask-HQ-mask-15/%d.png --model results/svm_t%d_stylegan_linear_extractor_layer3,4,5,6,7.model --resolution 512 --gpu %d"
     for i in range(100):
         for t in [1, 2, 4, 8]:
             idx = count % len(gpus)
