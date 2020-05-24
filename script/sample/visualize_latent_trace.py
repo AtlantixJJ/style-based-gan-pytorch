@@ -67,14 +67,15 @@ for i, f in enumerate(files):
     model.fit(latent)
     exp = np.cumsum(model.explained_variance_ratio_)
     cords = model.transform(latent)
-    c = cmap(np.linspace(0, 1, 1600))
+    c = cmap(np.linspace(0, 1, latent.shape[0]))
 
     plt.scatter(cords[:, 0], cords[:, 1], s=2, c=c)
     plt.savefig(f"{f}_2d.png")
     plt.close()
 
-    fig = plt.figure('3D scatter plot')
+    fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
+    ax.set_title(f'3D {exp[2]:.3f}')
     ax.scatter(cords[:, 0], cords[:, 1], cords[:, 2], s=2, c=c)
     imwrite(f"{f}_3d.png", fig2data(fig))
     azim, elev = ax.azim, ax.elev

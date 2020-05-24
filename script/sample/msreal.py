@@ -1,5 +1,5 @@
 """
-Given mask sample
+Given mask sample real
 """
 import numpy as np
 import matplotlib.pyplot as plt
@@ -10,9 +10,12 @@ sys.path.insert(0, ".")
 parser = argparse.ArgumentParser()
 parser.add_argument("--gpu", default="0")
 parser.add_argument("--model", default="checkpoint/celebahq_stylegan_unit_extractor.model", type=str)
-parser.add_argument("--outdir", default="results/mask_sample", type=str)
-parser.add_argument("--n-iter", default=2000, type=int)
-parser.add_argument("--n-total", default=100, type=int)
+parser.add_argument("--outdir", default="results/mask_sample_real", type=str)
+parser.add_argument("--image", default="", type=str)
+parser.add_argument("--label", default="", type=str)
+parser.add_argument("--resolution", default=1024, type=int)
+parser.add_argument("--n-iter", default=1600, type=int)
+parser.add_argument("--n-total", default=64, type=int)
 parser.add_argument("--kl-coef", default=0, type=float)
 parser.add_argument("--seed", default=65537, type=int)
 args = parser.parse_args()
@@ -65,6 +68,20 @@ sep_model = get_semantic_extractor(get_extractor_name(extractor_path))(
 sep_model.load_state_dict(torch.load(extractor_path))
 sep_model.eval()
 
+orig_image = torch.zeros(1, 3, 256, 256)
+if args.image != "":
+    image = torch.from_numpy(utils.imread(args.image)).float() / 255.
+    image = image.permute(2, 0, 1).unsqueeze(0)
+    orig_image = utils.bu(image, 256)
+orig_label = torch.from_numpy(utils.imread(args.label)[:, :, 0]).float()
+orig_label = F.interpolate(
+    orig_label.unsqueeze(0).unsqueeze(0),
+    args.resolution, mode="nearest")[0]
+orig_label = orig_label.long().to(device)
+name = args.label
+name = name[name.rfind("/") + 1:name.rfind(".")]
+
+"""
 with torch.no_grad():
     orig_image, stage = generator.get_stage(latent)
     stage = [s for i, s in enumerate(stage) if i in layers]
@@ -72,9 +89,12 @@ with torch.no_grad():
     segs = sep_model(stage)[0]
     orig_label = segs.argmax(1)
     orig_label_viz = colorizer(orig_label) / 255.
-    orig_mask = torch.ones_like(orig_label)
-res = [orig_image, orig_label_viz]
+"""
 
+orig_label_viz = colorizer(orig_label) / 255.
+orig_mask = torch.ones_like(orig_label)
+
+res = [orig_image, orig_label_viz]
 for ind in range(args.n_total):
     latent.requires_grad = False
     latent.copy_(original_latents[ind])
@@ -94,7 +114,7 @@ for ind in range(args.n_total):
     new_label_viz = colorizer(new_label) / 255.
     res.extend([utils.bu(image, 256), utils.bu(new_label_viz, 256)])
 
-    utils.plot_dic(record, "label edit loss", f"{outdir}/{optimizer}_s{args.seed}_n{args.n_iter}_k{args.kl_coef}_{ind:02d}_loss.png")
+    utils.plot_dic(record, "label edit loss", f"{outdir}/{optimizer}_i{name}_n{args.n_iter}_k{args.kl_coef}_{ind:02d}_loss.png")
 
     # make snapshot
     snaps = []
@@ -107,15 +127,15 @@ for ind in range(args.n_total):
             label_viz = colorizer(label) / 255.
             snaps.extend([image, label_viz])
     snaps = torch.cat([utils.bu(r, 256) for r in snaps])
-    vutils.save_image(snaps, f"{outdir}/{optimizer}_s{args.seed}_n{args.n_iter}_k{args.kl_coef}_{ind:02d}_snapshot.png", nrow=4)
+    vutils.save_image(snaps, f"{outdir}/{optimizer}_i{name}_n{args.n_iter}_k{args.kl_coef}_{ind:02d}_snapshot.png", nrow=4)
 
     # save optimization process
     np.save(
-        f"{outdir}/{optimizer}_s{args.seed}_n{args.n_iter}_k{args.kl_coef}_{ind:02d}_latents.npy",
+        f"{outdir}/{optimizer}_i{name}_n{args.n_iter}_k{args.kl_coef}_{ind:02d}_latents.npy",
         utils.torch2numpy(snapshot))
 
-res = torch.cat([utils.bu(r, 256) for r in res[:8*2]])
+res = torch.cat([utils.bu(r, 256).cpu() for r in res[:8*2]])
 vutils.save_image(
     res,
-    f"{outdir}/{optimizer}_s{args.seed}_n{args.n_iter}_k{args.kl_coef}_res.png",
+    f"{outdir}/{optimizer}_i{name}_n{args.n_iter}_k{args.kl_coef}_res.png",
     nrow=4)
