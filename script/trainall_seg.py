@@ -86,10 +86,10 @@ class SEPGAN(SECore):
             "unit",
             "nonlinear",
             "generative",
-            "spherical",
-            "unitnorm"
+            "unitnorm",
+            "spherical"
         ]
-        self.basecmd = "python train/extract_semantics.py --task celebahq --model-name proggan --extractor %s --gpu %s --expr record/proggan --load checkpoint/face_celebahq_1024x1024_proggan.pth"
+        self.basecmd = "python train/extract_semantics.py --task celebahq --model-name proggan --extractor %s --gpu %s --loss bce --expr record/proggan_bce --load checkpoint/face_celebahq_1024x1024_proggan.pth"
 
 
 class SEBCE(SECore):
