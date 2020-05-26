@@ -4,6 +4,7 @@ Given mask sample
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+from sklearn.decomposition import PCA
 import sys, os, argparse, glob
 sys.path.insert(0, ".")
 
@@ -61,17 +62,21 @@ sep_model.load_state_dict(torch.load(extractor_path, map_location="cpu"))
 sep_model.eval()
 
 stage = [s for i, s in enumerate(stage) if i in layers]
-gen = gen.clamp(-1, 1)
 segs = sep_model(stage)[0]
 label = segs.argmax(1)
 label_viz = colorizer(label) / 255.
-res = [(gen + 1) / 2, label_viz]
+res = [image, label_viz]
 
 files = glob.glob(f"{args.indir}/adam_s{args.seed}_*latents.npy")
 files.sort()
 
 for f in tqdm(files):
-    snapshot = torch.from_numpy(np.load(f))
+    data = np.load(f)
+    model = PCA(n_components=3).fit(data)
+    cord = model.transform(data)
+    rec = model.inverse_transform(cord)
+    
+    snapshot = torch.from_numpy(data)
     f = f.replace("_latents.npy", "")
     noises = generator.generate_noise(device)
     with torch.no_grad():

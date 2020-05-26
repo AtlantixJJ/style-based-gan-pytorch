@@ -63,20 +63,22 @@ latents = [np.load(f) for f in files]
 for i, f in enumerate(files):
     f = f.replace("_latents.npy", "")
     latent = latents[i]
-    model = PCA()
-    model.fit(latent)
+    model = PCA().fit(latent)
     exp = np.cumsum(model.explained_variance_ratio_)
     cords = model.transform(latent)
+    rec = model.inverse_transform(cords)
+    diff = np.abs(rec - latents[0]).mean(1)
+    s = [int(x) for x in list(diff / diff.min())]
     c = cmap(np.linspace(0, 1, latent.shape[0]))
 
-    plt.scatter(cords[:, 0], cords[:, 1], s=2, c=c)
+    plt.scatter(cords[:, 0], cords[:, 1], s=s, c=c)
     plt.savefig(f"{f}_2d.png")
     plt.close()
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     ax.set_title(f'3D {exp[2]:.3f}')
-    ax.scatter(cords[:, 0], cords[:, 1], cords[:, 2], s=2, c=c)
+    ax.scatter(cords[:, 0], cords[:, 1], cords[:, 2], s=s, c=c)
     imwrite(f"{f}_3d.png", fig2data(fig))
     azim, elev = ax.azim, ax.elev
     FPS = 24
