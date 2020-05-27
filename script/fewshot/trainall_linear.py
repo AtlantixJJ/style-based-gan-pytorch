@@ -39,19 +39,9 @@ def command_eval_trace(gpus):
 gpus = [0, 1, 2, 3, 4, 5, 6, 7]
 
 
-def command_sv(gpus):
+def command_proggan(gpus):
     count = 0
-    basecmd = "python script/fewshot/sv_linear.py --data-dir datasets/SV_full --train-size %d"
-    for ts in [1, 2, 4, 8]:
-        idx = count % len(gpus)
-        yield idx, basecmd % ts
-        count += 1
-gpus = [0, 1, 2, 3]
-
-
-def command_sv_proggan(gpus):
-    count = 0
-    basecmd = "python script/fewshot/sv_linear.py --data-dir datasets/PGGAN_SV_full --train-size %d"
+    basecmd = "python script/fewshot/sv_linear.py --data-dir datasets/PGGAN_SV_full --name proggan --train-size %d"
     for ts in [1, 2, 4, 8, 16]:
         idx = count % len(gpus)
         yield idx, basecmd % ts
@@ -59,8 +49,17 @@ def command_sv_proggan(gpus):
 gpus = [0, 1, 2, 3, 4]
 
 
+def command_bedroom_stylegan(gpus):
+    count = 0
+    basecmd = "python script/fewshot/sv_linear.py --data-dir datasets/Bedroom_StyleGAN_SV_full --name bedroom_lsun_stylegan --train-size %d --total-class 361"
+    for ts in [1, 2, 4, 8, 16]:
+        idx = count % len(gpus)
+        yield idx, basecmd % ts
+        count += 1
+gpus = [0, 1, 2, 3, 4]
+
 slots = [[] for _ in gpus]
-for i, c in command_sv_proggan(gpus):
+for i, c in command_bedroom_stylegan(gpus):
     slots[i].append(c)
 
 for slot in slots:

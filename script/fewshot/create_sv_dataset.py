@@ -12,7 +12,7 @@ from torchvision import utils as vutils
 
 import model, utils
 from segmenter import get_segmenter
-
+from lib.netdissect.segviz import segment_visualization, segment_visualization_single
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -24,6 +24,8 @@ parser.add_argument(
 parser.add_argument(
     "--model", default="checkpoint/face_celebahq_1024x1024_stylegan.pth")
 parser.add_argument(
+    "--task", default="celebahq")
+parser.add_argument(
     "--seed", default=65537, type=int) # 1314 for test
 args = parser.parse_args()
 
@@ -31,10 +33,6 @@ args = parser.parse_args()
 device = 'cuda'
 model_path = args.model
 
-<<<<<<< HEAD
-=======
-colorizer = utils.Colorize(15)
->>>>>>> 06149afeefbbc0696358fd0d6f04e3bfa99f2454
 generator = model.load_model(model_path)
 generator.to(device).eval()
 torch.manual_seed(args.seed)
@@ -42,11 +40,17 @@ latent = torch.randn(1, 512, device=device)
 with torch.no_grad():
     image, stage = generator.get_stage(latent)
     image = (image.clamp(-1, 1) + 1) / 2
-dims = [s.shape[3] for s in stage]
-
+dims = [s.shape[1] for s in stage]
 external_model = get_segmenter(
-    "celebahq",
+    args.task,
     "checkpoint/faceparse_unet_512.pth")
+n_class = len(external_model.get_label_and_category_names()[0][0])
+colorizer = utils.Colorize(n_class)
+layers = [3,4,5,6,7]
+if args.task != "celebahq" and args.task != "ffhq":
+    colorizer = lambda x: segment_visualization_single(x, 256)
+    layers = [2,3,4,5,6]
+
 #sep_model = model.semantic_extractor.get_semantic_extractor("unit")(
 #    n_class=15,
 #    dims=dims)
@@ -69,10 +73,18 @@ for ind in tqdm(range(args.number)):
         image = generator(latent)
         image, stage = generator.get_stage(latent)
         image = image.clamp(-1, 1)
-        label = external_model.segment_batch(image, resize=False)[0]
-        label_viz = colorizer(label).unsqueeze(0) / 255.
+        label = external_model.segment_batch(image, resize=False)
+
+        try:
+            label_viz = colorizer(label) / 255.
+        except:
+            label = label[:, 0, :, :]
+            label_viz = utils.torch2numpy(label[0])
+            label_viz = torch.from_numpy(colorizer(label_viz))
+            label_viz = label_viz.float().permute(2, 0, 1)
+            label_viz = label_viz.unsqueeze(0) / 255.
         #label = sep_model(stage)[0].argmax(1)
-        stage = stage[3:8] # layers 3~7 is useful
+        stage = [s for i, s in enumerate(stage) if i in layers] # layers 3~7 is useful
         maxsize = max(s.shape[3] for s in stage)
         feat = torch.cat([utils.bu(s, maxsize)[0] for s in stage])
 
@@ -117,9 +129,6 @@ for ind in tqdm(range(args.number)):
 
     np.save(f"{args.out}/sv_feat{ind}", data)
     np.save(f"{args.out}/sv_label{ind}", labels)
-<<<<<<< HEAD
-=======
     vutils.save_image((image + 1) / 2, f"{args.out}/image{ind}.png")
     vutils.save_image(label_viz, f"{args.out}/label{ind}.png")
->>>>>>> 06149afeefbbc0696358fd0d6f04e3bfa99f2454
     

@@ -20,7 +20,7 @@ class BaseSegmenter:
         '''
         raise NotImplemented()
 
-    def segment_batch(self, tensor_images, downsample=1):
+    def segment_batch(self, tensor_images, downsample=1, resize=None):
         '''
         Returns a multilabel segmentation for the given batch of (RGB [-1...1])
         images.  Each pixel of the result is a torch.long indicating a
@@ -173,7 +173,7 @@ class UnifiedParsingSegmenter(BaseSegmenter):
                 part_pred[k] += r_pred['part'][k]
         return pred, part_pred
 
-    def segment_batch(self, tensor_images, downsample=1):
+    def segment_batch(self, tensor_images, downsample=1, resize=None):
         '''
         Returns a multilabel segmentation for the given batch of (RGB [-1...1])
         images.  Each pixel of the result is a torch.long indicating a

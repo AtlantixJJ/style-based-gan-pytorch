@@ -132,8 +132,7 @@ def edit_label_stroke(model, latent, noises, label_stroke, label_mask,
     return image, label, latent, noises, record
 
 
-def sample_given_mask(model, layers, latent, noises, label_stroke, label_mask,
-    n_iter=5, sep_model=None, method="latent-LL-internal", mapping_network=lambda x:x):
+def sample_given_mask(model, layers, latent, noises, label_stroke, label_mask, n_iter=5, sep_model=None, method="latent-LL-internal", mapping_network=lambda x:x):
     latent = latent.detach().clone()
     latent.requires_grad = True
     optim = torch.optim.Adam([latent], lr=1e-3)

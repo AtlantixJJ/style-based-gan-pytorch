@@ -110,11 +110,25 @@ labels = svm_model.get_labels()
 coef = np.zeros((args.total_class, feats.shape[1]))
 for i in range(n_class):
     coef[labels[i]] = np.array(svm_model.get_decfun(i)[0])
+
 dims = [512, 256, 128, 64, 32]
-sep_model = get_semantic_extractor("linear")(
-    n_class=args.total_class,
-    dims=dims).to(device)
-assign_weight(sep_model.semantic_extractor, coef)
-torch.save(
-    sep_model.state_dict(),
-    f"results/svm_t{args.train_size}_{args.name}_linear_extractor_layer3,4,5,6,7.model")
+if sum(dims) == feats.shape[1]:
+    sep_model = get_semantic_extractor("linear")(
+        n_class=args.total_class,
+        dims=dims).to(device)
+    assign_weight(sep_model.semantic_extractor, coef)
+    print(f"=> Saved to results/svm_t{args.train_size}_{args.name}_linear_extractor_layer3,4,5,6,7.model")
+    torch.save(
+        sep_model.state_dict(),
+        f"results/svm_t{args.train_size}_{args.name}_linear_extractor_layer3,4,5,6,7.model")
+
+dims = [512, 512, 256, 128, 64]
+if sum(dims) == feats.shape[1]:
+    sep_model = get_semantic_extractor("linear")(
+        n_class=args.total_class,
+        dims=dims).to(device)
+    assign_weight(sep_model.semantic_extractor, coef)
+    print(f"=> Saved to results/svm_t{args.train_size}_{args.name}_linear_extractor_layer2,3,4,5,6.model")
+    torch.save(
+        sep_model.state_dict(),
+        f"results/svm_t{args.train_size}_{args.name}_linear_extractor_layer2,3,4,5,6.model")

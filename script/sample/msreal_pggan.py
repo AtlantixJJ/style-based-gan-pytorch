@@ -27,14 +27,15 @@ import torch.nn.functional as F
 import torchvision.utils as vutils
 import model, utils, optim
 from model.semantic_extractor import get_semantic_extractor, get_extractor_name
+import segmenter
 
 WINDOW_SIZE = 100
-n_class = 15
 device = "cuda"
 extractor_path = args.model
 colorizer = utils.Colorize(15)
 outdir = args.outdir
 optimizer = "adam"
+n_class = 15 if "face" in args.G else 361
 
 # generator
 model_path = args.G
@@ -61,11 +62,22 @@ if "layer" in extractor_path:
         s = s.split(".")[0]
     layers = [int(i) for i in s.split(",")]
     dims = np.array(dims)[layers].tolist()
-
-sep_model = get_semantic_extractor(get_extractor_name(extractor_path))(
-    n_class=n_class,
-    dims=dims).to(device)
-sep_model.load_state_dict(torch.load(extractor_path))
+print(dims)
+try:
+    sep_model = get_semantic_extractor(get_extractor_name(extractor_path))(
+        n_class=n_class,
+        dims=dims).to(device)
+    sep_model.load_state_dict(torch.load(extractor_path))
+except:
+    external_model = segmenter.get_segmenter("bedroom")
+    labels, cats = external_model.get_label_and_category_names()
+    category_groups = utils.get_group(labels)
+    n_class = category_groups[-1][1]
+    sep_model = get_semantic_extractor("linear")(
+        n_class=n_class,
+        dims=dims,
+        category_groups=category_groups).to(device)
+    sep_model.load_state_dict(torch.load(extractor_path))
 sep_model.eval()
 
 orig_image = torch.zeros(1, 3, 256, 256)
@@ -73,7 +85,11 @@ if args.image != "":
     image = torch.from_numpy(utils.imread(args.image)).float() / 255.
     image = image.permute(2, 0, 1).unsqueeze(0)
     orig_image = utils.bu(image, 256)
-orig_label = torch.from_numpy(utils.imread(args.label)[:, :, 0]).float()
+try:
+    orig_label = torch.from_numpy(utils.imread(args.label)[:, :, 0]).float()
+except:
+    orig_label = np.load(args.label).reshape(image.shape[3], -1)
+    orig_label = torch.from_numpy(orig_label).float()
 orig_label = F.interpolate(
     orig_label.unsqueeze(0).unsqueeze(0),
     args.resolution, mode="nearest")[0]

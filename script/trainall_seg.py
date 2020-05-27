@@ -243,15 +243,15 @@ def direct_run(gpus):
         ## continuous,
         #"python train/extract_semantics_continuous.py --task celebahq --model-name stylegan --extractor unit --gpu %s --iter-num 32000 --last-only 1",
         ## face stylegan2
-        "python train/extract_semantics_continuous.py --load checkpoint/face_ffhq_1024x1024_stylegan2.pth --model-name stylegan2 --iter-num 32000 --last-only 0 --task ffhq --gpu %s",
+        #"python train/extract_semantics_continuous.py --load checkpoint/face_ffhq_1024x1024_stylegan2.pth --model-name stylegan2 --iter-num 32000 --last-only 0 --task ffhq --gpu %s",
         ## church stylegan2
-        #"python train/extract_semantics.py --load checkpoint/church_lsun_256x256_stylegan2.pth --model-name stylegan2 --iter-num 30000 --last-only 0 --task church --gpu %s",
+        "python train/extract_semantics.py --load checkpoint/church_lsun_256x256_stylegan2.pth --model-name stylegan2 --iter-num 30000 --task church --gpu %s",
         ## church prog
-        #"python train/extract_semantics.py --load checkpoint/church_lsun_256x256_proggan.pth --model-name proggan --iter-num 30000 --last-only 0 --task church --gpu %s",
+        "python train/extract_semantics.py --load checkpoint/church_lsun_256x256_proggan.pth --model-name proggan --iter-num 30000 --task church --gpu %s",
         ## bedroom prog
-        #"python train/extract_semantics.py --load checkpoint/bedroom_lsun_256x256_proggan.pth --model-name proggan --iter-num 30000 --last-only 0 --task bedroom --gpu %s",
+        "python train/extract_semantics.py --load checkpoint/bedroom_lsun_256x256_proggan.pth --model-name proggan --iter-num 30000 --task bedroom --gpu %s",
         ## bedroom stylegan
-        #"python train/extract_semantics.py --load checkpoint/bedroom_lsun_256x256_stylegan.pth --model-name stylegan --iter-num 30000 --last-only 0 --task bedroom --gpu %s"
+        "python train/extract_semantics.py --load checkpoint/bedroom_lsun_256x256_stylegan.pth --model-name stylegan --iter-num 30000 --task bedroom --gpu %s"
         ]
     for i in range(len(commands)):
         index = i % len(gpus)
@@ -263,7 +263,8 @@ def direct_run(gpus):
 uname = subprocess.run(["uname", "-a"], capture_output=True)
 uname = uname.stdout.decode("ascii")
 if "jericho" in uname:
-    gpus = ["0"]; assign_run(SEPGAN().command, gpus)
+    gpus = ["0"]; assign_run(direct_run().command, gpus)
+    #gpus = ["0"]; assign_run(SEPGAN().command, gpus)
     #gpus = ["0"]; assign_run(SECore2().command, gpus)
     #gpus = ["0"]; assign_run(direct_run, gpus)
     #gpus = ["0"]; assign_run(SEL1PosReg().command, gpus)

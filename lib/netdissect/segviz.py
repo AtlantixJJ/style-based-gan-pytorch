@@ -10,6 +10,7 @@ def segment_visualization_single(seg, size):
             continue
         bitmap = (seg == label)
         result[bitmap] = high_contrast_arr[label % len(high_contrast_arr)]
+        #print(label, bitmap.sum(), high_contrast_arr[label % len(high_contrast_arr)], bitmap.shape)
     return result
 
 

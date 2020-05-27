@@ -1,5 +1,5 @@
 import torch
-from home import stylegan
+from home import stylegan, stylegan2, proggan
 from home.semantic_extractor import get_semantic_extractor
 from home.optim import edit_image_stroke, edit_label_stroke
 from home import utils
@@ -19,7 +19,12 @@ class WrapedStyledGenerator(torch.nn.Module):
         self.n_class = n_class
 
         print("=> Constructing network architecture")
-        self.model = stylegan.StyledGenerator(resolution=resolution)
+        if "proggan" in self.model_path:
+            self.model = proggan.from_pth_file(self.model_path)
+        elif "stylegan2" in self.model_path:
+            self.model = stylegan2.from_pth_file(self.model_path)
+        elif "stylegan" in self.model_path:
+            self.model = stylegan.from_pth_file(self.model_path)
         print("=> Loading parameter from %s" % self.model_path)
         state_dict = torch.load(self.model_path, map_location='cpu')
         missed = self.model.load_state_dict(state_dict, strict=False)
