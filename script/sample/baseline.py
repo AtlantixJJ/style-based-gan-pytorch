@@ -9,15 +9,15 @@ sys.path.insert(0, ".")
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--gpu", default="0")
-parser.add_argument("--model", default="checkpoint/celebahq_stylegan_unit_extractor.model", type=str)
+parser.add_argument("--model", default="checkpoint/faceparse_unet_512.pth", type=str)
 parser.add_argument("--G", default="checkpoint/face_celebahq_1024x1024_stylegan.pth", type=str)
-parser.add_argument("--outdir", default="results/mask_sample_real", type=str)
+parser.add_argument("--outdir", default="results/baseline_real", type=str)
 parser.add_argument("--method", default="LL", type=str)
 parser.add_argument("--image", default="", type=str)
 parser.add_argument("--label", default="", type=str)
 parser.add_argument("--resolution", default=1024, type=int)
 parser.add_argument("--n-iter", default=1600, type=int)
-parser.add_argument("--n-total", default=64, type=int)
+parser.add_argument("--n-total", default=16, type=int)
 parser.add_argument("--seed", default=65537, type=int)
 args = parser.parse_args()
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
@@ -26,7 +26,7 @@ import torch
 import torch.nn.functional as F
 import torchvision.utils as vutils
 import model, utils, optim
-from model.semantic_extractor import get_semantic_extractor, get_extractor_name
+from segmenter import get_segmenter
 
 WINDOW_SIZE = 100
 n_class = 15
@@ -48,22 +48,7 @@ with torch.no_grad():
     image, stage = generator.get_stage(latent)
 image = (1 + image) / 2
 dims = [s.shape[1] for s in stage]
-
-layers = list(range(9))
-sep_model = 0
-if "layer" in extractor_path:
-    ind = extractor_path.rfind("layer") + len("layer")
-    s = extractor_path[ind:].split("_")[0]
-    if ".model" in s:
-        s = s.split(".")[0]
-    layers = [int(i) for i in s.split(",")]
-    dims = np.array(dims)[layers].tolist()
-
-sep_model = get_semantic_extractor(get_extractor_name(extractor_path))(
-    n_class=n_class,
-    dims=dims).to(device)
-sep_model.load_state_dict(torch.load(extractor_path))
-sep_model.eval()
+sep_model = get_segmenter("celebahq", args.model)
 
 orig_image = torch.zeros(1, 3, 256, 256)
 if args.image != "":
@@ -99,16 +84,15 @@ for ind in range(args.n_total):
         latent = ML
     
     noises = generator.generate_noise()
-    image, new_label, latent, noises, record, snapshot = optim.sample_given_mask(
+    image, new_label, latent, noises, record, snapshot = optim.sample_given_mask_external(
         model=generator,
-        layers=layers,
         latent=latent,
         noises=noises,
         label_stroke=orig_label,
         label_mask=orig_mask,
         n_iter=args.n_iter,
         sep_model=sep_model,
-        method=f"latent-{args.method}-internal",
+        method=f"latent-{args.method}-external",
         mapping_network=generator.g_mapping.simple_forward)
     new_label_viz = colorizer(new_label) / 255.
     res.extend([utils.bu(image, 256), utils.bu(new_label_viz, 256)])
@@ -124,7 +108,7 @@ for ind in range(args.n_total):
             el = optim.get_el_from_latent(
                 snapshot[i:i+1],
                 generator.g_mapping.simple_forward,
-                f"latent-{args.method}-internal")
+                f"latent-{args.method}-external")
             image, stage = generator.get_stage(el, layers)
             image = (1 + image.clamp(-1, 1)) / 2
             label = sep_model(stage)[0].argmax(1)

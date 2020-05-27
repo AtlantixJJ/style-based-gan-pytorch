@@ -13,6 +13,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument(
     "--model", default="checkpoint/face_celebahq_1024x1024_stylegan.pth")
 parser.add_argument(
+    "--name", default="stylegan")
+parser.add_argument(
     "--data-dir", default="datasets/SV_full")
 parser.add_argument(
     "--train-size", default=1, type=int)
@@ -99,6 +101,7 @@ np.save(model_path.format(subfix=subfix), [coefs, intercepts])
 
 # liblinear multiclass one v.s. rest
 svm_model = svm.train(labels, feats, "-n 32 -s 2 -B -1 -q")
+est_labels, acc, vals = svm.predict(labels, feats, svm_model)
 svm.save_model(
     model_path.format(subfix=subfix).replace(".model", ".ll"),
     svm_model)
@@ -114,4 +117,4 @@ sep_model = get_semantic_extractor("linear")(
 assign_weight(sep_model.semantic_extractor, coef)
 torch.save(
     sep_model.state_dict(),
-    f"results/svm_t{args.train_size}_stylegan_linear_extractor_layer3,4,5,6,7.model")
+    f"results/svm_t{args.train_size}_{args.name}_linear_extractor_layer3,4,5,6,7.model")

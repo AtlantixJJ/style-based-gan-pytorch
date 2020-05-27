@@ -49,8 +49,18 @@ def command_sv(gpus):
 gpus = [0, 1, 2, 3]
 
 
+def command_sv_proggan(gpus):
+    count = 0
+    basecmd = "python script/fewshot/sv_linear.py --data-dir datasets/PGGAN_SV_full --train-size %d"
+    for ts in [1, 2, 4, 8, 16]:
+        idx = count % len(gpus)
+        yield idx, basecmd % ts
+        count += 1
+gpus = [0, 1, 2, 3, 4]
+
+
 slots = [[] for _ in gpus]
-for i, c in command_sv(gpus):
+for i, c in command_sv_proggan(gpus):
     slots[i].append(c)
 
 for slot in slots:

@@ -40,3 +40,6 @@ class CelebAMaskHQSegmenter(object):
     def segment_batch(self, batch, resize=True):
         self.seg = self.model(batch, resize)
         return self.seg.argmax(1)
+    
+    def __call__(self, batch, resize=True):
+        return self.model(batch, resize)

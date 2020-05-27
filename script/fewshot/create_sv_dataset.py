@@ -20,6 +20,8 @@ parser.add_argument(
 parser.add_argument(
     "--full", default=0, type=int)
 parser.add_argument(
+    "--out", default="datasets/")
+parser.add_argument(
     "--model", default="checkpoint/face_celebahq_1024x1024_stylegan.pth")
 parser.add_argument(
     "--seed", default=65537, type=int) # 1314 for test
@@ -27,15 +29,9 @@ args = parser.parse_args()
 
 
 device = 'cuda'
-
-#extractor_path = "checkpoint/ffhq_stylegan2_linear_extractor.model"
-#model_path = "checkpoint/face_celebahq_1024x1024_stylegan.pth" if "celebahq" in extractor_path else "checkpoint/face_ffhq_1024x1024_stylegan2.pth"
 model_path = args.model
 
-t = "SV"
-if "ffhq" in model_path:
-    t = "SV2"
-
+colorizer = utils.Colorize(15)
 generator = model.load_model(model_path)
 generator.to(device).eval()
 torch.manual_seed(args.seed)
@@ -71,6 +67,7 @@ for ind in tqdm(range(args.number)):
         image, stage = generator.get_stage(latent)
         image = image.clamp(-1, 1)
         label = external_model.segment_batch(image, resize=False)[0]
+        label_viz = colorizer(label).unsqueeze(0) / 255.
         #label = sep_model(stage)[0].argmax(1)
         stage = stage[3:8] # layers 3~7 is useful
         maxsize = max(s.shape[3] for s in stage)
@@ -111,13 +108,12 @@ for ind in tqdm(range(args.number)):
         """
         data = utils.torch2numpy(feat[:, mask].transpose(1, 0))
         labels = utils.torch2numpy(label[mask])
-
-        np.save(f"datasets/{t}/sv_feat{ind}", data)
-        np.save(f"datasets/{t}/sv_label{ind}", labels)
     else:
         data = utils.torch2numpy(feat.view(feat.shape[0], -1)).transpose(1, 0)
         labels = utils.torch2numpy(label.view(-1))
 
-        np.save(f"datasets/{t}_full/sv_feat{ind}", data)
-        np.save(f"datasets/{t}_full/sv_label{ind}", labels)
+    np.save(f"{args.out}/sv_feat{ind}", data)
+    np.save(f"{args.out}/sv_label{ind}", labels)
+    vutils.save_image((image + 1) / 2, f"{args.out}/image{ind}.png")
+    vutils.save_image(label_viz, f"{args.out}/label{ind}.png")
     
