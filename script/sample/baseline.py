@@ -110,7 +110,7 @@ for ind in range(args.n_total):
                 generator.g_mapping.simple_forward,
                 f"latent-{args.method}-external")
             image = generator(el).clamp(-1, 1)
-            label = sep_model(image)[1][0].argmax(1)
+            label = sep_model(image).argmax(1)
             label_viz = colorizer(label) / 255.
             snaps.extend([image, label_viz])
     snaps = torch.cat([utils.bu(r, 256) for r in snaps])
