@@ -88,6 +88,7 @@ res = [orig_image, orig_label_viz]
 for ind in range(args.n_total):
     image, new_label, latent, noises, record, snapshot = optim.sample_given_mask(
         model=generator,
+        noises=None,
         layers=layers,
         latent=original_latents[ind:ind+1],
         label_stroke=orig_label,
