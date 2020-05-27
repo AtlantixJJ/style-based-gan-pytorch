@@ -80,7 +80,7 @@ gpus = [0]
 
 
 slots = [[] for _ in gpus]
-for i, c in command_pggan_fewshot_real(gpus):
+for i, c in baseline_sample_real(gpus):
     slots[i].append(c)
 
 for slot in slots:
