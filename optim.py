@@ -138,7 +138,8 @@ def sample_given_mask(model, layers, latent, noises, label_stroke, label_mask,
     latent.requires_grad = True
     optim = torch.optim.Adam([latent], lr=1e-3)
     #optim = torch.optim.LBFGS([latent], max_iter=n_iter)
-    model.set_noise(noises)
+    if noises:
+        model.set_noise(noises)
     record = {"gradnorm": [], "celoss": [], "segdiff": []}
     #snapshot = torch.Tensor(n_iter, latent.shape[1]) # only for LL
     snapshot = []
@@ -172,12 +173,13 @@ def sample_given_mask(model, layers, latent, noises, label_stroke, label_mask,
     return image, label, latent, noises, record, torch.stack(snapshot)
 
 
-def sample_given_mask_external(model, latent, noises, label_stroke, label_mask, n_iter=5, sep_model=None, method="latent-LL-external", mapping_network=None):
+def sample_given_mask_external(model, latent, noises, label_stroke, label_mask, n_iter=5, sep_model=None, method="latent-LL-external", mapping_network=lambda x:x):
     latent = latent.detach().clone()
     latent.requires_grad = True
     optim = torch.optim.Adam([latent], lr=1e-3)
     #optim = torch.optim.LBFGS([latent], max_iter=n_iter)
-    model.set_noise(noises)
+    if noises:
+        model.set_noise(noises)
     record = {"gradnorm": [], "celoss": [], "segdiff": []}
     #snapshot = torch.Tensor(n_iter, latent.shape[1]) # only for LL
     snapshot = []

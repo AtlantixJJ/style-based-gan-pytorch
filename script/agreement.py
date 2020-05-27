@@ -27,6 +27,7 @@ from weight_visualization import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--model", default="")
+parser.add_argument("--G", default="checkpoint/face_celebahq_1024x1024_stylegan.pth")
 parser.add_argument("--gpu", default="0")
 parser.add_argument("--recursive", default="0")
 args = parser.parse_args()
@@ -39,8 +40,8 @@ batch_size = 1
 latent_size = 512
 task = "celebahq"
 colorizer = utils.Colorize(15) #label to rgb
-model_path = "checkpoint/face_celebahq_1024x1024_stylegan.pth"
-generator = model.load_stylegan(model_path).to(device)
+model_path = args.G
+generator = model.load_model(model_path).to(device)
 model_path = "checkpoint/faceparse_unet_512.pth"
 external_model = segmenter.get_segmenter(task, model_path, device)
 labels, cats = external_model.get_label_and_category_names()

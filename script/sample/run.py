@@ -58,10 +58,9 @@ def command_sample_real(gpus):
             count += 1
 gpus = [0]
 
-
 def command_pggan_fewshot_real(gpus):
     count = 0
-    basecmd = "python script/sample/msreal.py --outdir results/sample_pggan_%d --n-iter 1000 --n-total 8 --image ../data/CelebAMask-HQ/CelebA-HQ-img/%d.jpg --label ../data/CelebAMask-HQ/CelebAMask-HQ-mask-15/%d.png --model results/svm_t%d_stylegan_linear_extractor_layer3,4,5,6,7.model --resolution 512 --gpu %d"
+    basecmd = "python script/sample/msreal_pggan.py --outdir results/sample_pggan_%d --n-iter 1000 --n-total 8 --image ../data/CelebAMask-HQ/CelebA-HQ-img/%d.jpg --label ../data/CelebAMask-HQ/CelebAMask-HQ-mask-15/%d.png --model results/svm_t%d_stylegan_linear_extractor_layer3,4,5,6,7.model --G checkpoint/face_celebahq_1024x1024_proggan.pth --resolution 512 --gpu %d"
 
     for t in [1, 2, 4, 8, 16]:
         for i in range(8):
@@ -79,8 +78,9 @@ def baseline_sample_real(gpus):
         count += 1
 gpus = [0]
 
+
 slots = [[] for _ in gpus]
-for i, c in baseline_sample_real(gpus):
+for i, c in command_pggan_fewshot_real(gpus):
     slots[i].append(c)
 
 for slot in slots:
