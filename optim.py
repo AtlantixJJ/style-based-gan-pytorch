@@ -203,7 +203,7 @@ def sample_given_mask_external(model, latent, noises, label_stroke, label_mask, 
 
     with torch.no_grad():
         el = get_el_from_latent(latent, mapping_network, method)
-        seg = seg = get_image_seg_celeba(model, el, sep_model, method)
+        image, seg = get_image_seg_celeba(model, el, sep_model, method)
         image = (1 + image.clamp(-1, 1)) / 2
         label = seg.argmax(1)
     return image, label, latent, noises, record, torch.stack(snapshot)
