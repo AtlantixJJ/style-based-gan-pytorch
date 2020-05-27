@@ -15,19 +15,36 @@
                 "sep_model_path": "../checkpoint/celebahq_stylegan_linear_extractor.model", 
                 "gpu" : 0
             }
-        },"Bedroom": {
+        },
+        "Bedroom": {
             "model_def" : "home.wrapper.WrapedStyledGenerator",
             "external_model" : "",
             "out_dim" : 3,
             "output_size" : 256,
             "model_args": {
                 "resolution" : 256,
-                "method" : "celossreg-ML-internal",
+                "method" : "celossreg-LL-internal",
                 "model_path" : "../checkpoint/bedroom_lsun_256x256_stylegan.pth",
                 "n_class": 392,
                 "category_groups": [[0, 337], [337, 363], [363, 392]],
                 "extractor": "linear",
                 "sep_model_path": "../checkpoint/bedroom_stylegan_linear_extractor.model", 
+                "gpu" : 0
+            }
+        },
+        "Church":{
+            "model_def" : "home.wrapper.WrapedStyledGenerator",
+            "external_model" : "",
+            "out_dim" : 3,
+            "output_size" : 256,
+            "model_args": {
+                "resolution" : 256,
+                "method" : "celossreg-LL-internal",
+                "model_path" : "../checkpoint/church_lsun_256x256_stylegan2.pth",
+                "n_class": 392,
+                "category_groups": [[0, 337], [337, 363], [363, 392]],
+                "extractor": "linear",
+                "sep_model_path": "../checkpoint/church_lsun_stylegan2_linear_extractor.model", 
                 "gpu" : 0
             }
         }

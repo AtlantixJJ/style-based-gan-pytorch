@@ -107,7 +107,8 @@ for ind in range(args.n_total):
     for i in np.linspace(0, snapshot.shape[0] - 1, 8):
         i = int(i)
         with torch.no_grad():
-            image, stage = generator.get_stage(snapshot[i:i+1].to(device))
+            x = snapshot[i:i+1].to(device)
+            image, stage = generator.get_stage(x, layers)
             image = (1 + image.clamp(-1, 1)) / 2
             label = sep_model(stage)[0].argmax(1)
             label_viz = colorizer(label) / 255.

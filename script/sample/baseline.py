@@ -112,7 +112,7 @@ for ind in range(args.n_total):
             image = generator(el).clamp(-1, 1)
             label = sep_model(image).argmax(1)
             label_viz = colorizer(label) / 255.
-            snaps.extend([image, label_viz])
+            snaps.extend([(image+1)/2, label_viz])
     snaps = torch.cat([utils.bu(r, 256) for r in snaps])
     vutils.save_image(snaps, f"{outdir}/{optimizer}_i{name}_n{args.n_iter}_m{args.method}_{ind:02d}_snapshot.png", nrow=4)
 

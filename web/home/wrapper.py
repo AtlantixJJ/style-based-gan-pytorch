@@ -1,8 +1,9 @@
 import torch
-from home.stylegan import StyledGenerator
+from home import stylegan
 from home.semantic_extractor import get_semantic_extractor
 from home.optim import edit_image_stroke, edit_label_stroke
 from home import utils
+
 
 
 class WrapedStyledGenerator(torch.nn.Module):
@@ -18,7 +19,7 @@ class WrapedStyledGenerator(torch.nn.Module):
         self.n_class = n_class
 
         print("=> Constructing network architecture")
-        self.model = StyledGenerator(resolution=resolution)
+        self.model = stylegan.StyledGenerator(resolution=resolution)
         print("=> Loading parameter from %s" % self.model_path)
         state_dict = torch.load(self.model_path, map_location='cpu')
         missed = self.model.load_state_dict(state_dict, strict=False)
