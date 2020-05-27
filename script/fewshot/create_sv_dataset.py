@@ -31,6 +31,10 @@ args = parser.parse_args()
 device = 'cuda'
 model_path = args.model
 
+<<<<<<< HEAD
+=======
+colorizer = utils.Colorize(15)
+>>>>>>> 06149afeefbbc0696358fd0d6f04e3bfa99f2454
 generator = model.load_model(model_path)
 generator.to(device).eval()
 torch.manual_seed(args.seed)
@@ -66,6 +70,7 @@ for ind in tqdm(range(args.number)):
         image, stage = generator.get_stage(latent)
         image = image.clamp(-1, 1)
         label = external_model.segment_batch(image, resize=False)[0]
+        label_viz = colorizer(label).unsqueeze(0) / 255.
         #label = sep_model(stage)[0].argmax(1)
         stage = stage[3:8] # layers 3~7 is useful
         maxsize = max(s.shape[3] for s in stage)
@@ -112,4 +117,9 @@ for ind in tqdm(range(args.number)):
 
     np.save(f"{args.out}/sv_feat{ind}", data)
     np.save(f"{args.out}/sv_label{ind}", labels)
+<<<<<<< HEAD
+=======
+    vutils.save_image((image + 1) / 2, f"{args.out}/image{ind}.png")
+    vutils.save_image(label_viz, f"{args.out}/label{ind}.png")
+>>>>>>> 06149afeefbbc0696358fd0d6f04e3bfa99f2454
     

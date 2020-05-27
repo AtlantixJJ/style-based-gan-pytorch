@@ -172,6 +172,43 @@ def sample_given_mask(model, layers, latent, noises, label_stroke, label_mask,
     return image, label, latent, noises, record, torch.stack(snapshot)
 
 
+def sample_given_mask_external(model, latent, noises, label_stroke, label_mask, n_iter=5, sep_model=None, method="latent-LL-external", mapping_network=None):
+    latent = latent.detach().clone()
+    latent.requires_grad = True
+    optim = torch.optim.Adam([latent], lr=1e-3)
+    #optim = torch.optim.LBFGS([latent], max_iter=n_iter)
+    model.set_noise(noises)
+    record = {"gradnorm": [], "celoss": [], "segdiff": []}
+    #snapshot = torch.Tensor(n_iter, latent.shape[1]) # only for LL
+    snapshot = []
+    label_mask = label_mask.float()
+    target_label = label_stroke.long()
+
+    for ind in tqdm(range(n_iter)):
+        el = get_el_from_latent(latent, mapping_network, method)
+        image, seg = get_image_seg_celeba(model, el, sep_model, method)
+        current_label = seg.argmax(1)
+        diff_mask = (current_label != target_label).float()
+        total_diff = diff_mask.sum()
+
+        celoss = mask_cross_entropy_loss(label_mask, seg, target_label)
+        latent.grad = torch.autograd.grad(celoss, latent)[0]
+        grad_norm = torch.norm(latent.grad.view(-1), 2)
+        optim.step(lambda : celoss)
+
+        record["segdiff"].append(utils.torch2numpy(total_diff))
+        record["celoss"].append(utils.torch2numpy(celoss))
+        record["gradnorm"].append(utils.torch2numpy(grad_norm))
+        snapshot.append(latent[0].clone().detach())
+
+    with torch.no_grad():
+        el = get_el_from_latent(latent, mapping_network, method)
+        seg = seg = get_image_seg_celeba(model, el, sep_model, method)
+        image = (1 + image.clamp(-1, 1)) / 2
+        label = seg.argmax(1)
+    return image, label, latent, noises, record, torch.stack(snapshot)
+
+
 def edit_image_stroke(model, latent, noises, image_stroke, image_mask,
     n_iter=5, n_reg=0, lr=1e-2, method="celossreg-label-ML-internal", sep_model=None, mapping_network=None):
     latent = latent.detach().clone()
