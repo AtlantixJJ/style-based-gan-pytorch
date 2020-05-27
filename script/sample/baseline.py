@@ -109,9 +109,8 @@ for ind in range(args.n_total):
                 snapshot[i:i+1],
                 generator.g_mapping.simple_forward,
                 f"latent-{args.method}-external")
-            image, stage = generator.get_stage(el)
-            image = (1 + image.clamp(-1, 1)) / 2
-            label = sep_model(stage)[1][0].argmax(1)
+            image = generator(el).clamp(-1, 1)
+            label = sep_model(image)[1][0].argmax(1)
             label_viz = colorizer(label) / 255.
             snaps.extend([image, label_viz])
     snaps = torch.cat([utils.bu(r, 256) for r in snaps])
