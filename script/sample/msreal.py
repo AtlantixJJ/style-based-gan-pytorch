@@ -10,6 +10,7 @@ sys.path.insert(0, ".")
 parser = argparse.ArgumentParser()
 parser.add_argument("--gpu", default="0")
 parser.add_argument("--model", default="checkpoint/celebahq_stylegan_unit_extractor.model", type=str)
+parser.add_argument("--G", default="checkpoint/face_celebahq_1024x1024_stylegan.pth", type=str)
 parser.add_argument("--outdir", default="results/mask_sample_real", type=str)
 parser.add_argument("--method", default="LL", type=str)
 parser.add_argument("--image", default="", type=str)
@@ -17,7 +18,6 @@ parser.add_argument("--label", default="", type=str)
 parser.add_argument("--resolution", default=1024, type=int)
 parser.add_argument("--n-iter", default=1600, type=int)
 parser.add_argument("--n-total", default=64, type=int)
-parser.add_argument("--kl-coef", default=0, type=float)
 parser.add_argument("--seed", default=65537, type=int)
 args = parser.parse_args()
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
@@ -37,8 +37,7 @@ outdir = args.outdir
 optimizer = "adam"
 
 # generator
-model_path = "checkpoint/face_ffhq_1024x1024_stylegan2.pth" if "ffhq" in extractor_path else "checkpoint/face_celebahq_1024x1024_stylegan.pth"
-
+model_path = args.G
 generator = model.load_model(model_path)
 generator.to(device).eval()
 # target image is controled by seed
