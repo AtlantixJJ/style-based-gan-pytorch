@@ -163,9 +163,7 @@ class LinearSemanticExtractor(BaseSemanticExtractor):
             for cat_id in range(len(self.category_groups)):
                 r = [F.interpolate(s, size=size, mode="bilinear", align_corners=True)
                     for s in outputs[cat_id]]
-                x=sum(r)
-                print(x.shape)
-                res.append(x)
+                res.append([sum(r)])
             return res
 
         # summation series
