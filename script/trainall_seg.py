@@ -263,7 +263,7 @@ def direct_run(gpus):
 uname = subprocess.run(["uname", "-a"], capture_output=True)
 uname = uname.stdout.decode("ascii")
 if "jericho" in uname:
-    gpus = ["0"]; assign_run(direct_run(gpus), gpus)
+    gpus = ["0"]; assign_run(direct_run, gpus)
     #gpus = ["0"]; assign_run(SEPGAN().command, gpus)
     #gpus = ["0"]; assign_run(SECore2().command, gpus)
     #gpus = ["0"]; assign_run(direct_run, gpus)
