@@ -98,7 +98,7 @@ class ProgressiveGenerator(nn.Sequential):
         x = x.view(x.shape[0], x.shape[1], 1, 1)
         return super().forward(x)
     
-    def get_stage(self, x, detach=False):
+    def get_stage(self, x, layers=None, detach=False):
         stage = []
         x = x.view(x.shape[0], x.shape[1], 1, 1)
         for i, (name, layer) in enumerate(self.sequence):
@@ -110,7 +110,8 @@ class ProgressiveGenerator(nn.Sequential):
                 stage.append(x.detach())
             elif i % 2 == 1:
                 stage.append(x)
-
+        if layers is not None:
+            stage = [s for i, s in enumerate(stage) if i in layers]
         return x, stage
 
 class PixelNormLayer(nn.Module):

@@ -86,11 +86,11 @@ orig_mask = torch.ones_like(orig_label)
 
 res = [orig_image, orig_label_viz]
 for ind in range(args.n_total):
-    image, new_label, latent, noises, record, snapshot = optim.sample_given_mask(
+    image, new_label, latent, noises, record, snapshot = optim.sample_given_mask_pggan(
         model=generator,
         noises=None,
         layers=layers,
-        latent=original_latents[ind:ind+1],
+        latent=original_latents[ind:ind+1].to(device),
         label_stroke=orig_label,
         label_mask=orig_mask,
         n_iter=args.n_iter,
@@ -107,11 +107,7 @@ for ind in range(args.n_total):
     for i in np.linspace(0, snapshot.shape[0] - 1, 8):
         i = int(i)
         with torch.no_grad():
-            el = optim.get_el_from_latent(
-                snapshot[i:i+1],
-                generator.g_mapping.simple_forward,
-                f"latent-{args.method}-internal")
-            image, stage = generator.get_stage(el, layers)
+            image, stage = generator.get_stage(snapshot[i:i+1].to(device))
             image = (1 + image.clamp(-1, 1)) / 2
             label = sep_model(stage)[0].argmax(1)
             label_viz = colorizer(label) / 255.

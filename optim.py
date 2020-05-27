@@ -133,7 +133,7 @@ def edit_label_stroke(model, latent, noises, label_stroke, label_mask,
 
 
 def sample_given_mask(model, layers, latent, noises, label_stroke, label_mask,
-    n_iter=5, sep_model=None, method="latent-LL-internal", mapping_network=None):
+    n_iter=5, sep_model=None, method="latent-LL-internal", mapping_network=lambda x:x):
     latent = latent.detach().clone()
     latent.requires_grad = True
     optim = torch.optim.Adam([latent], lr=1e-3)
@@ -167,6 +167,44 @@ def sample_given_mask(model, layers, latent, noises, label_stroke, label_mask,
     with torch.no_grad():
         el = get_el_from_latent(latent, mapping_network, method)
         image, stage = model.get_stage(el, layers)
+        seg = sep_model(stage)[0]
+        image = (1 + image.clamp(-1, 1)) / 2
+        label = seg.argmax(1)
+    return image, label, latent, noises, record, torch.stack(snapshot)
+
+
+def sample_given_mask_pggan(model, layers, latent, noises, label_stroke, label_mask, n_iter=5, sep_model=None, method="latent-LL-internal"):
+    latent = latent.detach().clone()
+    latent.requires_grad = True
+    optim = torch.optim.Adam([latent], lr=1e-3)
+    #optim = torch.optim.LBFGS([latent], max_iter=n_iter)
+    if noises:
+        model.set_noise(noises)
+    record = {"gradnorm": [], "celoss": [], "segdiff": []}
+    #snapshot = torch.Tensor(n_iter, latent.shape[1]) # only for LL
+    snapshot = []
+    label_mask = label_mask.float()
+    target_label = label_stroke.long()
+
+    for ind in tqdm(range(n_iter)):
+        image, stage = model.get_stage(latent, layers)
+        seg = sep_model(stage)[0]
+        current_label = seg.argmax(1)
+        diff_mask = (current_label != target_label).float()
+        total_diff = diff_mask.sum()
+
+        celoss = mask_cross_entropy_loss(label_mask, seg, target_label)
+        latent.grad = torch.autograd.grad(celoss, latent)[0]
+        grad_norm = torch.norm(latent.grad.view(-1), 2)
+        optim.step(lambda : celoss)
+
+        record["segdiff"].append(utils.torch2numpy(total_diff))
+        record["celoss"].append(utils.torch2numpy(celoss))
+        record["gradnorm"].append(utils.torch2numpy(grad_norm))
+        snapshot.append(latent[0].clone().detach())
+
+    with torch.no_grad():
+        image, stage = model.get_stage(latent, layers)
         seg = sep_model(stage)[0]
         image = (1 + image.clamp(-1, 1)) / 2
         label = seg.argmax(1)
