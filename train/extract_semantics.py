@@ -63,11 +63,15 @@ if cfg.task != "celebahq" and cfg.task != "ffhq":
     colorizer = lambda x: segment_visualization_single(x, 256)
 
 M = L = 0
+has_trace = False
 if hasattr(sep_model, "weight"):
     M, L = sep_model.weight.shape[:2]
+    has_trace = True
 elif cfg.semantic_extractor not in ["nonlinear", "generative"]:
     M, L = concat_weight(sep_model.semantic_extractor).shape[:2]
-trace = np.zeros((cfg.n_iter // cfg.vbs, M, L), "float32")
+    has_trace = False
+if cfg.n_iter <= 10000:
+    trace = np.zeros((cfg.n_iter // cfg.vbs, M, L), "float32")
 
 for ind in tqdm(range(cfg.n_iter)):
     ind += 1
@@ -125,7 +129,7 @@ for ind in tqdm(range(cfg.n_iter)):
         lr_scheduler.step()
         if hasattr(sep_model, "weight"):
             trace[ind // cfg.vbs - 1] = utils.torch2numpy(sep_model.weight[:, :, 0, 0])
-        elif cfg.semantic_extractor not in ["nonlinear", "generative"]:
+        elif has_trace:
             trace[ind // cfg.vbs - 1] = concat_weight(sep_model.semantic_extractor)
 
     # collect training statistic
@@ -160,7 +164,8 @@ for ind in tqdm(range(cfg.n_iter)):
         utils.plot_dic(record, "loss", f"{cfg.expr_dir}/loss.png")
 
         # trace
-        np.save(f"{cfg.expr_dir}/trace.npy", trace)
+        if has_trace:
+            np.save(f"{cfg.expr_dir}/trace.npy", trace)
         
         # show metric
         for i in range(len(category_groups)):
