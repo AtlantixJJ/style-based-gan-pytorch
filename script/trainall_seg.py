@@ -245,7 +245,7 @@ def direct_run(gpus):
         ## face stylegan2
         #"python train/extract_semantics_continuous.py --load checkpoint/face_ffhq_1024x1024_stylegan2.pth --model-name stylegan2 --iter-num 32000 --last-only 0 --task ffhq --gpu %s",
         ## church stylegan2
-        "python train/extract_semantics.py --load checkpoint/church_lsun_256x256_stylegan2.pth --model-name stylegan2 --iter-num 30000 --task church --gpu %s",
+        #"python train/extract_semantics.py --load checkpoint/church_lsun_256x256_stylegan2.pth --model-name stylegan2 --iter-num 30000 --task church --gpu %s",
         ## church prog
         "python train/extract_semantics.py --load checkpoint/church_lsun_256x256_proggan.pth --model-name proggan --iter-num 30000 --task church --gpu %s",
         ## bedroom prog
