@@ -176,26 +176,26 @@ def sample_given_mask(model, layers, latent, noises, label_stroke, label_mask, n
     return image, label, latent, noises, record, torch.stack(snapshot)
 
 
-def reconstruction(model, latent, noises, target_image, n_iter=5, method="latent-LL-internal", mapping_network=lambda x:x):
+def reconstruction(model, latent, noises, perceptual_model, target_feats, n_iter=5, method="latent-LL-internal", mapping_network=lambda x:x):
     latent = latent.detach().clone()
     latent.requires_grad = True
     optim = torch.optim.Adam([latent], lr=1e-3)
     #optim = torch.optim.LBFGS([latent], max_iter=n_iter)
     if noises:
         model.set_noise(noises)
-    record = {"gradnorm": [], "l2loss": []}
+    record = {"gradnorm": [], "loss": []}
     #snapshot = torch.Tensor(n_iter, latent.shape[1]) # only for LL
     snapshot = []
 
     for ind in tqdm(range(n_iter)):
         el = get_el_from_latent(latent, mapping_network, method)
         image = model(el) # -1 ~ 1
-        l2loss = ((image - target_image) ** 2).mean()
-        latent.grad = torch.autograd.grad(l2loss, latent)[0]
+        loss = perceptual_model.content_loss(image, target_feats)
+        latent.grad = torch.autograd.grad(loss, latent)[0]
         grad_norm = torch.norm(latent.grad.view(-1), 2)
-        optim.step(lambda : celoss)
+        optim.step(lambda : loss)
 
-        record["l2loss"].append(utils.torch2numpy(l2loss))
+        record["loss"].append(utils.torch2numpy(loss))
         record["gradnorm"].append(utils.torch2numpy(grad_norm))
         snapshot.append(latent[0].clone().detach())
 

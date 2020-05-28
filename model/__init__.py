@@ -2,6 +2,7 @@ import model.tf
 import model.inception
 import model.simple
 import model.semantic_extractor
+import model.vgg16
 import subprocess
 uname = subprocess.run(["uname", "-a"], capture_output=True)
 uname = uname.stdout.decode("ascii")
