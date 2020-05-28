@@ -118,7 +118,6 @@ for ind in range(args.n_total):
     utils.plot_dic(record, "label edit loss", f"{outdir}/{optimizer}_i{name}_n{args.n_iter}_m{args.method}_{ind:02d}_loss.png")
 
     # make snapshot
-    print(snapshot.shape)
     snaps = []
     for i in np.linspace(0, snapshot.shape[0] - 1, 8):
         i = int(i)

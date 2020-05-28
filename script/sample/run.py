@@ -78,6 +78,17 @@ def command_pggan_fewshot_real(gpus):
             count += 1
 gpus = [0, 1, 2, 3]
 
+def command_bedroom_stylegan_fewshot(gpus):
+    count = 0
+    basecmd = "python script/sample/msreal.py --outdir results/bedroom_stylegan_sample_fewshot_%d --n-iter 1000 --n-total 8 --image datasets/Bedroom_StyleGAN_SV_full/image%d.png --label datasets/Bedroom_StyleGAN_SV_full/sv_label%d.npy --model results/svm_t%d_stylegan_linear_extractor_layer2,3,4,5,6.model --G checkpoint/bedroom_lsun_256x256_stylegan.pth --resolution 256 --gpu %d"
+
+    for t in [1, 2, 4, 8, 16]:
+        for i in range(20, 30):
+            idx = count % len(gpus)
+            yield idx, basecmd % (t, i, i, t, gpus[idx])
+            count += 1
+gpus = [0, 1, 2, 3]
+
 slots = [[] for _ in gpus]
 for i, c in command_pggan_fewshot_real(gpus):
     slots[i].append(c)

@@ -149,6 +149,8 @@ def sample_given_mask(model, layers, latent, noises, label_stroke, label_mask, n
         el = get_el_from_latent(latent, mapping_network, method)
         image, stage = model.get_stage(el, layers)
         seg = sep_model(stage)[0]
+        if type(seg) is list:
+            seg = seg[0] # for multiclass segmentation
         current_label = seg.argmax(1)
         diff_mask = (current_label != target_label).float()
         total_diff = diff_mask.sum()
