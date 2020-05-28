@@ -65,16 +65,20 @@ sep_model.load_state_dict(torch.load(extractor_path))
 lines = open(args.imglist).readlines()
 imagefiles = [l.strip().split(" ")[0] for l in lines]
 labelfiles = [l.strip().split(" ")[1] for l in lines]
-images = [torch.from_numpy(utils.imread(i)) for i in imagefiles]
-images = torch.stack([i.float() / 255. for i in images])
-images = images.permute(0, 3, 1, 2)
-images = images * 2 - 1
 
-labels = [utils.imread(i)[:, :, 0] for i in labelfiles]
-labels = torch.stack([torch.from_numpy(i) for i in labels])
-
-for i in range(images.shape[0]):
+res = []
+for i in range(len(imagefiles)):
     x = torch.randn(1, 512, device=device)
+    
+    name = imagefiles[i]
+    name = name[name.rfind("/")+1:name.rfind(".")]
+
+    image = torch.from_numpy(utils.imread(imagefiles[i]))
+    image = image.float() / 127.5 - 1
+    image = image.permute(2, 0, 1).unsqueeze(0)
+    label = torch.from_numpy(utils.imread(i)[:, :, 0]).long()
+    label = label.unsqueeze(0)
+
     with torch.no_grad():
         EL = generator.g_mapping(x) # (1, 18, 512)
         GL = EL[:, 0:1, :] # (1, 1, 512)
@@ -95,8 +99,8 @@ for i in range(images.shape[0]):
         layers=layers,
         latent=latent,
         noises=noises,
-        target_image=images[i:i+1],
-        target_label=labels[i:i+1],
+        target_image=image.to(device),
+        target_label=label.to(device),
         n_iter=args.n_iter,
         sep_model=sep_model,
         method=f"latent-{args.method}-internal",
@@ -104,10 +108,9 @@ for i in range(images.shape[0]):
     new_label_viz = colorizer(new_label) / 255.
     res.extend([utils.bu(image, 256), utils.bu(new_label_viz, 256)])
 
-    utils.plot_dic(record, "label edit loss", f"{outdir}/{optimizer}_i{name}_n{args.n_iter}_m{args.method}_{ind:02d}_loss.png")
+    utils.plot_dic(record, "label edit loss", f"{outdir}/{optimizer}_i{name}_n{args.n_iter}_m{args.method}_0_loss.png")
 
     # make snapshot
-    print(snapshot.shape)
     snaps = []
     for i in np.linspace(0, snapshot.shape[0] - 1, 8):
         i = int(i)
@@ -125,15 +128,16 @@ for i in range(images.shape[0]):
             label_viz = colorizer(label) / 255.
             snaps.extend([image, label_viz])
     snaps = torch.cat([utils.bu(r, 256) for r in snaps])
-    vutils.save_image(snaps, f"{outdir}/{optimizer}_i{name}_n{args.n_iter}_m{args.method}_{ind:02d}_snapshot.png", nrow=4)
+    vutils.save_image(snaps, f"{outdir}/{optimizer}_i{name}_n{args.n_iter}_m{args.method}_0_snapshot.png", nrow=4)
 
     # save optimization process
     np.save(
-        f"{outdir}/{optimizer}_i{name}_n{args.n_iter}_m{args.method}_{ind:02d}_latents.npy",
+        f"{outdir}/{optimizer}_i{name}_n{args.n_iter}_m{args.method}_0_latents.npy",
         utils.torch2numpy(snapshot))
 
-res = torch.cat([utils.bu(r, 256).cpu() for r in res[:8*2]])
-vutils.save_image(
-    res,
-    f"{outdir}/{optimizer}_i{name}_n{args.n_iter}_m{args.method}_res.png",
-    nrow=4)
+    if i == 8:
+        t = torch.cat([utils.bu(r, 256).cpu() for r in res[:16]])
+        vutils.save_image(
+            t,
+            f"{outdir}/{optimizer}_i{name}_n{args.n_iter}_m{args.method}_res.png",
+            nrow=4)
