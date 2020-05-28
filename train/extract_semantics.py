@@ -38,8 +38,7 @@ latent = torch.randn(cfg.batch_size, 512).to(cfg.device)
 generator = model.load_model_from_pth_file(cfg.model_name, cfg.load_path)
 generator.to(cfg.device).eval()
 
-image, stage = generator.get_stage(latent, True)
-stage = [s for i, s in enumerate(stage) if i in cfg.layers]
+image, stage = generator.get_stage(latent, cfg.layers, detach=True)
 dims = [s.shape[1] for s in stage]
 sep_model = get_semantic_extractor(cfg.semantic_extractor)(
     n_class=n_class,

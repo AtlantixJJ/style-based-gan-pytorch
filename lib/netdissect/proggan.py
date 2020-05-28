@@ -98,7 +98,7 @@ class ProgressiveGenerator(nn.Sequential):
         x = x.view(x.shape[0], x.shape[1], 1, 1)
         return super().forward(x)
     
-    def get_stage(self, x, layers=None, detach=False):
+    def get_stage(self, x, layers, detach=False):
         stage = []
         x = x.view(x.shape[0], x.shape[1], 1, 1)
         for i, (name, layer) in enumerate(self.sequence):
