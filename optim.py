@@ -169,6 +169,8 @@ def sample_given_mask(model, layers, latent, noises, label_stroke, label_mask, n
         el = get_el_from_latent(latent, mapping_network, method)
         image, stage = model.get_stage(el, layers)
         seg = sep_model(stage)[0]
+        if type(seg) is list:
+            seg = seg[0]
         image = (1 + image.clamp(-1, 1)) / 2
         label = seg.argmax(1)
     return image, label, latent, noises, record, torch.stack(snapshot)
