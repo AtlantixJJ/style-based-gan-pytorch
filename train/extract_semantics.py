@@ -77,8 +77,7 @@ for ind in tqdm(range(cfg.n_iter)):
     latent.normal_()
 
     with torch.no_grad(): # fix main network
-        gen, stage = generator.get_stage(latent, detach=True)
-        stage = [s for i, s in enumerate(stage) if i in cfg.layers]
+        gen, stage = generator.get_stage(latent, cfg.layers, detach=True)
         gen = gen.clamp(-1, 1)
         label = 0
         if not is_resize:
