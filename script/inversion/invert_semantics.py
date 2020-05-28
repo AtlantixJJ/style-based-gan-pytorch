@@ -69,15 +69,15 @@ labelfiles = [l.strip().split(" ")[1] for l in lines]
 res = []
 for i in range(len(imagefiles)):
     x = torch.randn(1, 512, device=device)
-    
+
     name = imagefiles[i]
     name = name[name.rfind("/")+1:name.rfind(".")]
 
     image = torch.from_numpy(utils.imread(imagefiles[i]))
     image = image.float() / 127.5 - 1
     image = image.permute(2, 0, 1).unsqueeze(0)
-    label = torch.from_numpy(utils.imread(i)[:, :, 0]).long()
-    label = label.unsqueeze(0)
+    label = torch.from_numpy(utils.imread(labelfiles[i])[:, :, 0])
+    label = label.long().unsqueeze(0)
 
     with torch.no_grad():
         EL = generator.g_mapping(x) # (1, 18, 512)

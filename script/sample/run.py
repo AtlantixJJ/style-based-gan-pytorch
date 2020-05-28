@@ -37,7 +37,6 @@ def command_fewshot(gpus):
             count += 1
 gpus = [0]
 
-<<<<<<< Updated upstream
 
 def command_sample_fewshot_real(gpus):
     count = 0
@@ -78,22 +77,14 @@ def command_pggan_fewshot_real(gpus):
             yield idx, basecmd % (t, i, i, t, gpus[idx])
             count += 1
 gpus = [0, 1, 2, 3]
-=======
->>>>>>> Stashed changes
 
 def command_bedroom_stylegan_fewshot(gpus):
     count = 0
-<<<<<<< Updated upstream
     basecmd = "python script/sample/msreal.py --outdir results/bedroom_stylegan_sample_fewshot_%d --n-iter 3000 --n-total 8 --image datasets/Bedroom_StyleGAN_SV_full/image%d.png --label datasets/Bedroom_StyleGAN_SV_full/sv_label%d.npy --model results/svm_t%d_bedroom_lsun_stylegan_linear_extractor_layer2,3,4,5,6.model --G checkpoint/bedroom_lsun_256x256_stylegan.pth --resolution 256 --gpu %d"
 
     
     for i in range(20, 30):
         for t in [1, 2, 4, 8, 16]:
-=======
-    basecmd = "python script/sample/msreal.py --outdir results/mask_sample_fewshot_real_%d --n-iter 1600 --n-total 8 --image ../data/CelebAMask-HQ/CelebA-HQ-img/%d.jpg --label ../data/CelebAMask-HQ/CelebAMask-HQ-mask-15/%d.png --model results/svm_t%d_stylegan_linear_extractor_layer3,4,5,6,7.model --resolution 512 --gpu %d"
-    for i in range(100):
-        for t in [1, 2, 4, 8]:
->>>>>>> Stashed changes
             idx = count % len(gpus)
             yield idx, basecmd % (t, i, i, t, gpus[idx])
             count += 1
@@ -111,11 +102,7 @@ def command_sample_real(gpus):
 gpus = [0]
 
 slots = [[] for _ in gpus]
-<<<<<<< Updated upstream
 for i, c in command_bedroom_stylegan_fewshot(gpus):
-=======
-for i, c in command_sample_real(gpus):
->>>>>>> Stashed changes
     slots[i].append(c)
 
 for slot in slots:

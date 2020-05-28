@@ -132,24 +132,14 @@ def edit_label_stroke(model, latent, noises, label_stroke, label_mask,
     return image, label, latent, noises, record
 
 
-<<<<<<< Updated upstream
 def sample_given_mask(model, layers, latent, noises, label_stroke, label_mask, n_iter=5, sep_model=None, method="latent-LL-internal", mapping_network=lambda x:x):
-=======
-def sample_given_mask(model, layers, latent, noises, label_stroke, label_mask,
-    n_iter=5, sep_model=None, method="latent-LL-internal", mapping_network=None):
->>>>>>> Stashed changes
     latent = latent.detach().clone()
     latent.requires_grad = True
     optim = torch.optim.Adam([latent], lr=1e-3)
     #optim = torch.optim.LBFGS([latent], max_iter=n_iter)
-<<<<<<< Updated upstream
     if noises:
         model.set_noise(noises)
     record = {"gradnorm": [], "l2loss": [], "celoss": [], "segdiff": []}
-=======
-    model.set_noise(noises)
-    record = {"gradnorm": [], "celoss": [], "segdiff": []}
->>>>>>> Stashed changes
     #snapshot = torch.Tensor(n_iter, latent.shape[1]) # only for LL
     snapshot = []
     label_mask = label_mask.float()
@@ -168,7 +158,6 @@ def sample_given_mask(model, layers, latent, noises, label_stroke, label_mask,
         celoss = mask_cross_entropy_loss(label_mask, seg, target_label)
         latent.grad = torch.autograd.grad(celoss, latent)[0]
         grad_norm = torch.norm(latent.grad.view(-1), 2)
-<<<<<<< Updated upstream
         optim.step(lambda : celoss)
 
         record["segdiff"].append(utils.torch2numpy(total_diff))
@@ -224,7 +213,7 @@ def reconstruction_label(model, layers, latent, noises, target_image, target_lab
     #optim = torch.optim.LBFGS([latent], max_iter=n_iter)
     if noises:
         model.set_noise(noises)
-    record = {"gradnorm": [], "celoss": [], "segdiff": []}
+    record = {"gradnorm": [], "l2loss": [], "celoss": [], "segdiff": []}
     #snapshot = torch.Tensor(n_iter, latent.shape[1]) # only for LL
     snapshot = []
 
@@ -234,7 +223,8 @@ def reconstruction_label(model, layers, latent, noises, target_image, target_lab
         seg = sep_model(stage)[0]
         if type(seg) is list:
             seg = seg[0] # for multiclass segmentation
-        current_label = utils.bu(seg, target_label.shape[2]).argmax(1)
+        seg = utils.bu(seg, target_label.shape[2])
+        current_label = seg.argmax(1)
         diff_mask = (current_label != target_label).float()
         total_diff = diff_mask.sum()
 
@@ -243,16 +233,11 @@ def reconstruction_label(model, layers, latent, noises, target_image, target_lab
         loss = celoss + l2loss
         latent.grad = torch.autograd.grad(loss, latent)[0]
         grad_norm = torch.norm(latent.grad.view(-1), 2)
-=======
->>>>>>> Stashed changes
         optim.step(lambda : celoss)
 
         record["segdiff"].append(utils.torch2numpy(total_diff))
         record["celoss"].append(utils.torch2numpy(celoss))
-<<<<<<< Updated upstream
         record["l2loss"].append(utils.torch2numpy(l2loss))
-=======
->>>>>>> Stashed changes
         record["gradnorm"].append(utils.torch2numpy(grad_norm))
         snapshot.append(latent[0].clone().detach())
 
@@ -304,7 +289,6 @@ def sample_given_mask_pggan(model, layers, latent, noises, label_stroke, label_m
         label = seg.argmax(1)
     return image, label, latent, noises, record, torch.stack(snapshot)
 
-<<<<<<< Updated upstream
 
 def sample_given_mask_external(model, latent, noises, label_stroke, label_mask, n_iter=5, sep_model=None, method="latent-LL-external", mapping_network=lambda x:x):
     latent = latent.detach().clone()
@@ -343,8 +327,6 @@ def sample_given_mask_external(model, latent, noises, label_stroke, label_mask, 
         label = seg.argmax(1)
     return image, label, latent, noises, record, torch.stack(snapshot)
 
-=======
->>>>>>> Stashed changes
 
 def edit_image_stroke(model, latent, noises, image_stroke, image_mask,
     n_iter=5, n_reg=0, lr=1e-2, method="celossreg-label-ML-internal", sep_model=None, mapping_network=None):
