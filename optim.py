@@ -139,7 +139,7 @@ def sample_given_mask(model, layers, latent, noises, label_stroke, label_mask, n
     #optim = torch.optim.LBFGS([latent], max_iter=n_iter)
     if noises:
         model.set_noise(noises)
-    record = {"gradnorm": [], "celoss": [], "segdiff": []}
+    record = {"gradnorm": [], "l2loss": [], "celoss": [], "segdiff": []}
     #snapshot = torch.Tensor(n_iter, latent.shape[1]) # only for LL
     snapshot = []
     label_mask = label_mask.float()
@@ -162,6 +162,81 @@ def sample_given_mask(model, layers, latent, noises, label_stroke, label_mask, n
 
         record["segdiff"].append(utils.torch2numpy(total_diff))
         record["celoss"].append(utils.torch2numpy(celoss))
+        record["gradnorm"].append(utils.torch2numpy(grad_norm))
+        snapshot.append(latent[0].clone().detach())
+
+    with torch.no_grad():
+        el = get_el_from_latent(latent, mapping_network, method)
+        image, stage = model.get_stage(el, layers)
+        seg = sep_model(stage)[0]
+        if type(seg) is list:
+            seg = seg[0]
+        image = (1 + image.clamp(-1, 1)) / 2
+        label = seg.argmax(1)
+    return image, label, latent, noises, record, torch.stack(snapshot)
+
+
+def reconstruction(model, latent, noises, target_image, n_iter=5, method="latent-LL-internal", mapping_network=lambda x:x):
+    latent = latent.detach().clone()
+    latent.requires_grad = True
+    optim = torch.optim.Adam([latent], lr=1e-3)
+    #optim = torch.optim.LBFGS([latent], max_iter=n_iter)
+    if noises:
+        model.set_noise(noises)
+    record = {"gradnorm": [], "l2loss": []}
+    #snapshot = torch.Tensor(n_iter, latent.shape[1]) # only for LL
+    snapshot = []
+
+    for ind in tqdm(range(n_iter)):
+        el = get_el_from_latent(latent, mapping_network, method)
+        image = model(el) # -1 ~ 1
+        l2loss = ((image - target_image) ** 2).mean()
+        latent.grad = torch.autograd.grad(l2loss, latent)[0]
+        grad_norm = torch.norm(latent.grad.view(-1), 2)
+        optim.step(lambda : celoss)
+
+        record["l2loss"].append(utils.torch2numpy(l2loss))
+        record["gradnorm"].append(utils.torch2numpy(grad_norm))
+        snapshot.append(latent[0].clone().detach())
+
+    with torch.no_grad():
+        el = get_el_from_latent(latent, mapping_network, method)
+        image = model(el)
+        image = (1 + image.clamp(-1, 1)) / 2
+    return image, latent, noises, record, torch.stack(snapshot)
+
+
+def reconstruction_label(model, layers, latent, noises, target_image, target_label, n_iter=5, sep_model=None, method="latent-LL-internal", mapping_network=lambda x:x):
+    latent = latent.detach().clone()
+    latent.requires_grad = True
+    optim = torch.optim.Adam([latent], lr=1e-3)
+    #optim = torch.optim.LBFGS([latent], max_iter=n_iter)
+    if noises:
+        model.set_noise(noises)
+    record = {"gradnorm": [], "celoss": [], "segdiff": []}
+    #snapshot = torch.Tensor(n_iter, latent.shape[1]) # only for LL
+    snapshot = []
+
+    for ind in tqdm(range(n_iter)):
+        el = get_el_from_latent(latent, mapping_network, method)
+        image, stage = model.get_stage(el, layers)
+        seg = sep_model(stage)[0]
+        if type(seg) is list:
+            seg = seg[0] # for multiclass segmentation
+        current_label = utils.bu(seg, target_label.shape[2]).argmax(1)
+        diff_mask = (current_label != target_label).float()
+        total_diff = diff_mask.sum()
+
+        celoss = F.cross_entropy(seg, target_label)
+        l2loss = ((image - target_image) ** 2).mean()
+        loss = celoss + l2loss
+        latent.grad = torch.autograd.grad(loss, latent)[0]
+        grad_norm = torch.norm(latent.grad.view(-1), 2)
+        optim.step(lambda : celoss)
+
+        record["segdiff"].append(utils.torch2numpy(total_diff))
+        record["celoss"].append(utils.torch2numpy(celoss))
+        record["l2loss"].append(utils.torch2numpy(l2loss))
         record["gradnorm"].append(utils.torch2numpy(grad_norm))
         snapshot.append(latent[0].clone().detach())
 
