@@ -19,7 +19,7 @@ class VGG16(torch.nn.Module):
         return sum(losses)
 
     def __init__(self):
-        super(Vgg16, self).__init__()
+        super(VGG16, self).__init__()
         self.conv1_1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1)
         self.conv1_2 = nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1)
 

@@ -9,7 +9,7 @@ sys.path.insert(0, ".")
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--gpu", default="0")
-parser.add_argument("--vgg", default="checkpoint/vgg.weight")
+parser.add_argument("--vgg", default="checkpoint/vgg16.weight")
 parser.add_argument("--G", default="checkpoint/face_celebahq_1024x1024_stylegan.pth")
 parser.add_argument("--outdir", default="results/invert_baseline", type=str)
 parser.add_argument("--method", default="ML", type=str)
@@ -60,7 +60,7 @@ for i in range(len(imagefiles)):
 
     image = torch.from_numpy(utils.imread(imagefiles[i]))
     image = image.float() / 127.5 - 1
-    image = image.permute(2, 0, 1).unsqueeze(0)
+    image = image.permute(2, 0, 1).unsqueeze(0).to(device)
 
     vgg_image = pm.transform_input(image)
     target_feats = [vgg_image] + pm(vgg_image)
@@ -85,7 +85,7 @@ for i in range(len(imagefiles)):
         latent=latent,
         noises=noises,
         perceptual_model=pm,
-        target_feats=feats,
+        target_feats=target_feats,
         n_iter=args.n_iter,
         method=f"latent-{args.method}-internal",
         mapping_network=generator.g_mapping.simple_forward)
