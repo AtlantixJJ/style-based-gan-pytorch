@@ -52,7 +52,7 @@ gpus = [0, 1, 2, 3, 4]
 def command_bedroom_stylegan(gpus):
     count = 0
     basecmd = "python script/fewshot/sv_linear.py --data-dir datasets/Bedroom_StyleGAN_SV_full --name bedroom_lsun_stylegan --train-size %d --total-class 361"
-    for ts in [1, 2, 4, 8, 16]:
+    for ts in [8, 16]:
         idx = count % len(gpus)
         yield idx, basecmd % ts
         count += 1

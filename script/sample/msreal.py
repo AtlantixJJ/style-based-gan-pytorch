@@ -142,7 +142,10 @@ for ind in range(args.n_total):
                 f"latent-{args.method}-internal")
             image, stage = generator.get_stage(el, layers)
             image = (1 + image.clamp(-1, 1)) / 2
-            label = sep_model(stage)[0].argmax(1)
+            seg = sep_model(stage)[0]
+            if type(seg) is list:
+                seg = seg[0]
+            label = seg.argmax(1)
             label_viz = colorizer(label) / 255.
             snaps.extend([image, label_viz])
     snaps = torch.cat([utils.bu(r, 256) for r in snaps])
