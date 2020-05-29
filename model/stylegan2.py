@@ -11,11 +11,11 @@ from torch.autograd import Function
 from lib.op import FusedLeakyReLU, fused_leaky_relu, upfirdn2d
 
 def from_pth_file(fpath):
-    resolution = (1024, 1024)
-    if "256x256" in fpath:
-        resolution = (256, 256)
-    if "512x384" in fpath:
-        resolution = (512, 384)
+    resolution = [1024, 1024]
+    if fpath.find("256x256") > -1:
+        resolution = [256, 256]
+    elif fpath.find("512x384") > -1:
+        resolution = [512, 384]
     model = Generator(resolution, 512, 8)
     state_dict = torch.load(fpath, map_location="cpu")
     model.load_state_dict(state_dict)
@@ -411,8 +411,8 @@ class Generator(nn.Module):
             512: 32 * channel_multiplier,
             1024: 16 * channel_multiplier,
         }
-
-        self.input = ConstantInput(self.channels[4])
+        ss = (4, 4) #(3, 4) if 384 in size else (4, 4)
+        self.input = ConstantInput(self.channels[4], ss)
         self.conv1 = StyledConv(
             self.channels[4], self.channels[4], 3, style_dim, blur_kernel=blur_kernel
         )
