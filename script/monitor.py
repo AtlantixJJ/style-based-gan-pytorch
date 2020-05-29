@@ -157,8 +157,12 @@ if "layer" in args.model:
 print(dims)
 
 model_files = glob.glob(args.model + "/*.model")
-model_files = [m for m in model_files if "disc" not in m]
-model_files.sort()
+if ".model" not in args.model:
+    model_files = [m for m in model_files if "disc" not in m]
+    model_files.sort()
+else:
+    model_files = [args.model]
+    
 if len(model_files) == 0:
     print("!> No model found, exit")
     exit(0)
