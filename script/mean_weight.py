@@ -102,22 +102,22 @@ for i in tqdm.tqdm(range(10)):
         stage = stage[3:8]
         feat = torch.cat([utils.bu(s, 512) for s in stage], 1)
         est_label = utils.bu(seg, feat.shape[3]).argmax(1)[0]
-
+    print(feat.shape)
     for j in range(15):
         a = (est_label == j)
         w = a.sum()
         if a.sum() <= 0:
             continue
         v = feat[0, :, a].mean(1)
-        weight[j].append(w)
+        weight[j].append(utils.torch2numpy(w))
         mean_vectors[j].append(v.detach())
 
 sep_model = get_semantic_extractor("linear")(
     n_class=15,
     dims=[512, 256, 128, 64, 32])
-s = sum(weight)
-weight = [w/s for w in weight]
-w = torch.stack(sum([v * w for v, w in zip(feat, weight)]))
-print(w.shape)
+weight = [[w/sum(ws) for w in ws] for ws in weight]
+w = torch.stack([
+    sum([v * w for v, w in zip(vs, ws)])
+    for vs, ws in zip(feat, weight)])
 assign_weight(sep_model.semantic_extractor, w)
 sep_model.to(device).eval()

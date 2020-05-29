@@ -89,28 +89,26 @@ def command_sample_real(gpus):
             count += 1
 gpus = [0]
 
-
-def command_bedroom_stylegan(gpus):
-    count = 0
-    basecmd = "python script/sample/msreal.py --outdir results/bedroom_stylegan_sample --n-iter 3000 --n-total 8 --image datasets/Bedroom_StyleGAN_SV_full/image%d.png --label datasets/Bedroom_StyleGAN_SV_full/sv_label%d.npy --model checkpoint/bedroom_lsun_stylegan_linear_extractor.model --G checkpoint/bedroom_lsun_256x256_stylegan.pth --resolution 256 --gpu %d"
-
-    for i in range(20, 30):
-        idx = count % len(gpus)
-        yield idx, basecmd % (i, i, gpus[idx])
-        count += 1
-gpus = [5]
-
 def command_bedroom_stylegan_fewshot(gpus):
     count = 0
-    basecmd = "python script/sample/msreal.py --outdir results/bedroom_stylegan_sample_fewshot_%d --n-iter 3000 --n-total 8 --image datasets/Bedroom_StyleGAN_SV_full/image%d.png --label datasets/Bedroom_StyleGAN_SV_full/sv_label%d.npy --model results/svm_t%d_bedroom_lsun_stylegan_linear_extractor_layer2,3,4,5,6.model --G checkpoint/bedroom_lsun_256x256_stylegan.pth --resolution 256 --gpu %d"
+    basecmd = "python script/sample/msreal.py --outdir results/bedroom_stylegan_sample_fewshot_%d --n-iter 3000 --n-total 8 --image datasets/Bedroom_StyleGAN_SV_full/image%d.png --label datasets/Bedroom_StyleGAN_SV_full/sv_label%d.npy --model results/svm_t%d_bedroom_lsun_stylegan_linear_extractor_layer2,3,4,5,6.model --G checkpoint/bedroom_lsun_256x256_stylegan.pth --resolution 256 --gpu %d --method LL"
 
     for i in range(20, 30):
         for t in [1, 2, 4, 8, 16]:
             idx = count % len(gpus)
             yield idx, basecmd % (t, i, i, t, gpus[idx])
             count += 1
-gpus = [0, 1, 2, 3, 4]
+gpus = [0, 1, 2, 3, 5]
 
+def command_bedroom_stylegan(gpus):
+    count = 0
+    basecmd = "python script/sample/msreal.py --outdir results/bedroom_stylegan_sample --n-iter 3000 --n-total 8 --image datasets/Bedroom_StyleGAN_SV_full/image%d.png --label datasets/Bedroom_StyleGAN_SV_full/sv_label%d.npy --model checkpoint/bedroom_lsun_stylegan_linear_extractor.model --G checkpoint/bedroom_lsun_256x256_stylegan.pth --resolution 256 --gpu %d --method LL"
+
+    for i in range(20, 30):
+        idx = count % len(gpus)
+        yield idx, basecmd % (i, i, gpus[idx])
+        count += 1
+gpus = [6]
 
 slots = [[] for _ in gpus]
 for i, c in command_bedroom_stylegan_fewshot(gpus):
