@@ -52,13 +52,13 @@ imagefiles = [l.strip().split(" ")[0] for l in lines]
 labelfiles = [l.strip().split(" ")[1] for l in lines]
 
 res = []
-for i in range(len(imagefiles)):
+for ind in range(len(imagefiles)):
     x = torch.randn(1, 512, device=device)
 
-    name = imagefiles[i]
+    name = imagefiles[ind]
     name = name[name.rfind("/")+1:name.rfind(".")]
 
-    image = torch.from_numpy(utils.imread(imagefiles[i]))
+    image = torch.from_numpy(utils.imread(imagefiles[ind]))
     image = image.float() / 127.5 - 1
     image = image.permute(2, 0, 1).unsqueeze(0).to(device)
 
@@ -113,7 +113,7 @@ for i in range(len(imagefiles)):
         f"{outdir}/{optimizer}_i{name}_n{args.n_iter}_m{args.method}_0_latents.npy",
         utils.torch2numpy(snapshot))
 
-    if i == 16:
+    if ind == 16:
         t = torch.cat([utils.bu(r, 256).cpu() for r in res[:16]])
         vutils.save_image(
             t,

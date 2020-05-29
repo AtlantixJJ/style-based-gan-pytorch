@@ -9,6 +9,7 @@ sys.path.insert(0, ".")
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--gpu", default="0")
+parser.add_argument("--vgg", default="checkpoint/vgg16.weight")
 parser.add_argument("--model", default="checkpoint/celebahq_stylegan_unit_extractor.model", type=str)
 parser.add_argument("--G", default="checkpoint/face_celebahq_1024x1024_stylegan.pth", type=str)
 parser.add_argument("--outdir", default="results/invert_semantics", type=str)
@@ -35,6 +36,11 @@ extractor_path = args.model
 colorizer = utils.Colorize(15)
 outdir = args.outdir
 optimizer = "adam"
+
+# perceptual model
+pm = model.vgg16.VGG16()
+pm.load_state_dict(torch.load(args.vgg))
+pm.to(device).eval()
 
 # generator
 model_path = args.G
@@ -67,17 +73,20 @@ imagefiles = [l.strip().split(" ")[0] for l in lines]
 labelfiles = [l.strip().split(" ")[1] for l in lines]
 
 res = []
-for i in range(len(imagefiles)):
+for ind in range(len(imagefiles)):
     x = torch.randn(1, 512, device=device)
 
-    name = imagefiles[i]
+    name = imagefiles[ind]
     name = name[name.rfind("/")+1:name.rfind(".")]
 
-    image = torch.from_numpy(utils.imread(imagefiles[i]))
+    image = torch.from_numpy(utils.imread(imagefiles[ind]))
     image = image.float() / 127.5 - 1
-    image = image.permute(2, 0, 1).unsqueeze(0)
-    label = torch.from_numpy(utils.imread(labelfiles[i])[:, :, 0])
-    label = label.long().unsqueeze(0)
+    image = image.permute(2, 0, 1).unsqueeze(0).to(device)
+    label = torch.from_numpy(utils.imread(labelfiles[ind])[:, :, 0])
+    label = label.long().unsqueeze(0).to(device)
+
+    vgg_image = pm.transform_input(image)
+    target_feats = [vgg_image] + pm(vgg_image)
 
     with torch.no_grad():
         EL = generator.g_mapping(x) # (1, 18, 512)
@@ -99,8 +108,9 @@ for i in range(len(imagefiles)):
         layers=layers,
         latent=latent,
         noises=noises,
-        target_image=image.to(device),
-        target_label=label.to(device),
+        perceptual_model=pm,
+        target_feats=target_feats,
+        target_label=label,
         n_iter=args.n_iter,
         sep_model=sep_model,
         method=f"latent-{args.method}-internal",
@@ -135,7 +145,7 @@ for i in range(len(imagefiles)):
         f"{outdir}/{optimizer}_i{name}_n{args.n_iter}_m{args.method}_0_latents.npy",
         utils.torch2numpy(snapshot))
 
-    if i == 8:
+    if ind == 8:
         t = torch.cat([utils.bu(r, 256).cpu() for r in res[:16]])
         vutils.save_image(
             t,
