@@ -139,7 +139,7 @@ def sample_given_mask(model, layers, latent, noises, label_stroke, label_mask, n
     #optim = torch.optim.LBFGS([latent], max_iter=n_iter)
     if noises:
         model.set_noise(noises)
-    record = {"gradnorm": [], "l2loss": [], "celoss": [], "segdiff": []}
+    record = {"gradnorm": [], "celoss": [], "segdiff": []}
     #snapshot = torch.Tensor(n_iter, latent.shape[1]) # only for LL
     snapshot = []
     label_mask = label_mask.float()
@@ -179,8 +179,8 @@ def sample_given_mask(model, layers, latent, noises, label_stroke, label_mask, n
 def reconstruction(model, latent, noises, perceptual_model, target_feats, n_iter=5, method="latent-LL-internal", mapping_network=lambda x:x):
     latent = latent.detach().clone()
     latent.requires_grad = True
-    optim = torch.optim.SGD([latent], lr=1.)
-    #optim = torch.optim.Adam([latent], lr=1e-2)
+    #optim = torch.optim.SGD([latent], lr=1.)
+    optim = torch.optim.Adam([latent], lr=1e-2)
     #optim = torch.optim.LBFGS([latent], max_iter=n_iter)
     if noises:
         model.set_noise(noises)
@@ -211,8 +211,8 @@ def reconstruction(model, latent, noises, perceptual_model, target_feats, n_iter
 def reconstruction_label(model, layers, latent, noises, perceptual_model, target_feats, target_label, n_iter=5, sep_model=None, method="latent-LL-internal", mapping_network=lambda x:x):
     latent = latent.detach().clone()
     latent.requires_grad = True
-    optim = torch.optim.SGD([latent], lr=1.)
-    #optim = torch.optim.Adam([latent], lr=1.)
+    #optim = torch.optim.SGD([latent], lr=1.)
+    optim = torch.optim.Adam([latent], lr=0.01)
     #optim = torch.optim.LBFGS([latent], max_iter=n_iter)
     if noises:
         model.set_noise(noises)
@@ -223,6 +223,7 @@ def reconstruction_label(model, layers, latent, noises, perceptual_model, target
     for ind in tqdm(range(n_iter)):
         el = get_el_from_latent(latent, mapping_network, method)
         image, stage = model.get_stage(el, layers)
+        image = image.clamp(-1, 1)
         seg = sep_model(stage)[0]
         if type(seg) is list:
             seg = seg[0] # for multiclass segmentation
@@ -233,7 +234,7 @@ def reconstruction_label(model, layers, latent, noises, perceptual_model, target
 
         celoss = F.cross_entropy(seg, target_label)
         vgg_image = perceptual_model.transform_input(image)
-        ploss = perceptual_model.content_loss(vgg_image, target_feats)
+        ploss = 1e-3 * perceptual_model.content_loss(vgg_image, target_feats)
         loss = celoss + ploss
         latent.grad = torch.autograd.grad(loss, latent)[0]
         grad_norm = torch.norm(latent.grad.view(-1), 2)
