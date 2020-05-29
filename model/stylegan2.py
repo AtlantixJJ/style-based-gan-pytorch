@@ -520,7 +520,7 @@ class Generator(nn.Module):
 
         return image
 
-    def get_stage(self, latent, detach=False):
+    def get_stage(self, latent, layers=None, detach=False):
         if latent.shape[1] == 512:
             latent = self.style(latent)
             latent = latent.unsqueeze(1).repeat(1, self.n_latent, 1)
@@ -554,7 +554,8 @@ class Generator(nn.Module):
             i += 2
 
         image = skip
-
+        if layers is not None:
+            stage = [s for i, s in enumerate(stage) if i in layers]
         return image, stage
 
     def calc(

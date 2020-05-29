@@ -591,7 +591,7 @@ class Discriminator(nn.Sequential):
             +[('{s}x{s}'.format(s=2**res), DiscriminatorBlock(nf(res-1), nf(res-2), gain=gain, use_wscale=use_wscale, activation_layer=act)) for res in range(resolution_log2, 2, -1)]
             +[('4x4', DiscriminatorTop(mbstd_group_size, mbstd_num_features, nf(2), nf(2), gain=gain, use_wscale=use_wscale, activation_layer=act))]))
 
-    def get_stage(self, x, detach=False):
+    def get_stage(self, x, layers=None, detach=False):
         stage = []
         for i, m in enumerate(self):
             x = m(x)
@@ -600,6 +600,8 @@ class Discriminator(nn.Sequential):
                     stage.append(x.detach())
                 else:
                     stage.append(x)
+        if layers is not None:
+            stage = [s for i, s in enumerate(stage) if i in layers]
         return x, stage
 
 

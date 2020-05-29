@@ -682,9 +682,11 @@ def stdout_resume():
 """
 
 
-def listkey_convert(name, listkey):
-    for key in listkey:
+def listkey_convert(name, listkey, output=None):
+    for i, key in enumerate(listkey):
         if key in name:
+            if output is not None:
+                return output[i]
             return key
     return ""
 
