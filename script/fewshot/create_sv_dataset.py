@@ -41,15 +41,15 @@ with torch.no_grad():
     image, stage = generator.get_stage(latent)
     image = (image.clamp(-1, 1) + 1) / 2
 dims = [s.shape[1] for s in stage]
+print(dims)
 external_model = get_segmenter(
     args.task,
     "checkpoint/faceparse_unet_512.pth")
 n_class = len(external_model.get_label_and_category_names()[0][0])
 colorizer = utils.Colorize(n_class)
-layers = [3,4,5,6,7]
-if args.task != "celebahq" and args.task != "ffhq":
-    colorizer = lambda x: segment_visualization_single(x, 256)
-    layers = [2,3,4,5,6]
+layers = list(range(2, len(dims) - 1))
+with open(f"{args.out}/dims.txt", "w") as f:
+    f.write(str(dims))
 
 #sep_model = model.semantic_extractor.get_semantic_extractor("unit")(
 #    n_class=15,
@@ -74,7 +74,8 @@ for ind in tqdm(range(args.number)):
         image, stage = generator.get_stage(latent)
         image = image.clamp(-1, 1)
         label = external_model.segment_batch(image, resize=False)
-
+        label = F.interpolate(label.float(), stage[-2].shape[3], mode="nearest").long()
+        
         try:
             label_viz = colorizer(label) / 255.
         except:
@@ -126,7 +127,8 @@ for ind in tqdm(range(args.number)):
     else:
         data = utils.torch2numpy(feat.view(feat.shape[0], -1)).transpose(1, 0)
         labels = utils.torch2numpy(label.view(-1))
-
+    if ind == 0:
+        print(data.shape, labels.shape)
     np.save(f"{args.out}/sv_feat{ind}", data)
     np.save(f"{args.out}/sv_label{ind}", labels)
     vutils.save_image((image + 1) / 2, f"{args.out}/image{ind}.png")

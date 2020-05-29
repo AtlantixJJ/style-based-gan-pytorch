@@ -117,10 +117,10 @@ if sum(dims) == feats.shape[1]:
         n_class=args.total_class,
         dims=dims).to(device)
     assign_weight(sep_model.semantic_extractor, coef)
-    print(f"=> Saved to results/svm_t{args.train_size}_{args.name}_linear_extractor_layer3,4,5,6,7.model")
+    print(f"=> Saved to results/fewshot_svm/svm_t{args.train_size}_{args.name}_linear_extractor_layer3,4,5,6,7.model")
     torch.save(
         sep_model.state_dict(),
-        f"results/svm_t{args.train_size}_{args.name}_linear_extractor_layer3,4,5,6,7.model")
+        f"results/fewshot_svm/svm_t{args.train_size}_{args.name}_linear_extractor_layer3,4,5,6,7.model")
 
 dims = [512, 512, 256, 128, 64]
 if sum(dims) == feats.shape[1]:
@@ -128,7 +128,7 @@ if sum(dims) == feats.shape[1]:
         n_class=args.total_class,
         dims=dims).to(device)
     assign_weight(sep_model.semantic_extractor, coef)
-    print(f"=> Saved to results/svm_t{args.train_size}_{args.name}_linear_extractor_layer2,3,4,5,6.model")
+    print(f"=> Saved to results/fewshot_svm/svm_t{args.train_size}_{args.name}_linear_extractor_layer2,3,4,5,6.model")
     torch.save(
         sep_model.state_dict(),
-        f"results/svm_t{args.train_size}_{args.name}_linear_extractor_layer2,3,4,5,6.model")
+        f"results/fewshot_svm/svm_t{args.train_size}_{args.name}_linear_extractor_layer2,3,4,5,6.model")
