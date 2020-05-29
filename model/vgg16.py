@@ -16,7 +16,7 @@ class VGG16(torch.nn.Module):
     def content_loss(self, x, feats):
         newfeats = [x] + self.forward(x)
         losses = [((a-b)**2).mean() for a, b in zip(newfeats, feats)]
-        return sum(losses)
+        return sum(losses) / 82890.0
 
     def __init__(self):
         super(VGG16, self).__init__()
