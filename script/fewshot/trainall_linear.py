@@ -1,9 +1,6 @@
 import os
+import sys
 
-#train_size = list(range(1, 4)); gpus = [0]
-# 1, 2, 3, 4
-train_size = [1, 2, 3, 4, 6, 8, 10, 12, 16, 20, 24, 28, 32, 36, 40, 48, 64, 80, 96, 128, 256, 384, 512, 768, 1024]; gpus = [0, 1, 2, 3, 4, 5, 6, 7]
-#train_size = list(range(72, 97, 8)); gpus = [0, 1]
 
 def command_svm_pca(gpus):
     count = 0
@@ -30,36 +27,44 @@ def command_linear_multiple(gpus):
             yield idx, basecmd % (ts, gpus[idx], ind)
             count += 1
 
-
 def command_eval_trace(gpus):
     count = 0
     basecmd = "python script/analysis/eval_trace.py --n-segment 8 --segment %d --gpu %s --trace record/bce_kl/celebahq_stylegan_unit_layer0,1,2,3,4,5,6,7,8_vbs1_l1-1_l1pos0.5_l1dev-1_l1unit-1/trace.npy"
     for idx, g in enumerate(gpus):
         yield idx, basecmd % (idx, g)
-gpus = [0, 1, 2, 3, 4, 5, 6, 7]
 
+command = 0
+gpus = [0]
+if sys.argv[1] == "0":
+    command = command_svm_pca
+    gpus = [0, 0, 0, 0, 0]
+elif sys.argv[1] == "1":
+    command = test_svm_pca
+    gpus = [0, 0, 0, 0, 0]
+elif sys.argv[1] == "2":
+    command = command_linear_multiple
+    gpus = [0, 1, 2, 3, 4]
+elif sys.argv[1] == "3":
+    command = command_eval_trace
+    gpus = [0, 1, 2, 3, 4, 5, 6, 7]
+elif sys.argv[1] == "4":
+    ds = sys.argv[2]
+    name = sys.argv[3]
+    # bedroom_lsun_stylegan, Bedroom_StyleGAN_SV_full
+    # church_lsun_stylegan2, Church_StyleGAN2_SV_full
 
-def command_proggan(gpus):
-    count = 0
-    basecmd = "python script/fewshot/sv_linear.py --data-dir datasets/PGGAN_SV_full --name proggan --train-size %d"
-    for ts in [1, 2, 4, 8, 16]:
-        idx = count % len(gpus)
-        yield idx, basecmd % ts
-        count += 1
-gpus = [0, 1, 2, 3, 4]
-
-
-def command_bedroom_stylegan(gpus):
-    count = 0
-    basecmd = "python script/fewshot/sv_linear.py --data-dir datasets/Bedroom_StyleGAN_SV_full --name bedroom_lsun_stylegan --train-size %d --total-class 361"
-    for ts in [8, 16]:
-        idx = count % len(gpus)
-        yield idx, basecmd % ts
-        count += 1
-gpus = [0, 1, 2, 3, 4]
-
+    def command_svm(gpus):
+        count = 0
+        basecmd = f"python script/fewshot/sv_linear.py --data-dir {ds} --name {name} --train-size %d --total-class 361"
+        for ts in [1, 2, 4, 8, 16]:
+            idx = count % len(gpus)
+            yield idx, basecmd % ts
+            count += 1
+    gpus = [0]
+    command = command_svm
+    
 slots = [[] for _ in gpus]
-for i, c in command_bedroom_stylegan(gpus):
+for i, c in command(gpus):
     slots[i].append(c)
 
 for slot in slots:

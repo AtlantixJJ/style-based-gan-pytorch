@@ -29,7 +29,6 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--model", default="")
 parser.add_argument("--G", default="checkpoint/face_celebahq_1024x1024_stylegan.pth")
 parser.add_argument("--gpu", default="0")
-parser.add_argument("--recursive", default="0")
 args = parser.parse_args()
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 

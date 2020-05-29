@@ -13,10 +13,10 @@ def convert_multi_label(seg, cg, i):
 
 
 def get_segmenter(task, fpath=None, device="cuda"):
-    if task == "bedroom" or task == "church":
-        return UnifiedParsingSegmenter(device=device)
-    elif task == "celebahq" or task == "ffhq":
+    if task in ["celebahq", "ffhq"]:
         return CelebAMaskHQSegmenter(fpath, device)
+    else:
+        return UnifiedParsingSegmenter(device=device)
 
 
 class CelebAMaskHQSegmenter(object):
