@@ -11,9 +11,11 @@ from torch.autograd import Function
 from lib.op import FusedLeakyReLU, fused_leaky_relu, upfirdn2d
 
 def from_pth_file(fpath):
-    resolution = 1024
+    resolution = (1024, 1024)
     if "256x256" in fpath:
-        resolution = 256
+        resolution = (256, 256)
+    if "512x384" in fpath:
+        resolution = (512, 384)
     model = Generator(resolution, 512, 8)
     state_dict = torch.load(fpath, map_location="cpu")
     model.load_state_dict(state_dict)
