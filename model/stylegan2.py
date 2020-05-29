@@ -300,10 +300,10 @@ class NoiseInjection(nn.Module):
 
 
 class ConstantInput(nn.Module):
-    def __init__(self, channel, size=4):
+    def __init__(self, channel, size=(4, 4)):
         super().__init__()
 
-        self.input = nn.Parameter(torch.randn(1, channel, size, size))
+        self.input = nn.Parameter(torch.randn(1, channel, size[0], size[1]))
 
     def forward(self, input):
         batch = input.shape[0]
@@ -416,7 +416,7 @@ class Generator(nn.Module):
         )
         self.to_rgb1 = ToRGB(self.channels[4], style_dim, upsample=False)
 
-        self.log_size = int(math.log(size, 2))
+        self.log_size = int(math.log(max(size), 2))
         self.num_layers = (self.log_size - 2) * 2 + 1
 
         self.convs = nn.ModuleList()
