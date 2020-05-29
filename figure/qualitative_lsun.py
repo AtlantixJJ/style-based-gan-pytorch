@@ -59,6 +59,7 @@ def get_output(generator, model_file, external_model, latent,
         label = external_model.segment_batch(image)
         label = utils.torch2numpy(label)
     dims = [s.shape[1] for s in stage]
+    print(model_file)
     sep_model = func(
         n_class=n_class,
         category_groups=cg,
