@@ -47,6 +47,8 @@ external_model = get_segmenter(
     "checkpoint/faceparse_unet_512.pth")
 n_class = len(external_model.get_label_and_category_names()[0][0])
 colorizer = utils.Colorize(n_class)
+if args.task not in ["celebahq", "ffhq"]:
+    colorizer = segment_visualization_single
 layers = range(2, len(dims))
 with open(f"{args.out}/dims.txt", "w") as f:
     f.write(" ".join([str(l) for l in layers]) + "\n")
