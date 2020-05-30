@@ -1,6 +1,6 @@
 import os
 import sys
-import subprocess, uname 
+import subprocess 
 
 def command_snapshot(gpus):
     count = 0
@@ -132,7 +132,7 @@ uname = subprocess.run(["uname", "-a"], capture_output=True)
 uname = uname.stdout.decode("ascii")
 if "instance" in uname:
     gpus = [0]
-    
+
 slots = [[] for _ in gpus]
 for i, c in command(gpus):
     slots[i].append(c)
