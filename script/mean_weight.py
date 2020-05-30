@@ -3,7 +3,7 @@ Monitor the training, visualize the trained model output.
 """
 import sys
 sys.path.insert(0, ".")
-import argparse, tqdm, glob, os, copy
+import argparse, tqdm, glob, os, copy, math
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
@@ -37,6 +37,7 @@ os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 device = 'cuda' if int(args.gpu) > -1 else 'cpu'
 cfg = 0
 batch_size = 1
+EPS = 1e-6
 latent_size = 512
 task = "celebahq"
 colorizer = utils.Colorize(15) #label to rgb
@@ -93,6 +94,32 @@ missed = sep_model.load_state_dict(state_dict)
 mean_vectors = [[] for _ in range(15)]
 weight = [[] for _ in range(15)]
 
+def sphere2cartesian(x): #x: (N, C)
+    r = x[:, 0:1]
+    si = torch.sin(x)
+    si[:, 0] = 1
+    si = torch.cumprod(si, 1)
+    co = torch.cos(x)
+    co[:, 0] = 1
+    co = torch.roll(co, -1, 1)
+    return si * co * r
+
+def arccot(x):
+    # torch.atan = np.arctan
+    return math.pi / 2 - torch.atan(x)
+
+def cartesian2sphere(x): #x: (N, C)
+    # (xn, xn + xn-1, ..., xn + xn-1 + ... + x2 + x1)
+    cx = EPS + torch.sqrt(torch.cumsum(torch.flip(x, [1]) ** 2, 1))
+    # (xn + xn-1 +...+ x2 + x1, xn + xn-1 +...+ x2, ..., xn + xn-1, xn)
+    cx = torch.flip(cx, [1])
+    r = cx[:, 0:1] #(N, 1)
+    phi_1_n2 = arccot(x[:, :-2] / cx[:, 1:-1]) # (N, C-2)
+    phi_n1 = 2 * arccot((x[:, -2] + cx[:, -2]) / x[:, -1])
+    phi_n1 = phi_n1.view(-1, 1) # (N, 1)
+    return torch.cat([r, phi_1_n2, phi_n1], 1)
+    
+
 for i in tqdm.tqdm(range(3000)):
     latent.normal_()
     with torch.no_grad():
@@ -101,16 +128,23 @@ for i in tqdm.tqdm(range(3000)):
         seg = sep_model(stage)[0]
         stage = stage[3:8]
         feat = torch.cat([utils.bu(s, 512) for s in stage], 1)
-        feat = F.normalize(feat, 2, 1)
         est_label = utils.bu(seg, feat.shape[3]).argmax(1)[0]
+        N, C, H, W = feat.shape
+        # (10000, 2544)
+        #feat = utils.torch2numpy(feat[0])
+        #feat = feat.reshape(C, H * W).transpose(1, 0)
+        feat = feat.view(C, H * W).permute(1, 0)
+        sphere_feat = cartesian2sphere(feat).view(H, W, C)
+        
 
     for j in range(15):
+        #a = utils.torch2numpy(est_label == j).astype("bool")
         a = (est_label == j)
         w = a.sum()
         if a.sum() <= 0:
             continue
         weight[j].append(utils.torch2numpy(w))
-        v = feat[0, :, a].mean(1)
+        v = sphere_feat[a, :].mean(0)
         mean_vectors[j].append(v.detach())
 
 sep_model = get_semantic_extractor("linear")(
@@ -118,9 +152,13 @@ sep_model = get_semantic_extractor("linear")(
     dims=[512, 256, 128, 64, 32])
 weight = [[w/sum(ws) for w in ws] for ws in weight]
 
+# (15, 2544)
 w = torch.stack([
     sum([v * w for v, w in zip(vs, ws)])
     for vs, ws in zip(mean_vectors, weight)])
+w[:, 0] = 1. # unit
+w = sphere2cartesian(w)
+print((w**2).sum(1)) #verify
 assign_weight(sep_model.semantic_extractor, w)
 sep_model.to(device).eval()
 torch.save(sep_model.state_dict(), "record/mean_weight/meannormweight_linear_layer3,4,5,6,7.model")
