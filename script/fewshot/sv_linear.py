@@ -114,6 +114,7 @@ for i in range(n_class):
 layers, dims = open(f"{args.data_dir}/dims.txt", "r").readlines()
 dims = [int(d) for d in dims.strip().split(" ")]
 layer = layers.strip().replace(" ", ",")
+dims = [dims[i] for i in range(len(dims)) if str(i) in layer]
 
 sep_model = get_semantic_extractor("linear")(
     n_class=args.total_class,
