@@ -47,9 +47,10 @@ external_model = get_segmenter(
     "checkpoint/faceparse_unet_512.pth")
 n_class = len(external_model.get_label_and_category_names()[0][0])
 colorizer = utils.Colorize(n_class)
-layers = list(range(2, len(dims) - 1))
+layers = range(2, len(dims))
 with open(f"{args.out}/dims.txt", "w") as f:
-    f.write(str(dims))
+    f.write(" ".join([str(l) for l in layers]) + "\n")
+    f.write(" ".join([str(d) for d in dims]) + "\n")
 
 #sep_model = model.semantic_extractor.get_semantic_extractor("unit")(
 #    n_class=15,
@@ -74,7 +75,8 @@ for ind in tqdm(range(args.number)):
         image, stage = generator.get_stage(latent)
         image = image.clamp(-1, 1)
         label = external_model.segment_batch(image, resize=False)
-        label = F.interpolate(label.float(), stage[-2].shape[3], mode="nearest").long()
+        if image.shape[3] >= 512:
+            label = F.interpolate(label.float(), 512, mode="nearest").long()
         
         try:
             label_viz = colorizer(label) / 255.
@@ -84,9 +86,10 @@ for ind in tqdm(range(args.number)):
             label_viz = torch.from_numpy(colorizer(label_viz))
             label_viz = label_viz.float().permute(2, 0, 1)
             label_viz = label_viz.unsqueeze(0) / 255.
-        #label = sep_model(stage)[0].argmax(1)
-        stage = [s for i, s in enumerate(stage) if i in layers] # layers 3~7 is useful
+
+        stage = [s for i, s in enumerate(stage) if i in layers]
         maxsize = max(s.shape[3] for s in stage)
+        maxsize = min(maxsize, 512)
         feat = torch.cat([utils.bu(s, maxsize)[0] for s in stage])
 
     # get the (approximated) support vectors
@@ -125,7 +128,7 @@ for ind in tqdm(range(args.number)):
         data = utils.torch2numpy(feat[:, mask].transpose(1, 0))
         labels = utils.torch2numpy(label[mask])
     else:
-        data = utils.torch2numpy(feat.view(feat.shape[0], -1)).transpose(1, 0)
+        data = utils.torch2numpy(feat.view(feat.shape[0], -1)).transpose(1, 0).astype("float16")
         labels = utils.torch2numpy(label.view(-1))
     if ind == 0:
         print(data.shape, labels.shape)
