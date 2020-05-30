@@ -41,8 +41,11 @@ optimizer = "adam"
 model_path = args.G
 generator = model.load_model(model_path)
 generator.to(device).eval()
+g_mapping = 0
 if not hasattr(generator, "g_mapping"):
-    generator.g_mapping = generator.style
+    g_mapping = generator.style
+else:
+    g_mapping = generator.g_mapping.simple_forward
 # target image is controled by seed
 torch.manual_seed(args.seed)
 latent = torch.randn(1, 512, device=device)
@@ -102,10 +105,10 @@ res = [orig_image, orig_label_viz]
 for ind in range(args.n_total):
     x = original_latents[ind:ind+1].to(device)
     with torch.no_grad():
-        EL = generator.g_mapping(x) # (1, 18, 512)
-        print(EL.shape)
-        GL = EL[:, 0:1, :] # (1, 1, 512)
+        GL = g_mapping(x).unsqueeze(0) # (1, 18, 512)
+        EL = GL.expand(-1, 18, -1)
         ML = x.expand(18, -1).unsqueeze(0) # (1, 18, 512)
+        print(GL.shape, EL.shape, ML.shape)
 
     if "LL" == args.method:
         latent = x
@@ -127,7 +130,7 @@ for ind in range(args.n_total):
         n_iter=args.n_iter,
         sep_model=sep_model,
         method=f"latent-{args.method}-internal",
-        mapping_network=generator.g_mapping.simple_forward)
+        mapping_network=g_mapping)
     new_label_viz = colorizer(new_label) / 255.
     res.extend([utils.bu(image, 256), utils.bu(new_label_viz, 256)])
 
@@ -141,7 +144,7 @@ for ind in range(args.n_total):
         with torch.no_grad():
             el = optim.get_el_from_latent(
                 snapshot[i:i+1],
-                generator.g_mapping.simple_forward,
+                g_mapping,
                 f"latent-{args.method}-internal")
             image, stage = generator.get_stage(el, layers)
             image = (1 + image.clamp(-1, 1)) / 2
