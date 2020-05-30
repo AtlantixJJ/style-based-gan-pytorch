@@ -42,7 +42,7 @@ model_path = args.G
 generator = model.load_model(model_path)
 generator.to(device).eval()
 if not hasattr(generator, "g_mapping"):
-    generator = generator.style
+    generator.g_mapping = generator.style
 # target image is controled by seed
 torch.manual_seed(args.seed)
 latent = torch.randn(1, 512, device=device)
