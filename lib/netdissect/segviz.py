@@ -1,6 +1,6 @@
 import numpy, scipy
 
-def segment_visualization_single(seg, size):
+def segment_visualization_single(seg, size=256):
     if seg.shape[0] == 1:
         seg = seg[0]
     result = numpy.zeros((seg.shape[0], seg.shape[1], 3), dtype=numpy.uint8)
