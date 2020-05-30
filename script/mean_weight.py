@@ -101,6 +101,7 @@ for i in tqdm.tqdm(range(3000)):
         seg = sep_model(stage)[0]
         stage = stage[3:8]
         feat = torch.cat([utils.bu(s, 512) for s in stage], 1)
+        feat = F.normalize(feat, 2, 1)
         est_label = utils.bu(seg, feat.shape[3]).argmax(1)[0]
 
     for j in range(15):
@@ -122,4 +123,4 @@ w = torch.stack([
     for vs, ws in zip(mean_vectors, weight)])
 assign_weight(sep_model.semantic_extractor, w)
 sep_model.to(device).eval()
-torch.save(sep_model.state_dict(), "meanweight_linear_layer3,4,5,6,7.model")
+torch.save(sep_model.state_dict(), "record/mean_weight/meannormweight_linear_layer3,4,5,6,7.model")

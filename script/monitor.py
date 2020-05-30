@@ -178,6 +178,34 @@ if "log" in args.task:
     dic = utils.parse_log(logfile)
     utils.plot_dic(dic, args.model, savepath + "_loss.png")
 
+if "seg" in args.task:
+    for i, model_file in enumerate(model_files):
+        print("=> Load from %s" % model_file)
+        sep_model = get_semantic_extractor(get_extractor_name(model_file))(
+            n_class=n_class,
+            dims=dims,
+            use_bias="bias1" in model_file).to(device)
+        sep_model.eval()
+        state_dict = torch.load(model_file, map_location='cpu')
+        missed = sep_model.load_state_dict(state_dict)
+        sep_model.to(device).eval()
+        with torch.no_grad():
+            gen, stage = generator.get_stage(latent, detach=True)
+        stage = [s for i, s in enumerate(stage) if i in layers]
+        gen = gen.clamp(-1, 1)
+        segs = sep_model(stage)
+        segs = [s[0].argmax(0) for s in segs]
+        label = external_model.segment_batch(gen)[0]
+
+        segs += [label]
+
+        segs = [colorizer(s).float() / 255. for s in segs]
+        res = segs + [(gen[0] + 1) / 2]
+        res = [F.interpolate(m.unsqueeze(0), 256).cpu()[0] for m in res]
+        fpath = savepath + '{}_segmentation.png'.format(i)
+        print("=> Write image to %s" % fpath)
+        vutils.save_image(res, fpath, nrow=4)
+        
 if "projective" in args.task:
     H, W = image.shape[2:]
 
@@ -773,32 +801,3 @@ if "gan" in args.task:
             label_viz = colorizer(label[i]).unsqueeze(0).float() / 255.
             res.extend([gen[i:i+1], label_viz])
         vutils.save_image(torch.cat(res), f"{savepath}_{idx}_gan.png", nrow=6)
-
-
-if "seg" in args.task:
-    for i, model_file in enumerate(model_files):
-        print("=> Load from %s" % model_file)
-        sep_model = get_semantic_extractor(get_extractor_name(model_file))(
-            n_class=n_class,
-            dims=dims,
-            use_bias="bias1" in model_file).to(device)
-        sep_model.eval()
-        state_dict = torch.load(model_file, map_location='cpu')
-        missed = sep_model.load_state_dict(state_dict)
-        sep_model.to(device).eval()
-        with torch.no_grad():
-            gen, stage = generator.get_stage(latent, detach=True)
-        stage = [s for i, s in enumerate(stage) if i in layers]
-        gen = gen.clamp(-1, 1)
-        segs = sep_model(stage)
-        segs = [s[0].argmax(0) for s in segs]
-        label = external_model.segment_batch(gen)[0]
-
-        segs += [label]
-
-        segs = [colorizer(s).float() / 255. for s in segs]
-        res = segs + [(gen[0] + 1) / 2]
-        res = [F.interpolate(m.unsqueeze(0), 256).cpu()[0] for m in res]
-        fpath = savepath + '{}_segmentation.png'.format(i)
-        print("=> Write image to %s" % fpath)
-        vutils.save_image(res, fpath, nrow=4)
