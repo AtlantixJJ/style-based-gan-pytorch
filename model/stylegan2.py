@@ -471,7 +471,7 @@ class Generator(nn.Module):
 
         return noises
 
-    def generate_noise(self, device):
+    def generate_noise(self, device="cuda"):
         return self.make_noise()
 
     def set_noise(self, noise):
