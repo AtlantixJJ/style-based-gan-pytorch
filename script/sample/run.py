@@ -1,4 +1,5 @@
 import os
+import sys
 
 def command_snapshot(gpus):
     count = 0
@@ -16,7 +17,6 @@ def command_analyze(gpus):
         yield idx, basecmd % s
         count += 1
 
-
 def command_sample(gpus):
     count = 0
     basecmd = "python script/sample/ms.py --kl-coef 0 --n-iter 1000 --seed %d --gpu %d"
@@ -24,8 +24,6 @@ def command_sample(gpus):
         idx = count % len(gpus)
         yield idx, basecmd % (s, gpus[idx])
         count += 1
-gpus = [0, 1, 2, 3]
-
 
 def command_fewshot(gpus):
     count = 0
@@ -35,12 +33,11 @@ def command_fewshot(gpus):
             idx = count % len(gpus)
             yield idx, basecmd % (s, gpus[idx], t, t)
             count += 1
-gpus = [0]
 
 
-def command_sample_fewshot_real(gpus):
+def sample_fewshot_real_face(gpus):
     count = 0
-    basecmd = "python script/sample/msreal.py --outdir results/mask_sample_fewshot_real_%d --n-iter 1600 --n-total 8 --image ../data/CelebAMask-HQ/CelebA-HQ-img/%d.jpg --label ../data/CelebAMask-HQ/CelebAMask-HQ-mask-15/%d.png --model results/svm_t%d_stylegan_linear_extractor_layer3,4,5,6,7.model --resolution 512 --gpu %d"
+    basecmd = "python script/sample/msreal.py --outdir results/mask_sample_fewshot_real_%d --n-iter 1000 --n-total 8 --image ../data/CelebAMask-HQ/CelebA-HQ-img/%d.jpg --label ../data/CelebAMask-HQ/CelebAMask-HQ-mask-15/%d.png --model results/fewshot/svm_t%d_stylegan_linear_extractor_layer3,4,5,6,7.model --resolution 512 --gpu %d"
     for i in range(100):
         for t in [1, 2, 4, 8]:
             idx = count % len(gpus)

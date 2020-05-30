@@ -111,7 +111,7 @@ coef = np.zeros((args.total_class, feats.shape[1]))
 for i in range(n_class):
     coef[labels[i]] = np.array(svm_model.get_decfun(i)[0])
 
-dims, layers = open(f"{args.data_dir}/dims.txt", "r").readlines()
+layers, dims = open(f"{args.data_dir}/dims.txt", "r").readlines()
 dims = [int(d) for d in dims.strip().split(" ")]
 layer = layers.strip().replace(" ", ",")
 
