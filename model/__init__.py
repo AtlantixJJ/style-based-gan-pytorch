@@ -6,7 +6,7 @@ import model.vgg16
 import subprocess
 uname = subprocess.run(["uname", "-a"], capture_output=True)
 uname = uname.stdout.decode("ascii")
-if "jericho" in uname:
+if "Linux" not in uname:
     import model.stylegan2
     from model.stylegan2 import from_pth_file as load_stylegan2
 #from model.simple import from_pth_file as load_dcgan
