@@ -41,6 +41,8 @@ optimizer = "adam"
 model_path = args.G
 generator = model.load_model(model_path)
 generator.to(device).eval()
+if not hasattr(generator, "g_mapping"):
+    generator = generator.style
 # target image is controled by seed
 torch.manual_seed(args.seed)
 latent = torch.randn(1, 512, device=device)
@@ -101,6 +103,7 @@ for ind in range(args.n_total):
     x = original_latents[ind:ind+1].to(device)
     with torch.no_grad():
         EL = generator.g_mapping(x) # (1, 18, 512)
+        print(EL.shape)
         GL = EL[:, 0:1, :] # (1, 1, 512)
         ML = x.expand(18, -1).unsqueeze(0) # (1, 18, 512)
 
