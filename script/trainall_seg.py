@@ -245,13 +245,19 @@ def direct_run(gpus):
         ## face stylegan2
         #"python train/extract_semantics_continuous.py --load checkpoint/face_ffhq_1024x1024_stylegan2.pth --model-name stylegan2 --iter-num 32000 --last-only 0 --task ffhq --gpu %s",
         ## church stylegan2
-        #"python train/extract_semantics.py --load checkpoint/church_lsun_256x256_stylegan2.pth --model-name stylegan2 --iter-num 30000 --task church --gpu %s",
+        "CUDA_VISIBLE_DEVICES=%s python train/extract_semantics.py --load checkpoint/church_lsun_256x256_stylegan2.pth --model-name stylegan2 --iter-num 30000 --task church --gpu 0",
+        ## cat stylegan2
+        "CUDA_VISIBLE_DEVICES=%s python train/extract_semantics.py --load checkpoint/cat_lsun_256x256_stylegan2.pth --model-name stylegan2 --iter-num 30000 --task cat --gpu 0",
+        ## car stylegan2
+        "CUDA_VISIBLE_DEVICES=%s python train/extract_semantics.py --load checkpoint/car_lsun_512x384_stylegan2.pth --model-name stylegan2 --iter-num 30000 --task car --gpu 0",
+        ## horse stylegan2
+        "CUDA_VISIBLE_DEVICES=%s python train/extract_semantics.py --load checkpoint/horse_lsun_256x256_stylegan2.pth --model-name stylegan2 --iter-num 30000 --task horse --gpu 0",
         ## church prog
-        "python train/extract_semantics.py --load checkpoint/church_lsun_256x256_proggan.pth --model-name proggan --iter-num 30000 --task church --gpu %s",
+        #"python train/extract_semantics.py --load checkpoint/church_lsun_256x256_proggan.pth --model-name proggan --iter-num 30000 --task church --gpu %s",
         ## bedroom prog
-        "python train/extract_semantics.py --load checkpoint/bedroom_lsun_256x256_proggan.pth --model-name proggan --iter-num 30000 --task bedroom --gpu %s",
+        #"python train/extract_semantics.py --load checkpoint/bedroom_lsun_256x256_proggan.pth --model-name proggan --iter-num 30000 --task bedroom --gpu %s",
         ## bedroom stylegan
-        "python train/extract_semantics.py --load checkpoint/bedroom_lsun_256x256_stylegan.pth --model-name stylegan --iter-num 30000 --task bedroom --gpu %s"
+        #"python train/extract_semantics.py --load checkpoint/bedroom_lsun_256x256_stylegan.pth --model-name stylegan --iter-num 30000 --task bedroom --gpu %s"
         ]
     for i in range(len(commands)):
         index = i % len(gpus)
@@ -273,6 +279,6 @@ if "jericho" in uname:
     #gpus = ["0"]; assign_run(SEBCE(["linear"]).command, gpus)
     #gpus = ["0"]; assign_run(SEBCE(["unit"]).command, gpus)
 elif "instance" in uname:
-    gpus = ["4", "5", "6", "7"]; assign_run(SESGD().command, gpus)
+    gpus = ["0", "1", "2", "3"]; assign_run(direct_run, gpus)
 else:
     gpus = ["4", "5", "6", "7"]; assign_run(SESGD().command, gpus)
