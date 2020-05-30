@@ -8,7 +8,7 @@ import lib.face_parsing
 import subprocess
 uname = subprocess.run(["uname", "-a"], capture_output=True)
 uname = uname.stdout.decode("ascii")
-if "Linux" not in uname:
+if "img14" not in uname:
     import lib.op
 else:
     print("!> StyleGAN2 not available")
