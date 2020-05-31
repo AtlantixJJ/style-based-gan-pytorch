@@ -118,7 +118,7 @@ elif sys.argv[1] == "1": # sample fewshot uper
             model_path = "car_lsun_512x384_stylegan2.pth"
             resolution = 512
 
-        basecmd = f"python script/sample/msreal.py --outdir results/{name}_fewshot_real_%d --n-iter 3000 --n-total 8 --image {ds}/image%d.png --label {ds}/sv_label%d.npy --model results/fewshot_svm/svm_t%d_{name}_layer2,3,4,5,6_linear_extractor.model --G checkpoint/{model_path} --resolution {resolution} --gpu %d --method ML"
+        basecmd = f"python script/sample/msreal.py --outdir results/{name}_fewshot_real_%d --n-iter 3000 --n-total 8 --image {ds}/image%d.png --label {ds}/sv_label%d.npy --model results/fewshot_svm/svm_t%d_{name}_layer2,3,4,5,6_linear_extractor.model --G checkpoint/{model_path} --resolution {resolution} --gpu %d --method LL"
 
         for t in [1, 2, 4, 8, 16]:
             for i in range(10):
@@ -144,7 +144,7 @@ elif sys.argv[1] == "2": # sample uper
 
     def command_sample_real_uper(gpus):
         count = 0
-        basecmd = f"python script/sample/msreal.py --n-iter 3000 --n-total 8 --image {ds}/image%d.png --label {ds}/sv_label%d.npy --model {extractor} --G checkpoint/{model_path} --resolution {resolution} --gpu %d --method %s"
+        basecmd = f"python script/sample/msreal.py --n-iter 3000 --n-total 8 --image {ds}/image%d.png --label {ds}/sv_label%d.npy --model {extractor} --G checkpoint/{model_path} --resolution {resolution} --gpu %d --method %s --outdir results/{name}_real"
         for i in range(10):
             for method in ["EL", "LL"]:
                 idx = count % len(gpus)
