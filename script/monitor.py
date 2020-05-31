@@ -735,7 +735,7 @@ if "lsun-agreement" in args.task:
             label = external_model.segment_batch(gen)
         label = utils.torch2numpy(label)
 
-        multi_segs = sep_model(stage)
+        multi_segs = sep_model(stage)[0]
 
         for i, seg in enumerate(multi_segs):
             if label[:, i].max() <= 0:
