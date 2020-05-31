@@ -113,7 +113,7 @@ for ind in range(len(imagefiles)):
         f"{outdir}/{optimizer}_i{name}_n{args.n_iter}_m{args.method}_0_latents.npy",
         utils.torch2numpy(snapshot))
 
-    if ind == 16:
+    if ind == 16 or ind == len(imagefiles) - 1:
         t = torch.cat([utils.bu(r, 256).cpu() for r in res[:16]])
         vutils.save_image(
             t,

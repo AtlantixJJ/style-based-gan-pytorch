@@ -35,8 +35,7 @@ def command_fewshot(gpus):
             yield idx, basecmd % (s, gpus[idx], t, t)
             count += 1
 
-
-def command_sample_real(gpus):
+def command_sample_real_face(gpus):
     count = 0
     basecmd = "python script/sample/msreal.py --n-iter 1600 --n-total 16 --image ../datasets/CelebAMask-HQ/CelebA-HQ-img/%d.jpg --label ../datasets/CelebAMask-HQ/CelebAMask-HQ-mask-15/%d.png --gpu %d --method %s --outdir results/mask_sample_real_method"
     for i in range(10):
@@ -99,10 +98,11 @@ def sample_fewshot_real_face(gpus):
             count += 1
 
 gpus = [0]
-if sys.argv[1] == "0":
+if sys.argv[1] == "0": # sample fewshot face
     command = sample_fewshot_real_face
     gpus = [2, 3]
-elif sys.argv[1] == "1":
+    
+elif sys.argv[1] == "1": # sample fewshot uper
     ds = sys.argv[2]
     name = sys.argv[3] # bedroom_lsun_stylegan
 
@@ -127,6 +127,35 @@ elif sys.argv[1] == "1":
                 count += 1
     gpus = [6, 7]
     command = sample_fewshot_real_uper
+
+elif sys.argv[1] == "2": # sample uper
+    ds = sys.argv[2]
+    name = sys.argv[3] # bedroom_lsun_stylegan
+    extractor = sys.argv[4]
+    model_path = "bedroom_lsun_256x256_stylegan.pth"
+    resolution = 256
+    if "church" in name:
+        model_path = "church_lsun_256x256_stylegan2.pth"
+    elif "cat" in name:
+        model_path = "cat_lsun_256x256_stylegan2.pth"
+    elif "car" in name:
+        model_path = "car_lsun_512x384_stylegan2.pth"
+        resolution = 512
+
+    def command_sample_real_uper(gpus):
+        count = 0
+        basecmd = f"python script/sample/msreal.py --n-iter 3000 --n-total 8 --image {ds}/image%d.png --label {ds}/sv_label%d.npy --model {extractor} --G checkpoint/{model_path} --resolution {resolution} --gpu %d --method %s"
+        for i in range(10):
+            for method in ["EL", "LL"]:
+                idx = count % len(gpus)
+                yield idx, basecmd % (i, i, gpus[idx], method)
+                count += 1
+    
+    command = command_sample_real_uper
+    gpus = [1, 3]
+
+
+
 
 uname = subprocess.run(["uname", "-a"], capture_output=True)
 uname = uname.stdout.decode("ascii")

@@ -63,10 +63,21 @@ if "layer" in extractor_path:
     layers = [int(i) for i in s.split(",")]
     dims = np.array(dims)[layers].tolist()
 
-sep_model = get_semantic_extractor(get_extractor_name(extractor_path))(
-    n_class=n_class,
-    dims=dims).to(device)
-sep_model.load_state_dict(torch.load(extractor_path))
+try:
+    sep_model = get_semantic_extractor(get_extractor_name(extractor_path))(
+        n_class=n_class,
+        dims=dims).to(device)
+    sep_model.load_state_dict(torch.load(extractor_path))
+except:
+    external_model = segmenter.get_segmenter("bedroom")
+    labels, cats = external_model.get_label_and_category_names()
+    category_groups = utils.get_group(labels)
+    n_class = category_groups[-1][1]
+    sep_model = get_semantic_extractor("linear")(
+        n_class=n_class,
+        dims=dims,
+        category_groups=category_groups).to(device)
+    sep_model.load_state_dict(torch.load(extractor_path))
 
 lines = open(args.imglist).readlines()
 imagefiles = [l.strip().split(" ")[0] for l in lines]
@@ -82,8 +93,12 @@ for ind in range(len(imagefiles)):
     image = torch.from_numpy(utils.imread(imagefiles[ind]))
     image = image.float() / 127.5 - 1
     image = image.permute(2, 0, 1).unsqueeze(0).to(device)
-    label = torch.from_numpy(utils.imread(labelfiles[ind])[:, :, 0])
-    label = label.long().unsqueeze(0).to(device)
+
+    try:
+        label = utils.imread(labelfiles[ind])[:, :, 0]
+    except:
+        label = np.load(labelfiles[ind]).reshape(image.shape[3], -1)
+    label = torch.from_numpy(label).long().unsqueeze(0).to(device)
 
     vgg_image = pm.transform_input(image)
     target_feats = [vgg_image] + pm(vgg_image)
@@ -145,7 +160,7 @@ for ind in range(len(imagefiles)):
         f"{outdir}/{optimizer}_i{name}_n{args.n_iter}_m{args.method}_0_latents.npy",
         utils.torch2numpy(snapshot))
 
-    if ind == 8:
+    if ind == 8 or ind == len(imagefiles) - 1:
         t = torch.cat([utils.bu(r, 256).cpu() for r in res[:16]])
         vutils.save_image(
             t,

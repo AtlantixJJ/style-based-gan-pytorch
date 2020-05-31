@@ -82,17 +82,27 @@ elif "wgan128" in args.model:
     batch_size = 16
     latent_size = 128
 elif "stylegan2" in args.model:
+
     if "bedroom" in args.model:
         task = "bedroom"
         colorizer = lambda x: segment_visualization_single(x, 256)
         model_path = "checkpoint/bedroom_lsun_256x256_stylegan2.pth"
-    if "church" in args.model:
+    elif "church" in args.model:
         task = "church"
         colorizer = lambda x: segment_visualization_single(x, 256)
         model_path = "checkpoint/church_lsun_256x256_stylegan2.pth"
     elif "ffhq" in args.model:
         task = "ffhq"
         model_path = "checkpoint/face_ffhq_1024x1024_stylegan2.pth"
+    elif "cat" in args.model:
+        task = "cat"
+        model_path = "checkpoint/cat_lsun_256x256_stylegan2.pth"
+    elif "car" in args.model:
+        task = "car"
+        model_path = "checkpoint/car_lsun_512x384_stylegan2.pth"
+    elif "horse" in args.model:
+        task = "horse"
+        model_path = "checkpoint/horse_lsun_256x256_stylegan2.pth"
     generator = model.load_stylegan2(model_path).to(device)
     model_path = "checkpoint/faceparse_unet_512.pth"
     batch_size = 2
