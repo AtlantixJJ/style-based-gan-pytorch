@@ -120,7 +120,7 @@ elif sys.argv[1] == "1": # sample fewshot uper
             l = ",7"
             resolution = 512
 
-        basecmd = f"python script/sample/msreal.py --outdir results/{name}_fewshot_real_%d --n-iter 3000 --n-total 8 --image {ds}/image%d.png --label {ds}/sv_label%d.npy --model results/fewshot_svm/svm_t%d_{name}_layer2,3,4,5,6{l}_linear_extractor.model --G checkpoint/{model_path} --resolution {resolution} --gpu %d --method LL"
+        basecmd = f"python script/sample/msreal.py --outdir results/{name}_fewshot_real_%d --n-iter 3000 --n-total 1 --image {ds}/image%d.png --label {ds}/sv_label%d.npy --model results/fewshot_svm/svm_t%d_{name}_layer2,3,4,5,6{l}_linear_extractor.model --G checkpoint/{model_path} --resolution {resolution} --gpu %d --method LL"
 
         for t in [8]:
             for i in range(10):
