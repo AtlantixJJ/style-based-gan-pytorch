@@ -146,12 +146,11 @@ elif sys.argv[1] == "2": # sample uper
 
     def command_sample_real_uper(gpus):
         count = 0
-        basecmd = f"python script/sample/msreal.py --n-iter 3000 --n-total 8 --image {ds}/image%d.png --label {ds}/sv_label%d.npy --model {extractor} --G checkpoint/{model_path} --resolution {resolution} --gpu %d --method %s --outdir results/{name}_real"
+        basecmd = f"python script/sample/msreal.py --n-iter 3000 --n-total 8 --image {ds}/image%d.png --label {ds}/sv_label%d.npy --model {extractor} --G checkpoint/{model_path} --resolution {resolution} --gpu %d --method LL --outdir results/{name}_real"
         for i in range(10):
-            for method in ["EL", "LL"]:
-                idx = count % len(gpus)
-                yield idx, basecmd % (i, i, gpus[idx], method)
-                count += 1
+            idx = count % len(gpus)
+            yield idx, basecmd % (i, i, gpus[idx])
+            count += 1
     
     command = command_sample_real_uper
     gpus = [6, 7]
@@ -175,7 +174,7 @@ elif sys.argv[1] == "3": # sample partial face
 uname = subprocess.run(["uname", "-a"], capture_output=True)
 uname = uname.stdout.decode("ascii")
 if "instance" in uname:
-    gpus = [3]
+    gpus = [0]
 
 slots = [[] for _ in gpus]
 for i, c in command(gpus):
