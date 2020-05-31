@@ -26,6 +26,28 @@ def get_extractor_name(model_path):
         if k in model_path:
             return k
 
+def load_extractor(fpath, category_groups=None, dims=None):
+    net = 0
+    state_dict = 0
+    if category_groups is None:
+        state_dict = torch.load(fpath)
+        first = list(state_dict.keys())[0]
+        n_class = state_dict[first].shape[0]
+        if dims is None:
+            dims = [v.shape[1] for v in state_dict.values()]
+        build_func = get_semantic_extractor(get_extractor_name(fpath))
+        net = build_func(n_class=n_class, dims=dims)
+    else:
+        state_dict = torch.load(fpath)
+        n_class = category_groups[-1][-1]
+        if dims is None:
+            dims = [v.shape[1] for v in state_dict.values()]
+        build_func = get_semantic_extractor(get_extractor_name(fpath)) 
+        net = build_func(n_class=n_class, dims=dims,category_groups=category_groups)
+    net.load_state_dict(state_dict)
+    return net
+
+
 class BaseSemanticExtractor(nn.Module):
     def __init__(self, n_class, dims=[], mapid=None, category_groups=None, optim_args="adam-0.001", **kwargs):
         super().__init__()

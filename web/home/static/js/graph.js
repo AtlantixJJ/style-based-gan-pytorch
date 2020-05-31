@@ -30,7 +30,7 @@ function Graph(document, name) {
   }
 
   this.getImageData = function () {
-    return canvas.toDataURL();
+    return canvas.toDataURL('image/png');
   };
 
   this.setCurrentColor = function (colorString) {

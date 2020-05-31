@@ -230,13 +230,23 @@ function init() {
 
   $('#download-sketch').click(function () {
     download(
-      canvas.toDataURL('image/png'),
+      graph.getImageData(),
       'sketch_' + new Date().format('yyyyMMdd_hhmmss') + '.png');
   });
   $('#download-image').click(function () {
     download(
       image,
       'image_' + new Date().format('yyyyMMdd_hhmmss') + '.png');
+  });
+  $('#download-doodle').click(function () {
+    download(
+      labelgraph.getImageData(),
+      'doodle_' + new Date().format('yyyyMMdd_hhmmss') + '.png');
+  });
+  $('#download-label').click(function () {
+    download(
+      label,
+      'label_' + new Date().format('yyyyMMdd_hhmmss') + '.png');
   });
   $('#clear-image').click(graph.clear);
   $('#clear-label').click(labelgraph.clear);

@@ -1,64 +1,72 @@
+import sys
+sys.path.insert(0, "..")
+sys.path.insert(0, "../lib")
 import torch
-from home import stylegan, stylegan2, proggan
-from home.semantic_extractor import get_semantic_extractor
-from home.optim import edit_image_stroke, edit_label_stroke
+import model
+from model.semantic_extractor import load_extractor
 from home import utils
 
-
-
 class WrapedStyledGenerator(torch.nn.Module):
-    def __init__(self, resolution=1024, method="", model_path="", n_class=16, category_groups=None, extractor="", sep_model_path="", gpu=-1):
+    def __init__(self, resolution=1024, method="", model_path="", n_class=15, category_groups=None, sep_model_path="", gpu=-1):
         super(WrapedStyledGenerator, self).__init__()
         self.device = 'cuda' if gpu >= 0 else 'cpu'
         self.model_path = model_path
         self.method = method
-        self.extractor = extractor
         self.sep_model_path = sep_model_path
         self.external_model = None
-        self.category_groups = category_groups
+        self.category_groups = None
         self.n_class = n_class
 
         print("=> Constructing network architecture")
-        if "proggan" in self.model_path:
-            self.model = proggan.from_pth_file(self.model_path)
-        elif "stylegan2" in self.model_path:
-            self.model = stylegan2.from_pth_file(self.model_path)
-        elif "stylegan" in self.model_path:
-            self.model = stylegan.from_pth_file(self.model_path)
+        self.model = model.load_model(self.model_path)
         print("=> Loading parameter from %s" % self.model_path)
         state_dict = torch.load(self.model_path, map_location='cpu')
         missed = self.model.load_state_dict(state_dict, strict=False)
         print(missed)
+
+        t = "identity"
+        if "stylegan" in model_path:
+            if not hasattr(self.model, "g_mapping"):
+                self.mapping_network = self.model.style
+                t = "style"
+            else:
+                self.mapping_network = self.model.g_mapping.simple_forward
+                t = "g_mapping"
+        else:
+            self.mapping_network = lambda x : x
+        print(f"=> Resolve mapping function: {t}")
+
         try:
             self.model = self.model.to(self.device)
         except:
             print("=> Fall back to CPU")
             self.device = 'cpu'
+        
         self.model.eval()
-        self.mapping_network = self.model.g_mapping.simple_forward
+
         print("=> Check running")
         self.noise_length = self.model.set_noise(None)
+
         print("=> Optimization method %s" % str(self.method))
 
-        self.latent_param = torch.randn(1, 512, requires_grad=True, device=self.device)
+        self.latent_param = torch.randn(1, 512,
+            requires_grad=True, device=self.device)
 
         with torch.no_grad():
             image, stage = self.model.get_stage(self.latent_param)
             dims = [s.shape[1] for s in stage]
-            print(image.shape, dims)
-        func = get_semantic_extractor(self.extractor)
-        if category_groups is None:
-            self.sep_model = func(
-                n_class=n_class,
-                dims=dims)
-        else:
-            self.sep_model = func(
-                n_class=n_class,
-                category_groups=category_groups,
-                dims=dims)
+
+        self.layers = list(range(len(dims)))
+        if "layer" in sep_model_path:
+            ind = sep_model_path.rfind("layer") + len("layer")
+            s = sep_model_path[ind:].split("_")[0]
+            if ".model" in s:
+                s = s[:s.rfind(".")]
+            self.layers = [int(i) for i in s.split(",")]
+            dims = [dims[i] for i in self.layers]
+
+        self.sep_model = load_extractor(sep_model_path, category_groups, dims)
         self.sep_model.to(self.device).eval()
-        state_dict = torch.load(sep_model_path, map_location='cpu')
-        missed = self.sep_model.load_state_dict(state_dict)
 
     def generate_noise(self):
         print(self.noise_length)
