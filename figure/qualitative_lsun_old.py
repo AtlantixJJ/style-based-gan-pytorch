@@ -13,7 +13,6 @@ from torchvision import utils as vutils
 import cv2
 
 # setup and constants
-model_type = sys.argv[1]
 data_dir = "record/lsun"
 device = "cuda"
 external_model = segmenter.get_segmenter(
@@ -30,12 +29,16 @@ metrics = [object_metric, material_metric]
 n_class = 392
 colorizer = lambda x: segment_visualization_single(x, 256)
 model_files = glob.glob(f"{data_dir}/*")
-model_files = [f for f in model_files if ".npy" not in f and model_type in f]
+model_files = [f for f in model_files if ".npy" not in f]
 model_files = [glob.glob(f"{f}/*.model")[0] for f in model_files]
 model_files.sort()
 func = get_semantic_extractor("linear")
 torch.manual_seed(1005)
 latents = torch.randn(len(model_files) * 4, 512).to(device)
+
+get_name = lambda x : utils.listkey_convert(x,
+        ["church_proggan", "church_stylegan2", "bedroom_stylegan", "bedroom_proggan"],
+        ["PGAN-Church", "StyleGAN2-Church", "StyleGAN-Bedroom", "PGAN-Bedroom"])
 
 def get_classes(l, start=0):
     x = np.array(l)
@@ -56,6 +59,7 @@ def get_output(generator, model_file, external_model, latent,
         label = external_model.segment_batch(image)
         label = utils.torch2numpy(label)
     dims = [s.shape[1] for s in stage]
+    print(model_file)
     sep_model = func(
         n_class=n_class,
         category_groups=cg,
@@ -144,26 +148,48 @@ N_imgs = len(paper_res)
 N_col = 6
 N_row = N_imgs // N_col
 imsize = 256
-canvas_width = imsize * (N_col + 2)
-canvas_height = imsize * N_row
+pad = 5
+text_height = 33
+CW = imsize + pad
+CH = imsize + text_height
+canvas_width = imsize * (N_col + 2) + pad * (N_col + 1)
+canvas_height = (text_height + imsize) * N_row
 canvas = np.zeros((canvas_height, canvas_width, 3), dtype="uint8")
 canvas.fill(255)
 
 for idx, img in enumerate(paper_res):
     row, col = idx // N_col, idx % N_col
     col += 1
-    canvas[imsize * row : imsize * (row + 1),
-            imsize * col : imsize * (col + 1)] = img
+
+    model_name = get_name(model_files[row])
+    # labeling
+    sty = CH * row + int(text_height * 0.8)
+    if col == 1:
+        cv2.putText(canvas, model_name,
+                (CW * col, sty),
+                cv2.FONT_HERSHEY_DUPLEX, 1, (0, 0, 0),
+                2, cv2.LINE_AA)
+
+    stx = text_height + CH * row
+    edx = stx + imsize
+    sty = CW * col - text_height
+    edy = sty + imsize
+    canvas[stx:edx, sty:edy] = img
     if idx % 3 == 0:
         idx = idx // 3
-        delta = imsize * (N_col + 1) if idx % 2 == 1 else 0
+        delta = CW * (N_col + 1) if idx % 2 == 1 else 0
         for i, (text, rgb) in enumerate(paper_texts[idx]):
             i += 1
             cv2.putText(canvas, text,
-                (5 + delta, idx // 2 * imsize + 33 * i),
+                (5 + delta, text_height + idx // 2 * imsize + 33 * i),
                 cv2.FONT_HERSHEY_DUPLEX, 1, (0, 0, 0),
                 2 if "mIoU" in text else 1, cv2.LINE_AA)
 
+"""
+vutils.save_image(
+    torch.from_numpy(canvas).permute(2, 0, 1).float() / 255.,
+    f"qualitative_lsun_paper_{sys.argv[1]}.pdf", nrow=6)
+"""
 fig = plt.figure(figsize=(30, 15))
 plt.imshow(canvas)
 plt.axis("off")

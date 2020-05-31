@@ -118,14 +118,14 @@ elif sys.argv[1] == "1": # sample fewshot uper
             model_path = "car_lsun_512x384_stylegan2.pth"
             resolution = 512
 
-        basecmd = f"python script/sample/msreal.py --outdir results/{name}_fewshot_real_%d --n-iter 3000 --n-total 8 --image {ds}/image%d.png --label {ds}/sv_label%d.npy --model results/fewshot_svm/svm_t%d_{name}_layer2,3,4,5,6_linear_extractor.model --G checkpoint/{model_path} --resolution {resolution} --gpu %d --method LL"
+        basecmd = f"python script/sample/msreal.py --outdir results/{name}_fewshot_real_%d --n-iter 3000 --n-total 8 --image {ds}/image%d.png --label {ds}/sv_label%d.npy --model results/fewshot_svm/svm_t%d_{name}_layer2,3,4,5,6_linear_extractor.model --G checkpoint/{model_path} --resolution {resolution} --gpu %d --method ML"
 
-        for t in [1, 2, 4, 8, 16]:
+        for t in [16]:
             for i in range(10):
                 idx = count % len(gpus)
                 yield idx, basecmd % (t, i, i, t, gpus[idx])
                 count += 1
-    gpus = [3, 5]
+    gpus = [0, 1, 2, 3, 5]
     command = sample_fewshot_real_uper
 
 elif sys.argv[1] == "2": # sample uper
@@ -152,7 +152,7 @@ elif sys.argv[1] == "2": # sample uper
                 count += 1
     
     command = command_sample_real_uper
-    gpus = [1, 3]
+    gpus = [6, 7]
 
 
 
@@ -160,7 +160,7 @@ elif sys.argv[1] == "2": # sample uper
 uname = subprocess.run(["uname", "-a"], capture_output=True)
 uname = uname.stdout.decode("ascii")
 if "instance" in uname:
-    gpus = [0]
+    gpus = [0, 1]
 
 slots = [[] for _ in gpus]
 for i, c in command(gpus):
