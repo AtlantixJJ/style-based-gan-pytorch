@@ -118,14 +118,14 @@ elif sys.argv[1] == "1": # sample fewshot uper
             model_path = "car_lsun_512x384_stylegan2.pth"
             resolution = 512
 
-        basecmd = f"python script/sample/msreal.py --outdir results/{name}_fewshot_real_%d --n-iter 3000 --n-total 8 --image {ds}/image%d.png --label {ds}/sv_label%d.npy --model results/fewshot_svm/svm_t%d_{name}_layer2,3,4,5,6_linear_extractor.model --G checkpoint/{model_path} --resolution {resolution} --gpu %d --method LL"
+        basecmd = f"python script/sample/msreal.py --outdir results/{name}_fewshot_real_%d --n-iter 3000 --n-total 8 --image {ds}/image%d.png --label {ds}/sv_label%d.npy --model results/fewshot_svm/svm_t%d_{name}_layer2,3,4,5,6_linear_extractor.model --G checkpoint/{model_path} --resolution {resolution} --gpu %d --method ML"
 
         for t in [1, 2, 4, 8, 16]:
             for i in range(10):
                 idx = count % len(gpus)
                 yield idx, basecmd % (t, i, i, t, gpus[idx])
                 count += 1
-    gpus = [6, 7]
+    gpus = [3, 5]
     command = sample_fewshot_real_uper
 
 elif sys.argv[1] == "2": # sample uper

@@ -12,7 +12,7 @@ from torchvision import utils as vutils
 
 import model, utils
 from segmenter import get_segmenter
-from lib.netdissect.segviz import segment_visualization, segment_visualization_single
+from lib.netdissect.segviz import segment_visualization_single
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -45,8 +45,9 @@ print(dims)
 external_model = get_segmenter(
     args.task,
     "checkpoint/faceparse_unet_512.pth")
-n_class = len(external_model.get_label_and_category_names()[0][0])
+n_class = len(external_model.get_label_and_category_names()[0])
 colorizer = utils.Colorize(n_class)
+print(n_class)
 if args.task not in ["celebahq", "ffhq"]:
     colorizer = segment_visualization_single
 layers = range(2, len(dims))
@@ -80,11 +81,12 @@ for ind in tqdm(range(args.number)):
         if image.shape[3] >= 512:
             label = F.interpolate(label.float(), 512, mode="nearest").long()
         
-        try:
+        label_viz = 0
+        if "face" in args.model:
             label_viz = colorizer(label) / 255.
-        except:
+        else:
             label = label[:, 0, :, :]
-            label_viz = utils.torch2numpy(label[0])
+            label_viz = utils.torch2numpy(label[0]).astype("uint8")
             label_viz = torch.from_numpy(colorizer(label_viz))
             label_viz = label_viz.float().permute(2, 0, 1)
             label_viz = label_viz.unsqueeze(0) / 255.
