@@ -160,7 +160,7 @@ elif sys.argv[1] == "2": # sample uper
 uname = subprocess.run(["uname", "-a"], capture_output=True)
 uname = uname.stdout.decode("ascii")
 if "instance" in uname:
-    gpus = [0, 1]
+    gpus = [3]
 
 slots = [[] for _ in gpus]
 for i, c in command(gpus):

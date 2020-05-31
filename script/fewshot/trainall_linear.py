@@ -52,6 +52,7 @@ elif sys.argv[1] == "4":
     name = sys.argv[3]
     # bedroom_lsun_stylegan, Bedroom_StyleGAN_SV_full
     # church_lsun_stylegan2, Church_StyleGAN2_SV_full
+    # cat_lsun_stylegan2
     n_class = 15 if "face" in name else 361
     def command_svm(gpus):
         count = 0
