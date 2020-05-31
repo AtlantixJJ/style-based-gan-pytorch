@@ -86,20 +86,22 @@ if args.image != "":
     image = torch.from_numpy(utils.imread(args.image)).float() / 255.
     image = image.permute(2, 0, 1).unsqueeze(0)
     orig_image = utils.bu(image, 256)
+    
 try:
     orig_label = torch.from_numpy(utils.imread(args.label)[:, :, 0]).float()
 except:
-    orig_label = np.load(args.label).reshape(image.shape[3], -1)
+    orig_label = np.load(args.label)#.reshape(image.shape[3], -1)
     orig_label = torch.from_numpy(orig_label).float()
 orig_label = F.interpolate(
     orig_label.unsqueeze(0).unsqueeze(0),
     args.resolution, mode="nearest")[0]
 orig_label = orig_label.long().to(device)
+
 name = args.label
 name = name[name.rfind("/") + 1:name.rfind(".")]
 
 orig_label_viz = colorizer(orig_label) / 255.
-orig_mask = torch.ones_like(orig_label)
+orig_mask = (orig_label >= 0).float().to(device)
 
 res = [orig_image, orig_label_viz]
 for ind in range(args.n_total):

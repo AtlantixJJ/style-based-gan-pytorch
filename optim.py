@@ -153,7 +153,7 @@ def sample_given_mask(model, layers, latent, noises, label_stroke, label_mask, n
             seg = seg[0] # for multiclass segmentation
         current_label = seg.argmax(1)
         diff_mask = (current_label != target_label).float()
-        total_diff = diff_mask.sum()
+        total_diff = (label_mask * diff_mask).sum()
 
         celoss = mask_cross_entropy_loss(label_mask, seg, target_label)
         latent.grad = torch.autograd.grad(celoss, latent)[0]

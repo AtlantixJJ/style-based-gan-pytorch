@@ -156,8 +156,21 @@ elif sys.argv[1] == "2": # sample uper
     command = command_sample_real_uper
     gpus = [6, 7]
 
+elif sys.argv[1] == "3": # sample partial face 
+    ds = "datasets/face_doodle"
+    name = "face_celebahq_stylegan"
+    def sample_fewshot_partial_face(gpus):
+        count = 0
+        basecmd = f"python script/sample/msreal.py --outdir results/{name}_fewshot_partial_%d --n-iter 1000 --n-total 8 --label {ds}/%d.npy --model results/fewshot_svm/svm_t%d_face_celebahq_stylegan_layer2,3,4,5,6,7,8_linear_extractor.model --G checkpoint/face_celebahq_1024x1024_stylegan.pth --resolution 1024 --gpu %d --method %s"
 
-
+        for t in [1, 2, 4, 8]:
+            for i in range(6):
+                for method in ["LL", "ML"]:
+                    idx = count % len(gpus)
+                    yield idx, basecmd % (t, i, t, gpus[idx], method)
+                    count += 1
+    gpus = [0, 1, 2, 3]
+    command = sample_fewshot_partial_face
 
 uname = subprocess.run(["uname", "-a"], capture_output=True)
 uname = uname.stdout.decode("ascii")

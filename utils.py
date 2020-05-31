@@ -540,9 +540,9 @@ def color_mask(image, color):
 
 
 def color_mask_tensor(image, color):
-    r = image[0, :, :] == color[0]
-    g = image[1, :, :] == color[1]
-    b = image[2, :, :] == color[2]
+    r = (image[0, :, :] - color[0]).abs() < 30 
+    g = (image[1, :, :] - color[1]).abs() < 30
+    b = (image[2, :, :] - color[2]).abs() < 30
     return r & g & b
     
 
