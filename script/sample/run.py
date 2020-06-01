@@ -1,6 +1,12 @@
 import os
 import sys
-import subprocess 
+import subprocess, argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--gpu", default="0")
+args = parser.parse_args()
+
+
 
 def command_snapshot(gpus):
     count = 0
@@ -43,7 +49,7 @@ def command_sample_real_face(gpus):
             idx = count % len(gpus)
             yield idx, basecmd % (i, i, gpus[idx], method)
             count += 1
-gpus = [0]
+
 
 def baseline_sample_real(gpus):
     count = 0
@@ -52,7 +58,7 @@ def baseline_sample_real(gpus):
         idx = count % len(gpus)
         yield idx, basecmd % (i, i, gpus[idx])
         count += 1
-gpus = [0]
+
 
 def command_pggan_fewshot_real(gpus):
     count = 0
@@ -63,7 +69,6 @@ def command_pggan_fewshot_real(gpus):
             idx = count % len(gpus)
             yield idx, basecmd % (t, i, i, t, gpus[idx])
             count += 1
-gpus = [0, 1, 2, 3]
 
 
 def command_sample_real(gpus):
@@ -74,7 +79,7 @@ def command_sample_real(gpus):
             idx = count % len(gpus)
             yield idx, basecmd % (i, i, gpus[idx], method)
             count += 1
-gpus = [0]
+
 
 def command_bedroom_stylegan_fewshot(gpus):
     count = 0
@@ -85,7 +90,6 @@ def command_bedroom_stylegan_fewshot(gpus):
             idx = count % len(gpus)
             yield idx, basecmd % (t, i, i, t, gpus[idx])
             count += 1
-gpus = [0, 1, 2, 3, 5]
 
 
 def sample_fewshot_real_face(gpus):
@@ -97,10 +101,8 @@ def sample_fewshot_real_face(gpus):
             yield idx, basecmd % (t, i, i, t, gpus[idx])
             count += 1
 
-gpus = [0]
 if sys.argv[1] == "0": # sample fewshot face
     command = sample_fewshot_real_face
-    gpus = [2, 3]
     
 elif sys.argv[1] == "1": # sample fewshot uper
     ds = sys.argv[2]
@@ -127,7 +129,6 @@ elif sys.argv[1] == "1": # sample fewshot uper
                 idx = count % len(gpus)
                 yield idx, basecmd % (t, i, i, t, gpus[idx])
                 count += 1
-    gpus = [0, 1, 2, 3, 5]
     command = sample_fewshot_real_uper
 
 elif sys.argv[1] == "2": # sample uper
@@ -154,7 +155,7 @@ elif sys.argv[1] == "2": # sample uper
             count += 1
     
     command = command_sample_real_uper
-    gpus = [6, 7]
+
 
 elif sys.argv[1] == "3": # sample partial face 
     ds = "datasets/face_doodle"
@@ -169,14 +170,9 @@ elif sys.argv[1] == "3": # sample partial face
                     idx = count % len(gpus)
                     yield idx, basecmd % (t, i, t, gpus[idx], method)
                     count += 1
-    gpus = [0, 1, 2, 3, 5, 6, 7]
     command = sample_fewshot_partial_face
 
-uname = subprocess.run(["uname", "-a"], capture_output=True)
-uname = uname.stdout.decode("ascii")
-if "instance" in uname:
-    gpus = [0]
-
+gpus = [int(g) for g in args.gpu.split(',')]
 slots = [[] for _ in gpus]
 for i, c in command(gpus):
     slots[i].append(c)
