@@ -28,13 +28,13 @@ import torchvision.utils as vutils
 import model, utils, optim
 from model.semantic_extractor import get_semantic_extractor, get_extractor_name
 import segmenter
-from lib.netdissect.segviz import segment_visualization_single
+from lib.netdissect.segviz import segviz_torch
 
 WINDOW_SIZE = 100
 n_class = 15 if "face" in args.G else 361
 device = "cuda"
 extractor_path = args.model
-colorizer = utils.Colorize(15) if "face" in args.G else segment_visualization_single_torch
+colorizer = utils.Colorize(15) if "face" in args.G else segviz_torch
 outdir = args.outdir
 optimizer = "adam"
 

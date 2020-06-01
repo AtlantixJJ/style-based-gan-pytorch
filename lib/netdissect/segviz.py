@@ -1,6 +1,6 @@
 import numpy, scipy
 
-def segment_visualization_single_torch(seg, size=256):
+def segviz_torch(seg, size=256):
     res = segment_visualization_single(seg.cpu())
     res = torch.from_numpy(res).float().permute(2, 0, 1)
     return res.unsqueeze(0)
