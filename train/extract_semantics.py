@@ -69,9 +69,11 @@ if hasattr(sep_model, "weight"):
 elif cfg.semantic_extractor not in ["nonlinear", "generative"]:
     M, L = concat_weight(sep_model.semantic_extractor).shape[:2]
     has_trace = False
-if cfg.n_iter <= 10000:
+if M < 32:
     trace = np.zeros((cfg.n_iter // cfg.vbs, M, L), "float32")
-
+else:
+    has_trace = False
+    
 for ind in tqdm(range(cfg.n_iter)):
     ind += 1
     latent.normal_()
