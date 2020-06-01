@@ -131,10 +131,12 @@ class SEStyleGAN2(SEPGAN):
     def __init__(self):
         self.task = [
             "bedroom",
-            "church"]
+            "church",
+            "ffhq"]
         self.model = [
             "bedroom_lsun_256x256_stylegan2.pth",
-            "church_lsun_256x256_stylegan2"]
+            "church_lsun_256x256_stylegan2.pth",
+            "face_ffhq_1024x1024_stylegan2.pth"]
         self.extractors = [
             "linear",
             "nonlinear",
@@ -332,7 +334,7 @@ if "jericho" in uname:
     #gpus = ["0"]; assign_run(SEBCE(["linear"]).command, gpus)
     #gpus = ["0"]; assign_run(SEBCE(["unit"]).command, gpus)
 elif "instance" in uname:
-    gpus = ["0", "1", "2", "3"]; assign_run(SEStyleGAN2, gpus)
+    gpus = ["0", "1", "2", "3"]; assign_run(SEStyleGAN2().command, gpus)
 else:
     gpus = ["0", "1", "2", "3"]; assign_run(SEPGAN().command, gpus)
     gpus = ["5", "6", "7"]; assign_run(SEStyleGAN().command, gpus)
