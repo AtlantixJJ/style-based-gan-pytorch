@@ -128,7 +128,7 @@ elif args.task == "1": # sample fewshot uper
         niter = 200
         basecmd = f"python script/sample/msreal.py --outdir results/{name}_fewshot_real_%d --n-iter {niter} --n-total 8 --image {ds}/image%d.png --label {ds}/sv_label%d.npy --model results/fewshot_svm/svm_t%d_{name}_layer2,3,4,5,6{l}_linear_extractor.model --G checkpoint/{model_path} --resolution {resolution} --gpu %d --method LL"
 
-        for t in [8]:
+        for t in [16]:
             for i in range(10):
                 idx = count % len(gpus)
                 yield idx, basecmd % (t, i, i, t, gpus[idx])

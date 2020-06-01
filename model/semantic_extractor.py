@@ -110,7 +110,7 @@ class GenerativeSemanticExtractor(BaseSemanticExtractor):
         else:
             self.optim = torch.optim.SGD(self.semantic_branch.parameters(), lr=self.lr)
 
-    def forward(self, stage, last_only=True):
+    def forward_single_group(self, stage, last_only=True):
         extractor, reviser, visualizer = self.semantic_branch
         hidden = 0
         outputs = []
@@ -145,6 +145,20 @@ class GenerativeSemanticExtractor(BaseSemanticExtractor):
             outputs.append(sum_layers)
         outputs.append(final_segmentation)
         return outputs
+
+    def forward_category_group(self, stage, last_only=True):
+        # last_only=True
+        x = self.forward_single_group(stage, last_only)[0]
+        outputs = []
+        for cat_id, (bg, ed) in enumerate(self.category_groups):
+            outputs.append([x[:, bg:ed]])
+        return outputs
+
+    def forward(self, stage, last_only=True):
+        if len(self.category_groups) == 1:
+            return self.forward_single_group(stage, last_only)
+        else:
+            return self.forward_category_group(stage, last_only)
 
 
 class LinearSemanticExtractor(BaseSemanticExtractor):
@@ -331,7 +345,7 @@ class NormalizedLinearSemanticExtractor(BaseSemanticExtractor):
             self.optim = torch.optim.SGD(self.parameters(), lr=self.lr)
 
     def forward(self, stage, last_only=True):
-        maxsize = stage[-1].shape[2] // 2
+        maxsize = min(max([s.shape[2] for s in stage]), 256)
         with torch.no_grad():
             feat = torch.cat([F.interpolate(s, size=maxsize, mode="bilinear", align_corners=True)
                 for s in stage], 1)
