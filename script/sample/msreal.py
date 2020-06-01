@@ -30,7 +30,7 @@ from model.semantic_extractor import get_semantic_extractor, get_extractor_name
 import segmenter
 
 WINDOW_SIZE = 100
-n_class = 15
+n_class = 15 if "face" in args.G else 361
 device = "cuda"
 extractor_path = args.model
 colorizer = utils.Colorize(15)
@@ -140,13 +140,14 @@ for ind in range(args.n_total):
         method=f"latent-{args.method}-internal",
         mapping_network=g_mapping)
     new_label_viz = colorizer(new_label) / 255.
-    res.extend([utils.bu(image, 256), utils.bu(new_label_viz, 256)])
+    r = [utils.bu(image, 256), utils.bu(new_label_viz, 256)]
+    res.extend(r)
 
     utils.plot_dic(record, "label edit loss", f"{outdir}/{optimizer}_i{name}_n{args.n_iter}_m{args.method}_{ind:02d}_loss.png")
 
     # make snapshot
     print(snapshot.shape)
-    snaps = []
+    snaps = r
     for i in np.linspace(0, snapshot.shape[0] - 1, 8):
         i = int(i)
         with torch.no_grad():
