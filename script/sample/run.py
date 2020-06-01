@@ -163,7 +163,7 @@ elif sys.argv[1] == "3": # sample partial face
         count = 0
         basecmd = f"python script/sample/msreal.py --outdir results/{name}_fewshot_partial_%d --n-iter 1000 --n-total 8 --label {ds}/%d.npy --model results/fewshot_svm/svm_t%d_face_celebahq_stylegan_layer2,3,4,5,6,7,8_linear_extractor.model --G checkpoint/face_celebahq_1024x1024_stylegan.pth --resolution 1024 --gpu %d --method %s"
 
-        for t in [1, 2, 4, 8]:
+        for t in [16, 1, 2, 4, 8]:
             for i in range(6):
                 for method in ["LL", "ML"]:
                     idx = count % len(gpus)

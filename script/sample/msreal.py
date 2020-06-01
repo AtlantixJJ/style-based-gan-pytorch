@@ -28,12 +28,13 @@ import torchvision.utils as vutils
 import model, utils, optim
 from model.semantic_extractor import get_semantic_extractor, get_extractor_name
 import segmenter
+from lib.netdissect.segviz import segment_visualization_single
 
 WINDOW_SIZE = 100
 n_class = 15 if "face" in args.G else 361
 device = "cuda"
 extractor_path = args.model
-colorizer = utils.Colorize(15)
+colorizer = utils.Colorize(15) if "face" in args.G else segment_visualization_single
 outdir = args.outdir
 optimizer = "adam"
 
@@ -140,14 +141,12 @@ for ind in range(args.n_total):
         method=f"latent-{args.method}-internal",
         mapping_network=g_mapping)
     new_label_viz = colorizer(new_label) / 255.
-    r = [utils.bu(image, 256), utils.bu(new_label_viz, 256)]
-    res.extend(r)
+    res.extend([utils.bu(image, 256), utils.bu(new_label_viz, 256)])
 
     utils.plot_dic(record, "label edit loss", f"{outdir}/{optimizer}_i{name}_n{args.n_iter}_m{args.method}_{ind:02d}_loss.png")
 
     # make snapshot
-    print(snapshot.shape)
-    snaps = r
+    snaps = [orig_image, orig_label_viz]
     for i in np.linspace(0, snapshot.shape[0] - 1, 8):
         i = int(i)
         with torch.no_grad():
@@ -163,7 +162,7 @@ for ind in range(args.n_total):
             label = seg.argmax(1)
             label_viz = colorizer(label) / 255.
             snaps.extend([image, label_viz])
-    snaps = torch.cat([utils.bu(r, 256) for r in snaps])
+    snaps = torch.cat([utils.bu(r, 256).cpu() for r in snaps])
     vutils.save_image(snaps, f"{outdir}/{optimizer}_i{name}_n{args.n_iter}_m{args.method}_{ind:02d}_snapshot.png", nrow=4)
 
     # save optimization process

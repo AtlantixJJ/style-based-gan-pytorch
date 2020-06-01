@@ -139,7 +139,11 @@ def sample_given_mask(model, layers, latent, noises, label_stroke, label_mask, n
     #optim = torch.optim.LBFGS([latent], max_iter=n_iter)
     if noises:
         model.set_noise(noises)
-    record = {"gradnorm": [], "celoss": [], "segdiff": []}
+    record = {
+        "gradnorm": [],
+        "regloss": [],
+        "celoss": [],
+        "segdiff": []}
     #snapshot = torch.Tensor(n_iter, latent.shape[1]) # only for LL
     snapshot = []
     label_mask = label_mask.float()
@@ -155,11 +159,14 @@ def sample_given_mask(model, layers, latent, noises, label_stroke, label_mask, n
         diff_mask = (current_label != target_label).float()
         total_diff = (label_mask * diff_mask).sum()
 
+        regloss = 1e-2 * (latent ** 2).mean()
         celoss = mask_cross_entropy_loss(label_mask, seg, target_label)
+        loss = regloss + celoss
         latent.grad = torch.autograd.grad(celoss, latent)[0]
         grad_norm = torch.norm(latent.grad.view(-1), 2)
         optim.step(lambda : celoss)
 
+        record["regloss"].append(utils.torch2numpy(regloss))
         record["segdiff"].append(utils.torch2numpy(total_diff))
         record["celoss"].append(utils.torch2numpy(celoss))
         record["gradnorm"].append(utils.torch2numpy(grad_norm))
