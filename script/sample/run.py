@@ -4,6 +4,10 @@ import subprocess, argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--gpu", default="0")
+parser.add_argument("--task", default="")
+parser.add_argument("--name", default="")
+parser.add_argument("--extractor", default="")
+parser.add_argument("--ds", default="")
 args = parser.parse_args()
 
 
@@ -101,12 +105,12 @@ def sample_fewshot_real_face(gpus):
             yield idx, basecmd % (t, i, i, t, gpus[idx])
             count += 1
 
-if sys.argv[1] == "0": # sample fewshot face
+if args.task == "0": # sample fewshot face
     command = sample_fewshot_real_face
     
-elif sys.argv[1] == "1": # sample fewshot uper
-    ds = sys.argv[2]
-    name = sys.argv[3] # bedroom_lsun_stylegan
+elif args.task == "1": # sample fewshot uper
+    ds = args.ds
+    name = args.name # bedroom_lsun_stylegan
 
     def sample_fewshot_real_uper(gpus):
         count = 0
@@ -131,10 +135,10 @@ elif sys.argv[1] == "1": # sample fewshot uper
                 count += 1
     command = sample_fewshot_real_uper
 
-elif sys.argv[1] == "2": # sample uper
-    ds = sys.argv[2]
-    name = sys.argv[3] # bedroom_lsun_stylegan
-    extractor = sys.argv[4]
+elif args.task == "2": # sample uper
+    ds = args.ds
+    name = args.name # bedroom_lsun_stylegan
+    extractor = args.extractor
     model_path = "bedroom_lsun_256x256_stylegan.pth"
     resolution = 256
     n_iter = 200
@@ -157,7 +161,7 @@ elif sys.argv[1] == "2": # sample uper
     command = command_sample_real_uper
 
 
-elif sys.argv[1] == "3": # sample partial face 
+elif args.task == "3": # sample partial face 
     ds = "datasets/face_doodle"
     name = "face_celebahq_stylegan"
     def sample_fewshot_partial_face(gpus):
