@@ -70,6 +70,7 @@ try:
         n_class=n_class,
         dims=dims).to(device)
     sep_model.load_state_dict(torch.load(extractor_path))
+    print("=> No category group")
 except:
     external_model = segmenter.get_segmenter("bedroom")
     labels, cats = external_model.get_label_and_category_names()
@@ -80,6 +81,7 @@ except:
         dims=dims,
         category_groups=category_groups).to(device)
     sep_model.load_state_dict(torch.load(extractor_path))
+    print("=> Category group" + str(category_groups))
 
 orig_image = torch.zeros(1, 3, 256, 256)
 if args.image != "":
@@ -91,6 +93,7 @@ try:
     orig_label = torch.from_numpy(utils.imread(args.label)[:, :, 0]).float()
 except:
     orig_label = np.load(args.label)#.reshape(image.shape[3], -1)
+    print((orig_label<0).sum())
     orig_label = torch.from_numpy(orig_label).float()
 orig_label = F.interpolate(
     orig_label.unsqueeze(0).unsqueeze(0),
@@ -102,6 +105,9 @@ name = name[name.rfind("/") + 1:name.rfind(".")]
 
 orig_label_viz = colorizer(orig_label) / 255.
 orig_mask = (orig_label >= 0).float().to(device)
+res = [orig_label_viz, orig_mask.unsqueeze(0).expand(-1, 3, -1, -1)]
+res = torch.cat([utils.bu(r, 256).cpu() for r in res])
+vutils.save_image(res, "test.png")
 
 res = [orig_image, orig_label_viz]
 for ind in range(args.n_total):

@@ -120,7 +120,7 @@ elif sys.argv[1] == "1": # sample fewshot uper
             l = ",7"
             resolution = 512
 
-        basecmd = f"python script/sample/msreal.py --outdir results/{name}_fewshot_real_%d --n-iter 3000 --n-total 1 --image {ds}/image%d.png --label {ds}/sv_label%d.npy --model results/fewshot_svm/svm_t%d_{name}_layer2,3,4,5,6{l}_linear_extractor.model --G checkpoint/{model_path} --resolution {resolution} --gpu %d --method LL"
+        basecmd = f"python script/sample/msreal.py --outdir results/{name}_fewshot_real_%d --n-iter 1000 --n-total 1 --image {ds}/image%d.png --label {ds}/sv_label%d.npy --model results/fewshot_svm/svm_t%d_{name}_layer2,3,4,5,6{l}_linear_extractor.model --G checkpoint/{model_path} --resolution {resolution} --gpu %d --method LL"
 
         for t in [8]:
             for i in range(10):
@@ -136,6 +136,7 @@ elif sys.argv[1] == "2": # sample uper
     extractor = sys.argv[4]
     model_path = "bedroom_lsun_256x256_stylegan.pth"
     resolution = 256
+    n_iter = 1000
     if "church" in name:
         model_path = "church_lsun_256x256_stylegan2.pth"
     elif "cat" in name:
@@ -146,7 +147,7 @@ elif sys.argv[1] == "2": # sample uper
 
     def command_sample_real_uper(gpus):
         count = 0
-        basecmd = f"python script/sample/msreal.py --n-iter 3000 --n-total 8 --image {ds}/image%d.png --label {ds}/sv_label%d.npy --model {extractor} --G checkpoint/{model_path} --resolution {resolution} --gpu %d --method LL --outdir results/{name}_real"
+        basecmd = f"python script/sample/msreal.py --n-iter {n_iter} --n-total 8 --image {ds}/image%d.png --label {ds}/sv_label%d.npy --model {extractor} --G checkpoint/{model_path} --resolution {resolution} --gpu %d --method LL --outdir results/{name}_real"
         for i in range(10):
             idx = count % len(gpus)
             yield idx, basecmd % (i, i, gpus[idx])
@@ -168,7 +169,7 @@ elif sys.argv[1] == "3": # sample partial face
                     idx = count % len(gpus)
                     yield idx, basecmd % (t, i, t, gpus[idx], method)
                     count += 1
-    gpus = [0, 1, 2, 3]
+    gpus = [0, 1, 2, 3, 5, 6, 7]
     command = sample_fewshot_partial_face
 
 uname = subprocess.run(["uname", "-a"], capture_output=True)

@@ -15,13 +15,14 @@ colorizer = utils.Colorize(15)
 
 for i, f in enumerate(files):
     img = utils.imread(f)
-    mask = (img[:, :, 3] > 0.9)
+    mask = torch.from_numpy((img[:, :, 3] < 250).astype("uint8"))
     img = torch.from_numpy(img[:, :, :3]).permute(2, 0, 1)
     label = utils.celeba_rgb2label(img)
+    label[mask] = -1
+    np.save(f"{outdir}/{i}.npy", label)
+    
+    label[mask] = 0
     label_viz = colorizer(label) / 255.
     vutils.save_image(
         label_viz.unsqueeze(0),
         f"{outdir}/labelviz_{i}.png")
-    label[mask] = -1
-    np.save(f"{outdir}/{i}.npy", label)
-
