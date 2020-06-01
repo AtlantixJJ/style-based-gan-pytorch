@@ -34,7 +34,7 @@ WINDOW_SIZE = 100
 n_class = 15 if "face" in args.G else 361
 device = "cuda"
 extractor_path = args.model
-colorizer = utils.Colorize(15) if "face" in args.G else segment_visualization_single
+colorizer = utils.Colorize(15) if "face" in args.G else segment_visualization_single_torch
 outdir = args.outdir
 optimizer = "adam"
 
@@ -94,7 +94,6 @@ try:
     orig_label = torch.from_numpy(utils.imread(args.label)[:, :, 0]).float()
 except:
     orig_label = np.load(args.label)#.reshape(image.shape[3], -1)
-    print((orig_label<0).sum())
     orig_label = torch.from_numpy(orig_label).float()
 orig_label = F.interpolate(
     orig_label.unsqueeze(0).unsqueeze(0),
@@ -104,13 +103,7 @@ orig_label = orig_label.long().to(device)
 name = args.label
 name = name[name.rfind("/") + 1:name.rfind(".")]
 
-orig_label_viz = 0
-if "face" in args.G:
-    orig_label_viz = colorizer(orig_label) / 255.
-else:
-    orig_label_viz = colorizer(orig_label.cpu()) / 255.
-    orig_label_viz = torch.from_numpy(orig_label_viz).permute(2, 0, 1)
-    orig_label_viz = orig_label_viz.unsqueeze(0).float()
+orig_label_viz = colorizer(orig_label) / 255.
 orig_mask = (orig_label >= 0).float().to(device)
 res = [orig_label_viz, orig_mask.unsqueeze(0).expand(-1, 3, -1, -1)]
 res = torch.cat([utils.bu(r, 256).cpu() for r in res])
@@ -146,6 +139,7 @@ for ind in range(args.n_total):
         sep_model=sep_model,
         method=f"latent-{args.method}-internal",
         mapping_network=g_mapping)
+        
     new_label_viz = colorizer(new_label) / 255.
     res.extend([utils.bu(image, 256), utils.bu(new_label_viz, 256)])
 
