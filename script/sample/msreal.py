@@ -104,7 +104,7 @@ orig_label = orig_label.long().to(device)
 name = args.label
 name = name[name.rfind("/") + 1:name.rfind(".")]
 
-orig_label_viz = colorizer(orig_label) / 255.
+orig_label_viz = colorizer(orig_label.cpu()) / 255.
 orig_mask = (orig_label >= 0).float().to(device)
 res = [orig_label_viz, orig_mask.unsqueeze(0).expand(-1, 3, -1, -1)]
 res = torch.cat([utils.bu(r, 256).cpu() for r in res])
