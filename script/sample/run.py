@@ -119,8 +119,8 @@ elif sys.argv[1] == "1": # sample fewshot uper
             model_path = "car_lsun_512x384_stylegan2.pth"
             l = ",7"
             resolution = 512
-
-        basecmd = f"python script/sample/msreal.py --outdir results/{name}_fewshot_real_%d --n-iter 1000 --n-total 1 --image {ds}/image%d.png --label {ds}/sv_label%d.npy --model results/fewshot_svm/svm_t%d_{name}_layer2,3,4,5,6{l}_linear_extractor.model --G checkpoint/{model_path} --resolution {resolution} --gpu %d --method LL"
+        niter = 200
+        basecmd = f"python script/sample/msreal.py --outdir results/{name}_fewshot_real_%d --n-iter {niter} --n-total 8 --image {ds}/image%d.png --label {ds}/sv_label%d.npy --model results/fewshot_svm/svm_t%d_{name}_layer2,3,4,5,6{l}_linear_extractor.model --G checkpoint/{model_path} --resolution {resolution} --gpu %d --method LL"
 
         for t in [8]:
             for i in range(10):
@@ -136,7 +136,7 @@ elif sys.argv[1] == "2": # sample uper
     extractor = sys.argv[4]
     model_path = "bedroom_lsun_256x256_stylegan.pth"
     resolution = 256
-    n_iter = 1000
+    n_iter = 200
     if "church" in name:
         model_path = "church_lsun_256x256_stylegan2.pth"
     elif "cat" in name:
@@ -161,7 +161,7 @@ elif sys.argv[1] == "3": # sample partial face
     name = "face_celebahq_stylegan"
     def sample_fewshot_partial_face(gpus):
         count = 0
-        basecmd = f"python script/sample/msreal.py --outdir results/{name}_fewshot_partial_%d --n-iter 1000 --n-total 8 --label {ds}/%d.npy --model results/fewshot_svm/svm_t%d_face_celebahq_stylegan_layer2,3,4,5,6,7,8_linear_extractor.model --G checkpoint/face_celebahq_1024x1024_stylegan.pth --resolution 1024 --gpu %d --method %s"
+        basecmd = f"python script/sample/msreal.py --outdir results/{name}_fewshot_partial_%d --n-iter 200 --n-total 8 --label {ds}/%d.npy --model results/fewshot_svm/svm_t%d_face_celebahq_stylegan_layer2,3,4,5,6,7,8_linear_extractor.model --G checkpoint/face_celebahq_1024x1024_stylegan.pth --resolution 1024 --gpu %d --method %s"
 
         for t in [16, 1, 2, 4, 8]:
             for i in range(6):
