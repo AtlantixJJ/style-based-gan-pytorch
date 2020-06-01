@@ -30,7 +30,7 @@ from model.semantic_extractor import get_semantic_extractor, get_extractor_name
 import segmenter
 
 WINDOW_SIZE = 100
-n_class = 15 if "face" in args.G else 361
+n_class = 15
 device = "cuda"
 extractor_path = args.model
 colorizer = utils.Colorize(15)
