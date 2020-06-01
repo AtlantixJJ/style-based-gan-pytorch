@@ -1,4 +1,4 @@
-import numpy, scipy
+import numpy, scipy, torch
 
 def segviz_torch(seg, size=256):
     res = segment_visualization_single(seg.cpu())
