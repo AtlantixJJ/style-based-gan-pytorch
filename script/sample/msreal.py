@@ -109,8 +109,8 @@ if "face" in args.G:
     orig_label_viz = colorizer(orig_label) / 255.
 else:
     orig_label_viz = colorizer(orig_label.cpu()) / 255.
-    print(orig_label_viz.shape)
-    orig_label_viz = torch.from_numpy(orig_label_viz).permute(2, 0, 1).unsqueeze(0)
+    orig_label_viz = torch.from_numpy(orig_label_viz).permute(2, 0, 1)
+    orig_label_viz = orig_label_viz.unsqueeze(0).float()
 orig_mask = (orig_label >= 0).float().to(device)
 res = [orig_label_viz, orig_mask.unsqueeze(0).expand(-1, 3, -1, -1)]
 res = torch.cat([utils.bu(r, 256).cpu() for r in res])
