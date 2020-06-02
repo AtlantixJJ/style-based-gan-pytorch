@@ -103,7 +103,7 @@ elif "stylegan2" in args.model:
         model_path = "checkpoint/horse_lsun_256x256_stylegan2.pth"
     generator = model.load_stylegan2(model_path).to(device)
     model_path = "checkpoint/faceparse_unet_512.pth"
-    batch_size = 2
+    batch_size = 1
     latent_size = 512
 elif "stylegan" in args.model:
     if "bedroom" in args.model:
@@ -115,7 +115,7 @@ elif "stylegan" in args.model:
         model_path = "checkpoint/face_celebahq_1024x1024_stylegan.pth"
     generator = model.load_stylegan(model_path).to(device)
     model_path = "checkpoint/faceparse_unet_512.pth"
-    batch_size = 2
+    batch_size = 1
     latent_size = 512
 elif "proggan" in args.model:
     if "bedroom" in args.model:
@@ -131,7 +131,7 @@ elif "proggan" in args.model:
         model_path = "checkpoint/face_celebahq_1024x1024_proggan.pth"
     generator = model.load_proggan(model_path).to(device)
     model_path = "checkpoint/faceparse_unet_512.pth"
-    batch_size = 2
+    batch_size = 1
     latent_size = 512 
 
 def get_extractor_name(model_path):
