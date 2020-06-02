@@ -91,23 +91,26 @@ class SEPGAN(SECore):
             #"face_celebahq_1024x1024_proggan.pth"
             ]
         self.extractors = [
-            #"linear",
-            #"nonlinear",
-            #"generative",
+            "linear",
+            "nonlinear",
+            "generative",
             "unit",
             "unitnorm",
             "spherical"
         ]
-        self.basecmd = "CUDA_VISIBLE_DEVICES=%s python train/extract_semantics.py --task %s --model-name proggan --extractor %s --gpu 0 --expr record/lsun --load checkpoint/%s"
+        self.basecmd = "CUDA_VISIBLE_DEVICES=%s python train/extract_semantics.py --task %s --model-name proggan --extractor %s --gpu 0 --expr record/lsun --n-iter %d --load checkpoint/%s"
 
     def args_gen(self, gpus):
         l = []
         count = 0
+        n_iter = 30000
         for i in range(len(self.extractors)):
             for t, m in zip(self.task, self.model):
+                if self.task in ["celebahq", "ffhq"]:
+                    n_iter = 10000
                 extractor = self.extractors[i]
                 gpu = gpus[count]
-                l.append((count, (gpu, t, extractor, m)))
+                l.append((count, (gpu, t, extractor, n_iter, m)))
                 count = (count + 1) % len(gpus)
         return l
 
@@ -119,14 +122,14 @@ class SEStyleGAN(SEPGAN):
         self.model = [
             "bedroom_lsun_256x256_stylegan.pth"]
         self.extractors = [
-            #"linear",
-            #"nonlinear",
-            #"generative",
+            "linear",
+            "nonlinear",
+            "generative",
             "unit",
             "unitnorm",
             "spherical"
         ]
-        self.basecmd = "CUDA_VISIBLE_DEVICES=%s python train/extract_semantics.py --task %s --model-name stylegan --extractor %s --gpu 0 --expr record/lsun --load checkpoint/%s"
+        self.basecmd = "CUDA_VISIBLE_DEVICES=%s python train/extract_semantics.py --task %s --model-name stylegan --extractor %s --gpu 0 --expr record/lsun --n-iter %d --load checkpoint/%s"
 
 
 class SEStyleGAN2(SEPGAN):
@@ -140,14 +143,14 @@ class SEStyleGAN2(SEPGAN):
             #"face_ffhq_1024x1024_stylegan2.pth"
             ]
         self.extractors = [
-            #"linear",
-            #"nonlinear",
-            #"generative",
+            "linear",
+            "nonlinear",
+            "generative",
             "unit",
             "unitnorm",
             "spherical"
         ]
-        self.basecmd = "CUDA_VISIBLE_DEVICES=%s python train/extract_semantics.py --task %s --model-name stylegan2 --extractor %s --gpu 0 --expr record/lsun --load checkpoint/%s"
+        self.basecmd = "CUDA_VISIBLE_DEVICES=%s python train/extract_semantics.py --task %s --model-name stylegan2 --extractor %s --gpu 0 --expr record/lsun --n-iter %d --load checkpoint/%s"
 
 class SEBCE(SECore):
     def __init__(self, extractors):
