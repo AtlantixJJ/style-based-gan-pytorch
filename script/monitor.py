@@ -205,6 +205,8 @@ if "seg" in args.task:
         if "face" in model_file:
             segs = [s.argmax(1) for s in segs]
         else:
+            for s in segs[0]:
+                print(s.shape)
             segs = [s.argmax(1) for s in segs[0]]
         label = external_model.segment_batch(gen)
 
