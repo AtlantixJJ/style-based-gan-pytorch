@@ -202,7 +202,7 @@ if "seg" in args.task:
         stage = [s for i, s in enumerate(stage) if i in layers]
         gen = gen.clamp(-1, 1)
         segs = sep_model(stage)
-        if "face" in model_file:
+        if "celebahq" in model_file or "ffhq" in model_file:
             segs = [s.argmax(1) for s in segs]
         else:
             for s in segs[0]:
