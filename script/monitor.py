@@ -145,6 +145,7 @@ labels, cats = external_model.get_label_and_category_names()
 category_groups = utils.get_group(labels)
 category_groups_label = utils.get_group(labels, False)
 n_class = category_groups[-1][1]
+print(category_groups)
 utils.set_seed(65537)
 latent = torch.randn(1, latent_size).to(device)
 noise = False
@@ -732,8 +733,11 @@ if "lsun-agreement" in args.task:
             label = external_model.segment_batch(gen)
         label = utils.torch2numpy(label)
 
-        multi_segs = sep_model(stage)[0]
-
+        multi_segs = sep_model(stage)
+        if len(category_groups_label) == 1:
+            multi_segs = [multi_segs]
+            label = label.unsqueeze(1)
+            
         for i, seg in enumerate(multi_segs):
             if label[:, i].max() <= 0:
                 continue
