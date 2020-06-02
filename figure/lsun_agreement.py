@@ -9,7 +9,7 @@ import matplotlib.style as style
 style.use('seaborn-poster') #sets the size of the charts
 style.use('ggplot')
 colors = list(matplotlib.colors.cnames.keys())
-THRESHOLD = 0.1
+THRESHOLD = 0
 data_dir = "record/lsun"
 files = glob.glob(f"{data_dir}/*.npy")
 files.sort()
