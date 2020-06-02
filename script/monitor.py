@@ -205,9 +205,10 @@ if "seg" in args.task:
         label = external_model.segment_batch(gen)
 
         segs += [label]
-
+        for s in segs: print(s.shape)
         segs = [colorizer(s).float() / 255. for s in segs]
         res = segs + [(gen[0:1] + 1) / 2]
+
         res = [F.interpolate(m, 256).cpu()[0] for m in res]
         fpath = savepath + '{}_segmentation.png'.format(i)
         print("=> Write image to %s" % fpath)
@@ -711,7 +712,6 @@ if "contribution" in args.task:
 
 if "lsun-agreement" in args.task:
     model_file = model_files[-1]
-    batch_size = 1
     latent = torch.randn(batch_size, latent_size, device=device)
     if noise:
         generator.set_noise(noise)
