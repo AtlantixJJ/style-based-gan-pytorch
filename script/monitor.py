@@ -6,24 +6,14 @@ sys.path.insert(0, ".")
 import argparse, tqdm, glob, os, copy
 import numpy as np
 import matplotlib.pyplot as plt
-import torch
-import torch.nn.functional as F
-from torchvision import utils as vutils
 from os.path import join as osj
 from sklearn.metrics.pairwise import cosine_similarity
-import evaluate, utils, config, dataset
-from lib.face_parsing import unet
-import model, segmenter
-from lib.netdissect.segviz import segment_visualization_single
-from model.semantic_extractor import get_semantic_extractor
 
 import matplotlib
 import matplotlib.style as style
 style.use('seaborn-poster') #sets the size of the charts
 style.use('ggplot')
 colors = list(matplotlib.colors.cnames.keys())
-
-from weight_visualization import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--task", default="log,seg,fast-celeba-agreement,celeba-evaluator", help="")
@@ -32,6 +22,15 @@ parser.add_argument("--gpu", default="0")
 parser.add_argument("--recursive", default="0")
 args = parser.parse_args()
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
+
+import torch
+import torch.nn.functional as F
+from torchvision import utils as vutils
+import evaluate, utils, config, dataset
+import model, segmenter
+from lib.netdissect.segviz import segviz_torch
+from model.semantic_extractor import get_semantic_extractor
+from weight_visualization import *
 
 if args.recursive == "1":
     # This is root, run for all the expr directory
@@ -82,17 +81,16 @@ elif "wgan128" in args.model:
     batch_size = 16
     latent_size = 128
 elif "stylegan2" in args.model:
-
+    colorizer = segviz_torch
     if "bedroom" in args.model:
         task = "bedroom"
-        colorizer = lambda x: segment_visualization_single(x, 256)
         model_path = "checkpoint/bedroom_lsun_256x256_stylegan2.pth"
     elif "church" in args.model:
         task = "church"
-        colorizer = lambda x: segment_visualization_single(x, 256)
         model_path = "checkpoint/church_lsun_256x256_stylegan2.pth"
     elif "ffhq" in args.model:
         task = "ffhq"
+        colorizer = utils.Colorize(15)
         model_path = "checkpoint/face_ffhq_1024x1024_stylegan2.pth"
     elif "cat" in args.model:
         task = "cat"
@@ -110,7 +108,7 @@ elif "stylegan2" in args.model:
 elif "stylegan" in args.model:
     if "bedroom" in args.model:
         task = "bedroom"
-        colorizer = lambda x: segment_visualization_single(x, 256)
+        colorizer = segviz_torch
         model_path = "checkpoint/bedroom_lsun_256x256_stylegan.pth"
     elif "celebahq" in args.model:
         task = "celebahq"
@@ -121,11 +119,11 @@ elif "stylegan" in args.model:
     latent_size = 512
 elif "proggan" in args.model:
     if "bedroom" in args.model:
-        colorizer = lambda x: segment_visualization_single(x, 256)
+        colorizer = segviz_torch
         task = "bedroom"
         model_path = "checkpoint/bedroom_lsun_256x256_proggan.pth"
     if "church" in args.model:
-        colorizer = lambda x: segment_visualization_single(x, 256)
+        colorizer = segviz_torch
         task = "church"
         model_path = "checkpoint/church_lsun_256x256_proggan.pth"
     if "celebahq" in args.model:
@@ -142,7 +140,6 @@ def get_extractor_name(model_path):
         if k in model_path:
             return k
 
-print(task, model_path, device)
 external_model = segmenter.get_segmenter(task, model_path, device)
 labels, cats = external_model.get_label_and_category_names()
 category_groups = utils.get_group(labels)
@@ -204,14 +201,15 @@ if "seg" in args.task:
         stage = [s for i, s in enumerate(stage) if i in layers]
         gen = gen.clamp(-1, 1)
         segs = sep_model(stage)
-        segs = [s[0].argmax(0) for s in segs]
-        label = external_model.segment_batch(gen)[0]
+        segs = [s.argmax(1) for s in segs]
+        label = external_model.segment_batch(gen)
 
         segs += [label]
 
         segs = [colorizer(s).float() / 255. for s in segs]
-        res = segs + [(gen[0] + 1) / 2]
-        res = [F.interpolate(m.unsqueeze(0), 256).cpu()[0] for m in res]
+        res = segs + [(gen[0:1] + 1) / 2]
+        for r in res: print(r.shape)
+        res = [F.interpolate(m, 256).cpu()[0] for m in res]
         fpath = savepath + '{}_segmentation.png'.format(i)
         print("=> Write image to %s" % fpath)
         vutils.save_image(res, fpath, nrow=4)
