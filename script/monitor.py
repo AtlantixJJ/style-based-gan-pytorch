@@ -191,8 +191,8 @@ if "seg" in args.task:
         print("=> Load from %s" % model_file)
         sep_model = get_semantic_extractor(get_extractor_name(model_file))(
             n_class=n_class,
-            dims=dims,
-            use_bias="bias1" in model_file).to(device)
+            category_groups=category_groups,
+            dims=dims).to(device)
         sep_model.eval()
         state_dict = torch.load(model_file, map_location='cpu')
         missed = sep_model.load_state_dict(state_dict)
@@ -202,7 +202,10 @@ if "seg" in args.task:
         stage = [s for i, s in enumerate(stage) if i in layers]
         gen = gen.clamp(-1, 1)
         segs = sep_model(stage)
-        segs = [s.argmax(1) for s in segs]
+        if "face" in model_file:
+            segs = [s.argmax(1) for s in segs]
+        else:
+            segs = [s.argmax(1) for s in segs[0]]
         label = external_model.segment_batch(gen)
 
         segs += [label]
@@ -731,13 +734,13 @@ if "lsun-agreement" in args.task:
             gen, stage = generator.get_stage(latent)
             gen = gen.clamp(-1, 1)
             label = external_model.segment_batch(gen)
-        label = utils.torch2numpy(label)
 
         multi_segs = sep_model(stage)
         if len(category_groups_label) == 1:
             multi_segs = [multi_segs]
             label = label.unsqueeze(1)
             
+        label = utils.torch2numpy(label)
         for i, seg in enumerate(multi_segs):
             if label[:, i].max() <= 0:
                 continue
@@ -746,7 +749,7 @@ if "lsun-agreement" in args.task:
             l[l<0] = 0
 
             # collect training statistic
-            est_label = seg.argmax(1)
+            est_label = seg[-1].argmax(1)
             for j in range(est_label.shape[0]):
                 metrics[i](
                     utils.torch2numpy(est_label[j]),
