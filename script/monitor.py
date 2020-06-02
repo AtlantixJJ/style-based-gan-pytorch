@@ -141,6 +141,7 @@ def get_extractor_name(model_path):
             return k
 
 external_model = segmenter.get_segmenter(task, model_path, device)
+print(external_model)
 labels, cats = external_model.get_label_and_category_names()
 category_groups = utils.get_group(labels)
 category_groups_label = utils.get_group(labels, False)
@@ -202,16 +203,17 @@ if "seg" in args.task:
         stage = [s for i, s in enumerate(stage) if i in layers]
         gen = gen.clamp(-1, 1)
         segs = sep_model(stage)
+        label = external_model.segment_batch(gen)
+
         if "celebahq" in model_file or "ffhq" in model_file:
             segs = [s.argmax(1) for s in segs]
         else:
             for s in segs[0]:
                 print(s.shape)
             segs = [s.argmax(1) for s in segs[0]]
-        label = external_model.segment_batch(gen)
+            label = label[:, 0, :, :]
 
         segs += [label]
-        for s in segs: print(s.shape)
         segs = [colorizer(s).float() / 255. for s in segs]
         res = segs + [(gen[0:1] + 1) / 2]
 
