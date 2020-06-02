@@ -127,7 +127,7 @@ for ind in tqdm(range(cfg.n_iter)):
         sep_model.optim.step()
         sep_model.optim.zero_grad()
         lr_scheduler.step()
-        if hasattr(sep_model, "weight"):
+        if has_trace and hasattr(sep_model, "weight"):
             trace[ind // cfg.vbs - 1] = utils.torch2numpy(sep_model.weight[:, :, 0, 0])
         elif has_trace:
             trace[ind // cfg.vbs - 1] = concat_weight(sep_model.semantic_extractor)

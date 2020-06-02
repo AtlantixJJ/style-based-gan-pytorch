@@ -352,7 +352,11 @@ class NormalizedLinearSemanticExtractor(BaseSemanticExtractor):
             feat = F.normalize(feat, 2, 1)
 
         if last_only:
-            return [F.conv2d(feat, self.weight)]
+            res = F.conv2d(feat, self.weight)
+            outs = []
+            for cg in self.category_groups:
+                outs.append([res[:, cg[0]:cg[1]]])
+            return outs
 
         prev = 0
         # side outputs
@@ -392,9 +396,13 @@ class UnitNormalizedLinearSemanticExtractor(NormalizedLinearSemanticExtractor):
 
         if last_only:
             res = F.conv2d(feat, w)
-            mini, maxi = res.min(), res.max()
-            res = 2 * ((res - mini) / (maxi - mini) - 0.5)
-            return [10 * res]
+            #mini, maxi = res.min(), res.max()
+            #res = 2 * ((res - mini) / (maxi - mini) - 0.5)
+            res = 10 * res
+            outs = []
+            for cg in self.category_groups:
+                outs.append([res[:, cg[0]:cg[1]]])
+            return outs
 
 
 class UnitLinearSemanticExtractor(BaseSemanticExtractor):
@@ -421,9 +429,12 @@ class UnitLinearSemanticExtractor(BaseSemanticExtractor):
                 cur = self.segments[i+1]
                 outputs.append(F.conv2d(stage[i], w[:, prev:cur]))
             maxsize = max([o.shape[2] for o in outputs])
-            layers = [F.interpolate(o, size=maxsize, mode="bilinear", align_corners=True)
-                for o in outputs]
-            return [sum(layers)]
+            layers = [F.interpolate(o, size=maxsize, mode="bilinear", align_corners=True) for o in outputs]
+            res = sum(layers)
+            outs = []
+            for cg in self.category_groups:
+                outs.append([res[:, cg[0]:cg[1]]])
+            return outs
 
 
     """

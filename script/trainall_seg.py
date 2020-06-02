@@ -84,14 +84,16 @@ class SEPGAN(SECore):
     def __init__(self):
         self.task = [
             "bedroom",
-            "celebahq"]
+            #"celebahq"
+            ]
         self.model = [
             "bedroom_lsun_256x256_proggan.pth",
-            "face_celebahq_1024x1024_proggan.pth"]
+            #"face_celebahq_1024x1024_proggan.pth"
+            ]
         self.extractors = [
-            "linear",
-            "nonlinear",
-            "generative",
+            #"linear",
+            #"nonlinear",
+            #"generative",
             "unit",
             "unitnorm",
             "spherical"
@@ -117,9 +119,9 @@ class SEStyleGAN(SEPGAN):
         self.model = [
             "bedroom_lsun_256x256_stylegan.pth"]
         self.extractors = [
-            "linear",
-            "nonlinear",
-            "generative",
+            #"linear",
+            #"nonlinear",
+            #"generative",
             "unit",
             "unitnorm",
             "spherical"
@@ -136,9 +138,9 @@ class SEStyleGAN2(SEPGAN):
             "church_lsun_256x256_stylegan2.pth",
             "face_ffhq_1024x1024_stylegan2.pth"]
         self.extractors = [
-            "linear",
-            "nonlinear",
-            "generative",
+            #"linear",
+            #"nonlinear",
+            #"generative",
             "unit",
             "unitnorm",
             "spherical"
