@@ -208,7 +208,6 @@ if "seg" in args.task:
 
         segs = [colorizer(s).float() / 255. for s in segs]
         res = segs + [(gen[0:1] + 1) / 2]
-        for r in res: print(r.shape)
         res = [F.interpolate(m, 256).cpu()[0] for m in res]
         fpath = savepath + '{}_segmentation.png'.format(i)
         print("=> Write image to %s" % fpath)
