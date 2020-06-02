@@ -133,10 +133,12 @@ class SEStyleGAN2(SEPGAN):
     def __init__(self):
         self.task = [
             "church",
-            "ffhq"]
+            #"ffhq"
+            ]
         self.model = [
             "church_lsun_256x256_stylegan2.pth",
-            "face_ffhq_1024x1024_stylegan2.pth"]
+            #"face_ffhq_1024x1024_stylegan2.pth"
+            ]
         self.extractors = [
             #"linear",
             #"nonlinear",
