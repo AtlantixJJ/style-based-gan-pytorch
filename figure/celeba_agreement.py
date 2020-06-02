@@ -12,7 +12,7 @@ args = parser.parse_args()
 
 def get_extractor_name(model_path):
     keywords = ["unitnorm", "nonlinear", "linear", "spherical", "generative", "faceparse", "unit"]
-    names = ["UNLSE", "NSE-1", "LSE", "NLSE", "NSE-2", "UNet-512", "ULSE"]
+    names = ["LSE-WF", "NSE-1", "LSE", "LSE-F", "NSE-2", "UNet-512", "LSE-W"]
     for i, k in enumerate(keywords):
         if k in model_path:
             return names[i]
@@ -25,7 +25,7 @@ def get_best_model(table, best_ind, name, delimiter=","):
 def calc_subset(dic):
     indice = {}
     indice["face"] = [1, 2, 4, 5, 6, 7, 8, 9, 10, 13]
-    # eye glasses, ear ring, neck lace, hat, cloth
+    # eye glasses, ear ring, hat, cloth
     indice["other"] = [3, 11, 12, 14]
     for metric in ["IoU"]:
         for t in ["face", "other"]:
