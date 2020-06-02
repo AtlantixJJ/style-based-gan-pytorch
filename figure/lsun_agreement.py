@@ -9,7 +9,7 @@ import matplotlib.style as style
 style.use('seaborn-poster') #sets the size of the charts
 style.use('ggplot')
 colors = list(matplotlib.colors.cnames.keys())
-
+THRESHOLD = 0.1
 data_dir = "record/lsun"
 files = glob.glob(f"{data_dir}/*.npy")
 files.sort()
@@ -25,11 +25,15 @@ label_list = np.array(label_list)
 
 
 def get_name(model_path):
-    names = ["StyleGAN-Bedroom", "Progressive GAN-Bedroom", "StyleGAN2-Church", "Progressive GAN-Church"]
-    keywords = ["bedroom_stylegan", "bedroom_proggan", "church_stylegan2", "church_proggan"]
-    for i, k in enumerate(keywords):
-        if k in model_path:
-            return names[i]
+    names = ["StyleGAN-Bedroom", "PGAN-Bedroom", "PGAN-Church", "StyleGAN2-Church"]
+    keywords = ["bedroom_stylegan", "bedroom_proggan", "church_proggan", "church_stylegan2"]
+    task = utils.listkey_convert(model_path,
+        ["bedroom", "church"])
+    model = utils.listkey_convert(model_path,
+        ["stylegan2", "stylegan", "proggan"])
+    method = utils.listkey_convert(model_path,
+        ["nonlinear", "linear", "unitnorm", "unit", "generative", "spherical"])
+    return f"{task}_{model}_{method}"
 
 
 def get_topk_classes(dic, start=0):
@@ -38,7 +42,7 @@ def get_topk_classes(dic, start=0):
         x = np.array(dic[metric_name])
         y = x.argsort()
         k = 0
-        while x[y[k]] < 1e-3:
+        while x[y[k]] < THRESHOLD:
             k += 1
         y = y[k:]
         y.sort()
@@ -114,8 +118,8 @@ for f in files:
     object_dic, material_dic = np.load(f, allow_pickle=True)[:2]
     object_metric.result = object_dic
     material_metric.result = material_dic
-    object_metric.aggregate()
-    material_metric.aggregate()
+    object_metric.aggregate(threshold=THRESHOLD)
+    material_metric.aggregate(threshold=THRESHOLD)
 
     object_dic, objects = get_topk_classes(
         object_metric.class_result, cg[0][0])
@@ -133,12 +137,16 @@ for f in files:
     plt.close()
     """
 
-    res = utils.format_test_result(object_dic, label_list=objects)
+    res = utils.format_test_result(object_dic,
+        global_metrics=["pixelacc", "mAP", "mAR", "mIoU"],
+        label_list=objects)
     object_summary.process_result(res, name)
     object_summary.write_class(f"{name}_object")
     object_summary.reset()
     
-    res = utils.format_test_result(material_dic, label_list=materials)
+    res = utils.format_test_result(material_dic,
+        global_metrics=["pixelacc", "mAP", "mAR", "mIoU"],
+        label_list=materials)
     material_summary.process_result(res, name)
     material_summary.write_class(f"{name}_material")
     material_summary.reset()
