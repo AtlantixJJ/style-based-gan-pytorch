@@ -162,7 +162,7 @@ layers = list(range(9))
 if "layer" in args.model:
     ind = args.model.rfind("layer") + len("layer")
     s = args.model[ind:].split("_")[0]
-    layers = [int(i) for i in s.split(",")]
+    layers = [int(i) for i in s.split(",") if int(i) < len(dims)]
     dims = np.array(dims)[layers].tolist()
 print(dims)
 
