@@ -6,8 +6,8 @@ def segviz_torch(seg, size=256):
     return res.unsqueeze(0)
 
 def segment_visualization_single(seg, size=256):
-    if seg.shape[0] == 1:
-        seg = seg[0]
+    while seg.shape[0] == 1:
+        seg = seg.squeeze(0)
     result = numpy.zeros((seg.shape[0], seg.shape[1], 3), dtype=numpy.uint8)
     labels = numpy.unique(seg)
     for label in labels:
