@@ -7,7 +7,7 @@ from lib.netdissect.segmenter import UnifiedParsingSegmenter
 Convert single label to multilabel
 """
 def convert_multi_label(seg, cg, i):
-    label = utils.torch2numpy(seg[0]).argmax(0)
+    label = utils.torch2numpy(seg[0]).argmax(1)
     label[label > 0] += cg[i][0]
     return label
 
