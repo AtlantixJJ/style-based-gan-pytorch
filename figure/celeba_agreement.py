@@ -86,9 +86,16 @@ for d in dirs:
     class_table.extend(tc)
     global_latex.extend(lg)
     class_latex.extend(lc)
-with open("celeba_global_result.csv", "w") as f:
+
+t = "stylegan_celebahq"
+if "proggan" in args.dir:
+    t = "proggan_celebahq"
+elif "ffhq" in args.dir:
+    t = "stylegan2_ffhq"
+
+with open(f"{t}_global_result.csv", "w") as f:
     f.write("\n".join([hg] + global_table))
-with open("celeba_class_result.csv", "w") as f:
+with open(f"{t}_class_result.csv", "w") as f:
     f.write("\n".join([hc] + class_table))
-with open("celeba_agreement_tabular.tex", "w") as f:
+with open(f"{t}_agreement_tabular.tex", "w") as f:
     f.write("\n".join(hlc + class_latex + hlg + global_latex))

@@ -38,6 +38,7 @@ np_obj_list = np.array(object_list)
 np_mat_list = np.array(material_list)
 
 def get_name(model_path):
+    """
     names = ["StyleGAN-Bedroom", "PGAN-Bedroom", "PGAN-Church", "StyleGAN2-Church"]
     keywords = ["bedroom_stylegan", "bedroom_proggan", "church_proggan", "church_stylegan2"]
     task = utils.listkey_convert(model_path,
@@ -47,6 +48,10 @@ def get_name(model_path):
     method = utils.listkey_convert(model_path,
         ["nonlinear", "linear", "unitnorm", "unit", "generative", "spherical"])
     return f"{task}_{model}_{method}"
+    """
+    keywords = ["unitnorm", "nonlinear", "linear", "spherical", "generative", "faceparse", "unit"]
+    names = ["LSE-WF", "NSE-1", "LSE", "LSE-F", "NSE-2", "UNet-512", "LSE-W"]
+    return utils.listkey_convert(model_path, keywords, names)
 
 
 def get_topk_classes(dic, namelist):
@@ -140,6 +145,10 @@ obj_inds = np.array([object_list.index(n) for n in all_objects])
 mat_inds = np.array([material_list.index(n) for n in all_materials])
 print(all_objects)
 print(all_materials)
+
+# find maximum first
+obj_max = []
+mat_max = []
 for f in files:
     name = get_name(f)
     object_dic, material_dic = np.load(f, allow_pickle=True)[:2]
@@ -151,18 +160,38 @@ for f in files:
     material_metric.subset_aggregate("common", mat_inds)
     ious = [object_metric.class_result["IoU"][i] for i in obj_inds]
     ious = np.array([v if v > 0 else 0 for v in ious])
-    object_dic = {
-        "mIoU_common" : ious.mean(),
-        "IoU" : ious}
+    obj_max.append(ious.mean())
     ious = [material_metric.class_result["IoU"][i] for i in mat_inds]
     ious = np.array([v if v > 0 else 0 for v in ious])
+    mat_max.append(ious.mean())
+obj_max = max(obj_max)
+mat_max = max(mat_max)
+
+for f in files:
+    name = get_name(f)
+    object_dic, material_dic = np.load(f, allow_pickle=True)[:2]
+    object_metric.result = object_dic
+    material_metric.result = material_dic
+    object_metric.aggregate(threshold=THRESHOLD)
+    material_metric.aggregate(threshold=THRESHOLD)
+    object_metric.subset_aggregate("common", obj_inds)
+    material_metric.subset_aggregate("common", mat_inds)
+    ious = [object_metric.class_result["IoU"][i] for i in obj_inds]
+    ious = np.array([v if v > 0 else 0 for v in ious])
+    add = [ious.mean(), (obj_max - ious.mean()) / obj_max * 100]
+    object_dic = {
+        "mIoU_common" : ious.mean(),
+        "IoU" : add + list(ious)}
+    ious = [material_metric.class_result["IoU"][i] for i in mat_inds]
+    ious = np.array([v if v > 0 else 0 for v in ious])
+    add = [ious.mean(), (mat_max - ious.mean()) / mat_max * 100]
     material_dic = {
         "mIoU_common" : ious.mean(),
-        "IoU" : ious}
+        "IoU" : add + list(ious)}
     res = utils.format_test_result(object_dic,
         global_metrics=["mIoU_common"],
         class_metrics=["IoU"],
-        label_list=all_objects)
+        label_list=["mIoU", "Diff."] + all_objects)
     object_summary.process_result(res, name)
     #object_summary.write_class(f"{name}_object")
     #object_summary.reset()
@@ -170,7 +199,7 @@ for f in files:
     res = utils.format_test_result(material_dic,
         global_metrics=["mIoU_common"],
         class_metrics=["IoU"],
-        label_list=all_materials)
+        label_list=["mIoU", "Diff."] + all_materials)
     material_summary.process_result(res, name)
     #material_summary.write_class(f"{name}_material")
     #material_summary.reset()

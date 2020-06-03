@@ -749,7 +749,7 @@ def format_test_result(dic,
     global_csv = str_csv_table(strs)
 
     # table 2: classwise accuracy
-    strs = [["model", "metric"] + label_list]
+    strs = [["model"] + label_list]
     numbers = []
     for metric in class_metrics:
         data = dic[metric]
@@ -757,8 +757,6 @@ def format_test_result(dic,
     numbers = np.array(numbers) # (3, 16)
     for i in range(len(class_metrics)):
         strs.append(["%.3f" % n if n > -1 else "-" for n in numbers[i]])
-    for i in range(1, len(strs)):
-        strs[i] = [class_metrics[i - 1]] + strs[i]
     # print latex table
     class_latex = str_latex_table(strs)
     class_csv = str_csv_table(strs)
