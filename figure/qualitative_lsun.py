@@ -75,6 +75,7 @@ def get_output(generator, model_file, external_model, latent,
         pred_group = segmenter.convert_multi_label(
             seg, cg_label, i)
         pred_group_viz = colorizer(pred_group)
+        print(pred_group.shape, pred_group_viz.shape, label_viz.shape)
         res.extend([pred_group_viz, label_viz])
         #
         # evaluate
