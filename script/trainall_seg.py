@@ -143,10 +143,10 @@ class SEStyleGAN2(SEPGAN):
             #"face_ffhq_1024x1024_stylegan2.pth"
             ]
         self.extractors = [
-            "linear",
-            "nonlinear",
-            "generative",
-            "unit",
+            #"linear",
+            #"nonlinear",
+            #"generative",
+            #"unit",
             "unitnorm",
             "spherical"
         ]
