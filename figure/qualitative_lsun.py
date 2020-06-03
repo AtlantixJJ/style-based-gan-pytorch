@@ -75,7 +75,7 @@ def get_output(generator, model_file, external_model, latent,
         pred_group = segmenter.convert_multi_label(
             seg, cg_label, i)
         pred_group_viz = colorizer(pred_group)
-        print(pred_group.shape, pred_group_viz.shape, label_viz.shape)
+
         res.extend([pred_group_viz, label_viz])
         #
         # evaluate
@@ -124,8 +124,8 @@ for ind, model_file in enumerate(model_files):
         model_path)
     generator.to(device).eval()
 
-    for _ in range(2):
-        latent = latents[count:count+1]
+    for i in range(2):
+        latent = latents[i:i+1]
         res, gts, cts = get_output(
             generator, model_file, external_model, latent,
             flag=1)
@@ -169,5 +169,5 @@ fig = plt.figure(figsize=(30, 15))
 plt.imshow(canvas)
 plt.axis("off")
 plt.tight_layout()
-plt.savefig(f"qualitative_lsun_paper.pdf", box_inches="tight")
+plt.savefig(f"qualitative_lsun_{model_type}_paper.pdf", box_inches="tight")
 plt.close()
