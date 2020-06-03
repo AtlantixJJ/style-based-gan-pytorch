@@ -9,9 +9,16 @@ import matplotlib.style as style
 style.use('seaborn-poster') #sets the size of the charts
 style.use('ggplot')
 colors = list(matplotlib.colors.cnames.keys())
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--dir", default="record/lsun", help="")
+parser.add_argument("--model", default="proggan", help="")
+args = parser.parse_args()
+
+
 THRESHOLD = 0.01
-data_dir = "record/lsun"
-files = glob.glob(f"{data_dir}/*.npy")
+data_dir = args.dir
+files = glob.glob(f"{data_dir}/*{args.model}.npy")
 files.sort()
 cg = [[0, 336], [336, 361], [361, 390]]
 object_metric = evaluate.DetectionMetric(
@@ -175,7 +182,7 @@ for f in files:
     plt.close()
     """
 
-object_summary.write_class(f"object")
-material_summary.write_class(f"material")
-object_summary.write_global("object")
-material_summary.write_global("material")
+object_summary.write_class(f"{args.model}_object")
+material_summary.write_class(f"{args.model}_material")
+object_summary.write_global(f"{args.model}_object")
+material_summary.write_global(f"{args.model}_material")
