@@ -735,11 +735,9 @@ def str_csv_table(strs):
 
 
 def format_test_result(dic,
-    global_metrics=["pixelacc", "mAP", "mAR", "mIoU", "mIoU_face", "mIoU_other"],
+    global_metrics=["pixelacc", "mIoU", "mIoU_face", "mIoU_other"],
     class_metrics=["AP", "AR", "IoU"],
     label_list=CELEBA_CATEGORY):
-    class_metrics = ["AP", "AR", "IoU"]
-
     # table 1: global metrics
     global_latex = global_csv = 0
     numbers = [0] + [dic[m] for m in global_metrics]

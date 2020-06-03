@@ -188,7 +188,8 @@ class DetectionMetric(object):
     def subset_aggregate(self, name, indice):
         for mname in self.class_metric_names:
             vals = np.array(self.result[mname])[indice]
-            self.result[f"m{mname}_{name}"] = vals[vals > -1].mean()
+            vals[vals < 0] = 0 # force to be 0
+            self.result[f"m{mname}_{name}"] = vals.mean()
             
     def __call__(self, y_pred, y_true):
         self.num += 1
