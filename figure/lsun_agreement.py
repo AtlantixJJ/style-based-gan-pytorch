@@ -1,8 +1,7 @@
-import sys, glob
+import sys, glob, argparse
 sys.path.insert(0, ".")
 import numpy as np
 import utils, evaluate
-
 import matplotlib.pyplot as plt
 import matplotlib
 import matplotlib.style as style
@@ -18,8 +17,11 @@ args = parser.parse_args()
 
 THRESHOLD = 0.01
 data_dir = args.dir
-files = glob.glob(f"{data_dir}/*{args.model}.npy")
+files = glob.glob(f"{data_dir}/*{args.model}*.npy")
 files.sort()
+print(files)
+if len(files) <= 0:
+    exit(0)
 cg = [[0, 336], [336, 361], [361, 390]]
 object_metric = evaluate.DetectionMetric(
     n_class=cg[0][1] - cg[0][0])
