@@ -69,7 +69,7 @@ if hasattr(sep_model, "weight"):
 elif cfg.semantic_extractor not in ["nonlinear", "generative"]:
     M, L = concat_weight(sep_model.semantic_extractor).shape[:2]
     has_trace = False
-if M < 32:
+if M * L * cfg.n_iter < 10000 * 15 * 2544:
     trace = np.zeros((cfg.n_iter // cfg.vbs, M, L), "float32")
 else:
     has_trace = False
