@@ -31,6 +31,7 @@ n_class = 392
 colorizer = lambda x: segment_visualization_single(x, 256)
 model_files = glob.glob(f"{data_dir}/*")
 model_files = [f for f in model_files if ".npy" not in f and model_type in f]
+print(model_files)
 model_files = [glob.glob(f"{f}/*.model")[0] for f in model_files]
 model_files.sort()
 func = get_semantic_extractor("linear")
