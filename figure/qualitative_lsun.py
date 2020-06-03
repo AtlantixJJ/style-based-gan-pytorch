@@ -76,7 +76,7 @@ def get_output(generator, model_file, external_model, latent,
             seg, cg_label, i)
         pred_group_viz = colorizer(pred_group)
         res.extend([pred_group_viz, label_viz])
-
+        #
         # evaluate
         l = label[:, i, :, :] - cg_label[i][0]
         l[l<0] = 0
