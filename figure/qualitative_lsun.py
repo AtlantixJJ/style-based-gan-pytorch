@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import torch
 import torch.nn.functional as F
 import model, utils, evaluate, segmenter
-from model.semantic_extractor import get_semantic_extractor
+from model.semantic_extractor import get_semantic_extractor, get_extractor_name
 from lib.netdissect.segviz import segment_visualization_single
 from lib.netdissect.segviz import high_contrast
 from torchvision import utils as vutils
@@ -34,7 +34,6 @@ model_files = [f for f in model_files if os.path.isdir(f) and model_type in f]
 print(model_files)
 model_files = [glob.glob(f"{f}/*.model")[0] for f in model_files]
 model_files.sort()
-func = get_semantic_extractor("linear")
 torch.manual_seed(1005)
 latents = torch.randn(len(model_files) * 4, 512).to(device)
 
@@ -57,7 +56,7 @@ def get_output(generator, model_file, external_model, latent,
         label = external_model.segment_batch(image)
         label = utils.torch2numpy(label)
     dims = [s.shape[1] for s in stage]
-    sep_model = func(
+    sep_model = get_semantic_extractor(get_extractor_name(model_file))(
         n_class=n_class,
         category_groups=cg,
         dims=dims).to(device)
