@@ -42,7 +42,7 @@ def get_name(model_path):
 
 def get_topk_classes(dic, namelist):
     res = {}
-    for metric_name in ["AP", "AR", "IoU"]:
+    for metric_name in ["IoU"]:
         x = np.array(dic[metric_name])
         y = x.argsort()
         k = 0
@@ -120,10 +120,10 @@ for f in files:
     object_metric.aggregate(threshold=THRESHOLD)
     material_metric.aggregate(threshold=THRESHOLD)
 
-    all_objects.append(set(get_topk_classes(
-        object_metric.class_result, np_obj_list)[1]))
-    all_materials.append(set(get_topk_classes(
-        material_metric.class_result, np_mat_list)[1]))
+    val, names = get_topk_classes(object_metric.class_result, np_obj_list)
+    all_objects.append(set(names))
+    val, names = get_topk_classes(material_metric.class_result, np_mat_list)
+    all_materials.append(set(names))
 
 all_objects = list(set.union(*all_objects))#list(set.intersection(*all_objects))
 all_materials = list(set.union(*all_materials))#list(set.intersection(*all_materials))
@@ -136,19 +136,20 @@ for f in files:
     object_dic, material_dic = np.load(f, allow_pickle=True)[:2]
     object_metric.result = object_dic
     material_metric.result = material_dic
-    #object_metric.aggregate(threshold=THRESHOLD)
-    #material_metric.aggregate(threshold=THRESHOLD)
+    object_metric.aggregate(threshold=THRESHOLD)
+    material_metric.aggregate(threshold=THRESHOLD)
     object_metric.subset_aggregate("common", obj_inds)
     material_metric.subset_aggregate("common", mat_inds)
-
+    ious = [object_metric.class_result["IoU"][i] for i in obj_inds]
+    ious = np.array([v if v > 0 else 0 for v in ious])
     object_dic = {
-        "mIoU_common" : object_metric.result["mIoU_common"],
-        "IoU" : [object_metric.class_result["IoU"][i] for i in obj_inds]}
+        "mIoU_common" : ious.mean(),
+        "IoU" : ious}
+    ious = [material_metric.class_result["IoU"][i] for i in mat_inds]
+    ious = np.array([v if v > 0 else 0 for v in ious])
     material_dic = {
-        "mIoU_common" : material_metric.result["mIoU_common"],
-        "IoU" : [material_metric.class_result["IoU"][i] for i in mat_inds]}
-    material_dic["IoU"] = [v if v > 0 else 0 for v in material_dic["IoU"]]
-    object_dic["IoU"] = [v if v > 0 else 0 for v in object_dic["IoU"]]
+        "mIoU_common" : ious.mean(),
+        "IoU" : ious}
     res = utils.format_test_result(object_dic,
         global_metrics=["mIoU_common"],
         class_metrics=["IoU"],
