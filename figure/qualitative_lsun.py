@@ -82,7 +82,7 @@ def get_output(generator, model_file, external_model, latent,
         l[l<0] = 0
 
         # collect training statistic
-        est_label = seg.argmax(1)
+        est_label = seg[-1].argmax(1)
         gts = []
         cts = []
         for j in range(est_label.shape[0]):
