@@ -10,9 +10,13 @@ from model.semantic_extractor import get_semantic_extractor
 from lib.netdissect.segviz import segment_visualization_single
 from torchvision import utils as vutils
 
+parser = argparse.ArgumentParser()
+parser.add_argument("--dir", default="record/celebahq1", help="")
+args = parser.parse_args()
+
 # setup and constants
 high_contrast = utils.CELEBA_COLORS
-data_dir = "record/celebahq1"
+data_dir = args.dir
 device = "cpu"
 external_model = segmenter.get_segmenter(
     "celebahq", "checkpoint/faceparse_unet_512.pth", device=device)
@@ -32,7 +36,7 @@ torch.manual_seed(1701)
 latents = torch.randn(N_repeat, 512).to(device)
 
 model_path = f"checkpoint/face_celebahq_1024x1024_stylegan.pth"
-generator = model.load_model_from_pth_file("stylegan", model_path)
+generator = model.load_model(model_path)
 generator.to(device).eval()
 with torch.no_grad():
     image, stage = generator.get_stage(latents[0:1])
