@@ -135,12 +135,12 @@ class SEStyleGAN(SEPGAN):
 class SEStyleGAN2(SEPGAN):
     def __init__(self):
         self.task = [
-            "church",
-            #"ffhq"
+            "ffhq",
+            #"church",
             ]
         self.model = [
-            "church_lsun_256x256_stylegan2.pth",
-            #"face_ffhq_1024x1024_stylegan2.pth"
+            "face_ffhq_1024x1024_stylegan2.pth",
+            #"church_lsun_256x256_stylegan2.pth"
             ]
         self.extractors = [
             #"linear",
@@ -329,7 +329,7 @@ def direct_run(gpus):
 uname = subprocess.run(["uname", "-a"], capture_output=True)
 uname = uname.stdout.decode("ascii")
 if "jericho" in uname:
-    gpus = ["0"]; assign_run(direct_run, gpus)
+    gpus = ["0"]; assign_run(SEStyleGAN2().command, gpus)
     #gpus = ["0"]; assign_run(SEPGAN().command, gpus)
     #gpus = ["0"]; assign_run(SECore2().command, gpus)
     #gpus = ["0"]; assign_run(direct_run, gpus)
