@@ -89,7 +89,7 @@ for ind in tqdm(range(cfg.n_iter)):
 
     multi_segs = sep_model(stage, last_only=cfg.last_only)
     if len(category_groups_label) == 1:
-        multi_segs = [multi_segs]
+        #multi_segs = [multi_segs]
         label = label.unsqueeze(1)
 
     segloss = 0
