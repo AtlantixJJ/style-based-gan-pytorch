@@ -15,7 +15,7 @@ parser.add_argument("--model", default="proggan", help="")
 args = parser.parse_args()
 
 
-THRESHOLD = 0.05
+THRESHOLD = 0.1
 data_dir = args.dir
 files = glob.glob(f"{data_dir}/*{args.model}*.npy")
 files.sort()

@@ -26,6 +26,15 @@ def get_extractor_name(model_path):
         if k in model_path:
             return k
 
+def get_layers(model_path):
+    if "layer" not in model_path:
+        return list(range(9))
+
+    s = model_path.replace("/", "_").replace(".", "_")
+    ind = s.find("layer") + len("layer")
+    s = s[ind:].split("_")[0]
+    return [int(x) for x in s.split(",")]
+
 def load_extractor(fpath, category_groups=None, dims=None):
     net = 0
     state_dict = 0
