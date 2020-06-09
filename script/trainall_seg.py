@@ -103,12 +103,12 @@ class SEPGAN(SECore):
             "restaurant_lsun_256x256_proggan.pth",
             ]
         self.extractors = [
-            "linear",
+            #"linear",
             "nonlinear",
-            "generative",
+            #"generative",
             "unit",
-            "unitnorm",
-            "spherical"
+            #"unitnorm",
+            #"spherical"
         ]
         self.basecmd = "CUDA_VISIBLE_DEVICES=%s python train/extract_semantics.py --task %s --model-name proggan --extractor %s --gpu 0 --expr record/lsun --iter-num %d --load checkpoint/%s"
 
@@ -341,8 +341,8 @@ def direct_run(gpus):
 uname = subprocess.run(["uname", "-a"], capture_output=True)
 uname = uname.stdout.decode("ascii")
 if "jericho" in uname:
-    gpus = ["0"]; assign_run(SEStyleGAN2().command, gpus)
-    #gpus = ["0"]; assign_run(SEPGAN().command, gpus)
+    #gpus = ["0"]; assign_run(SEStyleGAN2().command, gpus)
+    gpus = ["0"]; assign_run(SEPGAN().command, gpus)
     #gpus = ["0"]; assign_run(SECore2().command, gpus)
     #gpus = ["0"]; assign_run(direct_run, gpus)
     #gpus = ["0"]; assign_run(SEL1PosReg().command, gpus)
