@@ -83,12 +83,24 @@ class SECore2(SECore):
 class SEPGAN(SECore):
     def __init__(self):
         self.task = [
-            "bedroom",
+            #"bedroom",
             #"celebahq"
+            "church",
+            "conferenceroom",
+            "diningroom",
+            "kitchen",
+            "livingroom",
+            "restaurant"
             ]
         self.model = [
-            "bedroom_lsun_256x256_proggan.pth",
+            #"bedroom_lsun_256x256_proggan.pth",
             #"face_celebahq_1024x1024_proggan.pth"
+            "church_lsun_256x256_proggan.pth",
+            "conferenceroom_lsun_256x256_proggan.pth",
+            "diningroom_lsun_256x256_proggan.pth",
+            "kitchen_lsun_256x256_proggan.pth",
+            "livingroom_lsun_256x256_proggan.pth",
+            "restaurant_lsun_256x256_proggan.pth",
             ]
         self.extractors = [
             "linear",
