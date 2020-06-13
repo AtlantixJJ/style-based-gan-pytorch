@@ -151,6 +151,19 @@ class StyleMod(nn.Module):
         x = x * (style[:, 0] + 1.) + style[:, 1]
         return x
 
+    def mask_latent(self, x, masks, dlatents):
+        s = 0
+        for mask, dlatent in zip(masks, dlatents):
+            # adjust mask size
+            mask = F.interpolate(mask, x.shape[3],
+                mode="bilinear", align_corners=True)
+            # style => [batch_size, n_channels*2]
+            style = self.lin(dlatent)
+            shape = [-1, 2, x.size(1)] + (x.dim() - 2) * [1]
+            # [batch_size, 2, n_channels, ...]
+            style = style.view(shape)
+            s = s + mask * (x * (style[:, 0] + 1.) + style[:, 1])
+        return s
 
 class PixelNormLayer(nn.Module):
     def __init__(self, epsilon=1e-8):
@@ -242,6 +255,7 @@ class G_mapping(nn.Sequential):
         x = x.unsqueeze(1).expand(-1, 18, -1)
         return x
 
+
 class Truncation(nn.Module):
     def __init__(self, avg_latent, max_layer=8, threshold=0.7):
         super().__init__()
@@ -272,12 +286,22 @@ class LayerEpilogue(nn.Module):
             self.style_mod = StyleMod(dlatent_size, channels, use_wscale=use_wscale)
         else:
             self.style_mod = None
+
     def forward(self, x, dlatents_in_slice=None):
         x = self.top_epi(x)
         if self.style_mod is not None:
             x = self.style_mod(x, dlatents_in_slice)
         else:
             assert dlatents_in_slice is None
+        return x
+
+    def mask_latent(self, x, masks, dlatents):
+        x = self.top_epi(x)
+        if self.style_mod is not None:
+            x = self.style_mod.mask_latent(
+                x, masks, dlatents)
+        else:
+            assert dlatents is None
         return x
 
 
@@ -328,6 +352,15 @@ class GSynthesisBlock(nn.Module):
         x = self.epi1(x, dlatents_in_range[:, 0])
         x = self.conv1(x)
         x = self.epi2(x, dlatents_in_range[:, 1])
+        return x
+
+    def mask_latent(self, x, masks, dlatents):
+        x = self.conv0_up(x)
+        x = self.epi1.mask_latent(
+            x, masks, [d[:, 0] for d in dlatents])
+        x = self.conv1(x)
+        x = self.epi2.mask_latent(
+            x, masks, [d[:, 1] for d in dlatents])
         return x
 
 
@@ -382,6 +415,21 @@ class G_synthesis(nn.Module):
         #self.torgbs.append(self.torgb)
         self.blocks = nn.ModuleDict(OrderedDict(blocks))
         
+    def mask_latent(self, masks, dlatents):
+        stage = []
+        for i, m in enumerate(self.blocks.values()):
+            if i == 0:
+                # [ERROR] The first module is not masked and uses first dlatent
+                x = m(dlatents[0][:, 2*i:2*i+2])
+            else:
+                x = m.mask_latent(
+                    x,
+                    masks,
+                    [d[:, 2*i:2*i+2] for d in dlatents])
+            stage.append(x)
+        rgb = self.torgb(x)
+        return rgb, stage
+
     def forward(self, dlatents_in):
         for i, m in enumerate(self.blocks.values()):
             if i == 0:

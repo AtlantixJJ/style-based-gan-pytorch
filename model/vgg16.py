@@ -2,7 +2,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-mean = torch.Tensor([103.939, 116.779, 123.680]).cuda().view(1, 3, 1, 1)
+try:
+    mean = torch.Tensor([103.939, 116.779, 123.680]).cuda().view(1, 3, 1, 1)
+except:
+    pass
 
 class VGG16(torch.nn.Module):
     @staticmethod

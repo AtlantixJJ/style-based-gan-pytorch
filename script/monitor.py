@@ -118,14 +118,10 @@ elif "stylegan" in args.model:
     batch_size = 1
     latent_size = 512
 elif "proggan" in args.model:
-    if "bedroom" in args.model:
-        colorizer = segviz_torch
-        task = "bedroom"
-        model_path = "checkpoint/bedroom_lsun_256x256_proggan.pth"
-    if "church" in args.model:
-        colorizer = segviz_torch
-        task = "church"
-        model_path = "checkpoint/church_lsun_256x256_proggan.pth"
+    task = utils.listkey_convert(args.model,
+        ["bedroom", "church", "conferenceroom", "diningroom", "kitchen", "livingroom", "restaurant"])
+    colorizer = segviz_torch    
+    model_path = f"checkpoint/{task}_lsun_256x256_proggan.pth"
     if "celebahq" in args.model:
         task = "celebahq"
         model_path = "checkpoint/face_celebahq_1024x1024_proggan.pth"

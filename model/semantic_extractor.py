@@ -39,7 +39,7 @@ def load_extractor(fpath, category_groups=None, dims=None):
     net = 0
     state_dict = 0
     if category_groups is None:
-        state_dict = torch.load(fpath)
+        state_dict = torch.load(fpath, map_location="cpu")
         first = list(state_dict.keys())[0]
         n_class = state_dict[first].shape[0]
         if dims is None:
