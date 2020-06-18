@@ -437,7 +437,7 @@ class UnitLinearSemanticExtractor(BaseSemanticExtractor):
                 prev = self.segments[i]
                 cur = self.segments[i+1]
                 outputs.append(F.conv2d(stage[i], w[:, prev:cur]))
-            maxsize = max([o.shape[2] for o in outputs])
+            maxsize = outputs[-1].shape[2:] # max([o.shape[2] for o in outputs])
             layers = [F.interpolate(o, size=maxsize, mode="bilinear", align_corners=True) for o in outputs]
             res = sum(layers)
             outs = []

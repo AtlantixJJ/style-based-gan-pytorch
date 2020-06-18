@@ -133,6 +133,9 @@ class NoiseLayer(nn.Module):
             # modules .noise attribute, you can have pre-defined noise.
             # Very useful for analysis
             noise = self.noise
+        if self.noise.shape[3] != x.shape[3]:
+            noise = torch.randn(x.size(0), 1, x.size(2), x.size(3), device=x.device, dtype=x.dtype)
+            self.noise = noise
         x = x + self.weight.view(1, -1, 1, 1) * noise
         return x
 
@@ -153,10 +156,14 @@ class StyleMod(nn.Module):
 
     def mask_latent(self, x, masks, dlatents):
         s = 0
+        smasks = []
         for mask, dlatent in zip(masks, dlatents):
             # adjust mask size
-            mask = F.interpolate(mask, x.shape[3],
+            mask = F.interpolate(
+                mask,
+                (x.shape[2], x.shape[3]),
                 mode="bilinear", align_corners=True)
+            smasks.append(mask)
             # style => [batch_size, n_channels*2]
             style = self.lin(dlatent)
             shape = [-1, 2, x.size(1)] + (x.dim() - 2) * [1]
@@ -164,6 +171,7 @@ class StyleMod(nn.Module):
             style = style.view(shape)
             s = s + mask * (x * (style[:, 0] + 1.) + style[:, 1])
         return s
+
 
 class PixelNormLayer(nn.Module):
     def __init__(self, epsilon=1e-8):
@@ -332,6 +340,23 @@ class InputBlock(nn.Module):
         x = self.epi2(x, dlatents_in_range[:, 1])
         return x
 
+    def mask_latent(self, masks, dlatents):
+        batch_size = dlatents[0].size(0)
+        if self.const_input_layer:
+            x = self.const.expand(batch_size, -1, -1, -1)
+            x = torch.cat([x, torch.flip(x, [3])], 3)
+            x = x + self.bias.view(1, -1, 1, 1)
+        else:
+            # not used
+            x = self.dense(dlatents[0][:, 0]).view(batch_size, self.nf, 4, 4)
+
+        x = self.epi1.mask_latent(
+            x, masks, [d[:, 0] for d in dlatents])
+        x = self.conv(x)
+        x = self.epi2.mask_latent(
+            x, masks, [d[:, 1] for d in dlatents])
+        return x
+
 
 class GSynthesisBlock(nn.Module):
     def __init__(self, in_channels, out_channels, blur_filter, dlatent_size, gain, use_wscale, use_noise, use_pixel_norm, use_instance_norm, use_styles, activation_layer):
@@ -419,8 +444,9 @@ class G_synthesis(nn.Module):
         stage = []
         for i, m in enumerate(self.blocks.values()):
             if i == 0:
-                # [ERROR] The first module is not masked and uses first dlatent
-                x = m(dlatents[0][:, 2*i:2*i+2])
+                x = m.mask_latent(
+                    masks,
+                    [d[:, 2*i:2*i+2] for d in dlatents])
             else:
                 x = m.mask_latent(
                     x,
@@ -439,7 +465,7 @@ class G_synthesis(nn.Module):
         rgb = self.torgb(x)
         return rgb
 
-    def get_stage(self, dlatents_in, detach):
+    def get_stage(self, dlatents_in, detach=False):
         stage = []
         for i, m in enumerate(self.blocks.values()):
             if i == 0:
